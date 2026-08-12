@@ -1,12 +1,14 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ece Döner | İşletme Paneli</title>
+    
+    <!-- Firebase SDK (v10 Compat) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: Arial, Helvetica, sans-serif; background: #111; color: #fff; overflow-x: hidden; }
@@ -33,13 +35,7 @@
         .orders-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #2d2d2d; }
         .orders-header h2 { font-size: 18px; color: #fff; }
         .orders-header p { font-size: 13px; color: #888; }
-        .order-filters { display: flex; gap: 8px; flex-wrap: wrap; }
-        .filter-btn { background: #252525; color: #aaa; border: 1px solid #333; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: 0.2s; }
-        .filter-btn.active, .filter-btn:hover { background: #ffc107; color: #121212; border-color: #ffc107; font-weight: 600; }
         .orders-list { display: grid; gap: 16px; }
-        .empty-orders { text-align: center; padding: 40px 20px; color: #777; }
-        .empty-icon { font-size: 40px; margin-bottom: 10px; }
-        .empty-orders h3 { color: #bbb; margin-bottom: 6px; }
     </style>
 </head>
 <body>
@@ -65,7 +61,7 @@
             </div>
         </div>
         <div class="business-status">
-            <span id="connectionDot" class="status-dot"></span>
+            <span id="connectionDot" class="status-dot online"></span>
             <span id="connectionText">Sistem Aktif</span>
         </div>
     </header>
@@ -76,7 +72,7 @@
                 <h2>Sipariş Yönetimi</h2>
                 <p>Gelen siparişleri buradan takip ve yönetebilirsiniz.</p>
             </div>
-            <button id="refreshOrders" class="refresh-btn" type="button">🔄 Yenile</button>
+            <button id="refreshOrders" class="refresh-btn" type="button" onclick="location.reload();">🔄 Yenile</button>
         </section>
 
         <section class="stats-grid">
@@ -117,17 +113,18 @@
                     <p id="orderCountText">0 sipariş</p>
                 </div>
             </div>
-            <div id="ordersList" class="orders-list">
-                <div id="emptyOrders" class="empty-orders">
-                    <div class="empty-icon">📋</div>
-                    <h3>Henüz sipariş yok</h3>
+            <!-- Siparişlerin listeleneceği ana alan -->
+            <div id="ordersContainer" class="orders-list">
+                <div class="empty-orders" style="text-align: center; padding: 40px; color: #777;">
+                    <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+                    <h3 style="color: #bbb; margin-bottom: 6px;">Henüz sipariş yok</h3>
                     <p>Müşterilerden gelen siparişler burada görünecek.</p>
                 </div>
             </div>
         </section>
     </main>
 
-    <script src="script.js"></script>
+    <!-- SCRIPT KISMI -->
     <script>
         const DOGRU_SIFRE = "ECE258025";
 
@@ -152,98 +149,94 @@
                 document.getElementById("login-overlay").style.display = "none";
             }
         };
-    </script>
-    <div id="ordersContainer"></div>
-    </script>
-    <!-- Firebase SDK'ları -->
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
 
-<script>
-    // Firebase Bağlantısı
-    const firebaseConfig = {
-      apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
-      authDomain: "ece-2e44c.firebaseapp.com",
-      projectId: "ece-2e44c",
-      storageBucket: "ece-2e44c.firebasestorage.app",
-      messagingSenderId: "937356035748",
-      appId: "1:937356035748:web:6c8f79c774f4c3c64b0831",
-      measurementId: "G-9VEVNMW5T0"
-    };
+        // Firebase Başlatma ve Canlı Sipariş Dinleyici
+        const firebaseConfig = {
+          apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+          authDomain: "ece-2e44c.firebaseapp.com",
+          projectId: "ece-2e44c",
+          storageBucket: "ece-2e44c.firebasestorage.app",
+          messagingSenderId: "937356035748",
+          appId: "1:937356035748:web:6c8f79c774f4c3c64b0831",
+          measurementId: "G-9VEVNMW5T0"
+        };
 
-    if (!firebase.apps.length) {
-        firebase.initializeApp(firebaseConfig);
-    }
-    const db = firebase.firestore();
-
-    // Siparişleri Canlı Dinle ve Panele Bas
-    db.collection("orders").onSnapshot(function(snapshot) {
-        // Sayacı güncelle (Toplam Sipariş kutusundaki 0 rakamını bulup günceller)
-        const statBoxes = document.querySelectorAll("div");
-        statBoxes.forEach(box => {
-            if (box.innerText && box.innerText.includes("Toplam Sipariş")) {
-                const numberEl = box.querySelector("span, h2, h3, p");
-                if (numberEl) numberEl.innerText = snapshot.size;
-            }
-        });
-
-        // Siparişlerin listeleneceği alanı otomatik bul
-        let container = document.querySelector("#ordersContainer");
-        if (!container) {
-            const emptyMsg = Array.from(document.querySelectorAll("p, div")).find(el => el.innerText && el.innerText.includes("Henüz sipariş yok"));
-            if (emptyMsg) {
-                container = emptyMsg.parentElement;
-                container.id = "ordersContainer";
-            }
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
         }
+        const db = firebase.firestore();
 
-        if (!container) return;
+        // Veritabanını Dinle
+        db.collection("orders").onSnapshot(function(snapshot) {
+            const container = document.querySelector("#ordersContainer");
+            const totalOrdersEl = document.querySelector("#totalOrders");
+            const newOrdersEl = document.querySelector("#newOrders");
+            const totalRevenueEl = document.querySelector("#totalRevenue");
+            const orderCountText = document.querySelector("#orderCountText");
 
-        container.innerHTML = "";
+            if (!container) return;
 
-        if (snapshot.empty) {
-            container.innerHTML = `
-                <div style="text-align: center; padding: 40px; color: #888;">
-                    <p style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">Henüz sipariş yok</p>
-                    <p style="font-size: 13px;">Müşterilerden gelen siparişler burada görünecek.</p>
-                </div>
-            `;
-            return;
-        }
+            container.innerHTML = "";
+            let totalRevenue = 0;
 
-        snapshot.forEach(function(doc) {
-            const order = doc.data();
+            if (snapshot.empty) {
+                if (totalOrdersEl) totalOrdersEl.innerText = "0";
+                if (newOrdersEl) newOrdersEl.innerText = "0";
+                if (totalRevenueEl) totalRevenueEl.innerText = "0 ₺";
+                if (orderCountText) orderCountText.innerText = "0 sipariş";
 
-            let itemsHTML = "";
-            if (order.items) {
-                order.items.forEach(item => {
-                    itemsHTML += `<li style="margin-bottom: 4px;">${item.name} (${item.quantity} adet) - <strong>${item.price * item.quantity}₺</strong></li>`;
-                });
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 40px; color: #777;">
+                        <div style="font-size: 40px; margin-bottom: 10px;">📋</div>
+                        <h3 style="color: #bbb; margin-bottom: 6px;">Henüz sipariş yok</h3>
+                        <p>Müşterilerden gelen siparişler burada görünecek.</p>
+                    </div>
+                `;
+                return;
             }
 
-            const card = document.createElement("div");
-            card.style.cssText = "background: #1e293b; color: #f8fafc; padding: 20px; margin-bottom: 15px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); text-align: left;";
-            
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 12px;">
-                    <h3 style="margin: 0; color: #38bdf8; font-size: 18px;">👤 ${order.customerName || "Müşteri"}</h3>
-                    <span style="background: #0284c7; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold;">Yeni Sipariş</span>
-                </div>
-                <p style="margin: 6px 0;"><strong>📞 Telefon:</strong> ${order.phone || "-"}</p>
-                <p style="margin: 6px 0;"><strong>💰 Toplam Tutar:</strong> <span style="color: #4ade80; font-size: 16px;">${order.total || 0}₺</span></p>
-                <div style="margin-top: 12px; background: #0f172a; padding: 10px; border-radius: 8px;">
-                    <strong style="font-size: 13px; color: #cbd5e1;">🛒 Ürünler:</strong>
-                    <ul style="margin: 5px 0 0 0; padding-left: 18px; color: #e2e8f0; font-size: 14px;">${itemsHTML}</ul>
-                </div>
-            `;
+            if (totalOrdersEl) totalOrdersEl.innerText = snapshot.size;
+            if (newOrdersEl) newOrdersEl.innerText = snapshot.size;
+            if (orderCountText) orderCountText.innerText = snapshot.size + " sipariş";
 
-            container.appendChild(card);
+            snapshot.forEach(function(doc) {
+                const order = doc.data();
+                
+                // Toplam ciro hesaplama
+                let orderTotal = 0;
+                let itemsHTML = "";
+                if (order.items) {
+                    order.items.forEach(item => {
+                        const subTotal = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+                        orderTotal += subTotal;
+                        itemsHTML += `<li style="margin-bottom: 4px;">${item.name} (${item.quantity} adet) - <strong>${subTotal}₺</strong></li>`;
+                    });
+                }
+                totalRevenue += orderTotal;
+
+                const card = document.createElement("div");
+                card.style.cssText = "background: #1e293b; color: #f8fafc; padding: 20px; margin-bottom: 15px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.3); text-align: left;";
+                
+                card.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; padding-bottom: 10px; margin-bottom: 12px;">
+                        <h3 style="margin: 0; color: #38bdf8; font-size: 18px;">👤 ${order.customerName || "Müşteri"}</h3>
+                        <span style="background: #0284c7; color: white; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: bold;">Yeni Sipariş</span>
+                    </div>
+                    <p style="margin: 6px 0;"><strong>📞 Telefon:</strong> ${order.phone || "-"}</p>
+                    <p style="margin: 6px 0;"><strong>💰 Toplam Tutar:</strong> <span style="color: #4ade80; font-size: 16px;">${orderTotal}₺</span></p>
+                    <div style="margin-top: 12px; background: #0f172a; padding: 10px; border-radius: 8px;">
+                        <strong style="font-size: 13px; color: #cbd5e1;">🛒 Ürünler:</strong>
+                        <ul style="margin: 5px 0 0 0; padding-left: 18px; color: #e2e8f0; font-size: 14px;">${itemsHTML}</ul>
+                    </div>
+                `;
+
+                container.appendChild(card);
+            });
+
+            if (totalRevenueEl) totalRevenueEl.innerText = totalRevenue + " ₺";
+        }, function(error) {
+            console.error("Firebase veri çekme hatası:", error);
         });
-    }, function(error) {
-        console.error("Firebase hata:", error);
-    });
-</script>
-
-
+    </script>
 </body>
 </html>
