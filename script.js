@@ -1487,7 +1487,4 @@ console.log(
     "QR Menü Pro Customer sistemi hazır."
 );
 
-console.log(
-    "Backend:",
-    API_URL
-);
+
