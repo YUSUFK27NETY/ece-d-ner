@@ -565,37 +565,7 @@
     ========================================== -->
 
     <script src="script.js"></script>
-<script>
-    // Belirlediğin şifre
-    const DOGRU_SIFRE = "ECE258025";
-
-    function checkPassword() {
-        const girilenSifre = document.getElementById("admin-pass").value;
-
-        if (girilenSifre === DOGRU_SIFRE) {
-            document.getElementById("login-overlay").style.display = "none";
-            // Oturumu hafızaya al, sayfa yenilense de tekrar şifre sormasın
-            sessionStorage.setItem("adminAuth", "true");
-        } else {
-            document.getElementById("error-msg").style.display = "block";
-        }
-    }
-
-    // Sayfa açıldığında daha önce giriş yapıldı mı diye kontrol et
-    window.onload = function() {
-        if (sessionStorage.getItem("adminAuth") === "true") {
-            document.getElementById("login-overlay").style.display = "none";
-        }
-    };
-</script>
 
 </body>
-<!-- GİRİŞ EKRANI -->
-<div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
-    <h2 style="margin-bottom: 20px;">🔒 İşletme Girişi</h2>
-    <input type="password" id="admin-pass" placeholder="Şifre" style="padding: 10px; border-radius: 5px; border: none; margin-bottom: 10px; width: 200px; color: black;">
-    <button onclick="checkPassword()" style="padding: 10px 20px; background: #ffd700; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; color: black;">Giriş Yap</button>
-    <p id="error-msg" style="color: red; margin-top: 10px; display: none;">Hatalı Şifre!</p>
-</div>
 
 </html>
