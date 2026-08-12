@@ -153,5 +153,49 @@
             }
         };
     </script>
-</body>
+    <div id="ordersContainer"></div>
+    </script>
+    
+</body>// Yönetici Paneli - Firebase Canlı Sipariş Dinleyici
+db.collection("orders").orderBy("createdAt", "desc").onSnapshot(function(snapshot) {
+    const ordersContainer = document.querySelector("#ordersContainer");
+    
+    if (!ordersContainer) return;
+    
+    ordersContainer.innerHTML = "";
+
+    if (snapshot.empty) {
+        ordersContainer.innerHTML = "<p style='color: white; text-align: center;'>Henüz yeni sipariş yok.</p>";
+        return;
+    }
+
+    snapshot.forEach(function(doc) {
+        const order = doc.data();
+        const date = order.createdAt ? order.createdAt.toDate().toLocaleString('tr-TR') : "Yeni";
+
+        let itemsHTML = "";
+        if (order.items) {
+            order.items.forEach(item => {
+                itemsHTML += `<li>${item.name} (${item.quantity} adet) - ${item.price * item.quantity}₺</li>`;
+            });
+        }
+
+        const orderCard = document.createElement("div");
+        orderCard.style.cssText = "background: #fff; color: #333; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.2);";
+        
+        orderCard.innerHTML = `
+            <h3 style="margin-top:0;">👤 Müşteri: ${order.customerName}</h3>
+            <p><strong>📞 Telefon:</strong> ${order.phone}</p>
+            <p><strong>📦 Sipariş Türü:</strong> ${order.orderType} ${order.tableNumber ? '- Masa: ' + order.tableNumber : ''}</p>
+            ${order.address ? `<p><strong>📍 Adres:</strong> ${order.address}</p>` : ''}
+            ${order.note ? `<p><strong>📝 Not:</strong> ${order.note}</p>` : ''}
+            <p><strong>💰 Toplam Tutar:</strong> ${order.total}₺</p>
+            <p><strong>⏰ Zaman:</strong> ${date}</p>
+            <ul style="margin-bottom:0; padding-left:20px;">${itemsHTML}</ul>
+        `;
+
+        ordersContainer.appendChild(orderCard);
+    });
+});
+
 </html>
