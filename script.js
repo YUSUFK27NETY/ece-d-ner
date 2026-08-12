@@ -1099,49 +1099,35 @@ if (orderForm) {
             // BACKEND'E GÖNDER
             // ==================================
 
-            try {
+              try {
+        await db.collection("orders").add({
+            customerName: customerName,
+            phone: customerPhone,
+            orderType: orderType,
+            address: orderAddress,
+            note: orderNote,
+            tableNumber: tableNumber,
+            items: cart.map(item => ({
+                name: item.name,
+                price: Number(item.price),
+                quantity: Number(item.quantity)
+            })),
+            total: total,
+            status: "new",
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
 
-                const response =
-                    await fetch(
-                        API_URL,
-                        {
-                            method:
-                                "POST",
+        showToast("Sipariş başarıyla alındı ve yönetici paneline iletildi! 🚀");
 
-                            headers: {
+        cart = [];
+        updateCart();
+        if (orderForm) orderForm.reset();
+        if (orderModal) orderModal.classList.remove("show");
 
-                                "Content-Type":
-                                    "application/json"
-
-                            },
-
-                            body:
-                                JSON.stringify(
-                                    orderData
-                                )
-
-                        }
-                    );
-
-
-                const data =
-                    await response.json();
-
-
-                if (!response.ok) {
-
-                    throw new Error(
-                        data.message ||
-                        "Sipariş gönderilemedi."
-                    );
-
-                }
-
-
-                console.log(
-                    "Backend siparişi:",
-                    data
-                );
+    } catch (error) {
+        console.error("Sipariş hatası:", error);
+        showToast("Sipariş gönderilemedi.");
+    }
 
 
                 // ==================================
