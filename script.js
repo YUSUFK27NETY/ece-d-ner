@@ -11,7 +11,7 @@
 // AYARLAR
 // ==========================================
 
-const API_URL = "http://192.168.2.100:3000/api/orders";
+const API_URL = "https://ece-d-ner.onrender.com/api/orders";
 
 
 // ==========================================
