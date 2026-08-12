@@ -1,13 +1,9 @@
 /* =========================================
    QR MENÜ PRO - ECE DÖNER
-   STYLE.CSS
-   TEMİZ SÜRÜM
+   BİRLEŞTİRİLMİŞ STYLE.CSS (MÜŞTERİ + ADMIN)
 ========================================= */
 
-/* =========================================
-   TEMEL
-========================================= */
-
+/* TEMEL */
 * {
     margin: 0;
     padding: 0;
@@ -49,26 +45,20 @@ button:active {
 
 
 /* =========================================
-   ÜST MENÜ
+   ÜST MENÜ (MÜŞTERİ)
 ========================================= */
 
 .topbar {
     position: sticky;
     top: 0;
     z-index: 999;
-
     width: 100%;
-
     display: flex;
     align-items: center;
     justify-content: space-between;
-
     padding: 12px 16px;
-
     background: rgba(17, 17, 17, 0.96);
-
     border-bottom: 1px solid #333;
-
     backdrop-filter: blur(10px);
 }
 
@@ -81,9 +71,7 @@ button:active {
 .brand img {
     width: 42px;
     height: 42px;
-
     object-fit: cover;
-
     border-radius: 50%;
 }
 
@@ -96,7 +84,6 @@ button:active {
     display: flex;
     align-items: center;
     gap: 5px;
-
     color: #fff;
     font-size: 21px;
     font-weight: bold;
@@ -109,56 +96,42 @@ button:active {
 
 .hero {
     position: relative;
-
     min-height: 70vh;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     padding: 40px 20px;
-
     text-align: center;
-
-    background:
-        url("../assets/images/hero.jpg")
-        center / cover no-repeat;
+    background: url("../assets/images/hero.jpg") center / cover no-repeat;
 }
 
 .overlay {
     position: absolute;
     inset: 0;
-
     background: rgba(0, 0, 0, 0.65);
 }
 
 .hero-content {
     position: relative;
     z-index: 2;
-
     width: 100%;
 }
 
 .logo {
     width: 105px;
-
     margin: 0 auto 20px;
-
     border-radius: 50%;
 }
 
 .hero h1 {
     margin-bottom: 10px;
-
     color: #ffd700;
-
     font-size: 42px;
     line-height: 1.1;
 }
 
 .hero p {
     color: #eee;
-
     font-size: 19px;
 }
 
@@ -166,11 +139,8 @@ button:active {
     display: flex;
     align-items: center;
     justify-content: center;
-
     gap: 15px;
-
     margin-top: 20px;
-
     font-size: 15px;
 }
 
@@ -183,31 +153,23 @@ button:active {
     display: flex;
     flex-direction: column;
     gap: 12px;
-
     max-width: 700px;
-
     margin: 0 auto;
-
     padding: 20px;
 }
 
 .home-buttons button {
     width: 100%;
-
     padding: 16px;
-
     border-radius: 14px;
-
     background: #ffd700;
     color: #111;
-
     font-size: 17px;
     font-weight: bold;
 }
 
 .home-buttons button:hover {
     background: #fff;
-
     transform: translateY(-2px);
 }
 
@@ -222,20 +184,15 @@ button:active {
 
 .categories-section h2 {
     padding: 0 20px 15px;
-
     color: #ffd700;
-
     font-size: 24px;
 }
 
 .categories {
     display: flex;
     gap: 10px;
-
     padding: 0 20px 15px;
-
     overflow-x: auto;
-
     scrollbar-width: none;
 }
 
@@ -245,15 +202,10 @@ button:active {
 
 .categories button {
     flex-shrink: 0;
-
     padding: 11px 18px;
-
     border-radius: 30px;
-
     background: #222;
-
     color: #fff;
-
     font-size: 14px;
 }
 
@@ -277,19 +229,12 @@ button:active {
 
 .search-area input {
     width: 100%;
-
     padding: 15px 18px;
-
     border: 1px solid #333;
-
     border-radius: 14px;
-
     outline: none;
-
     background: #1c1c1c;
-
     color: #fff;
-
     font-size: 16px;
 }
 
@@ -299,7 +244,6 @@ button:active {
 
 .search-area input:focus {
     border-color: #ffd700;
-
     box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.08);
 }
 
@@ -314,19 +258,14 @@ button:active {
 
 .menu-section > h2 {
     margin-bottom: 20px;
-
     color: #ffd700;
-
     text-align: center;
-
     font-size: 26px;
 }
 
 .menu-grid {
     display: grid;
-
     grid-template-columns: 1fr;
-
     gap: 20px;
 }
 
@@ -337,25 +276,17 @@ button:active {
 
 .card {
     position: relative;
-
     overflow: hidden;
-
     background: #1b1b1b;
-
     border: 1px solid #292929;
-
     border-radius: 18px;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.3);
-
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
     animation: cardAppear 0.5s ease;
 }
 
 .card > img {
     width: 100%;
     height: 220px;
-
     object-fit: cover;
 }
 
@@ -365,73 +296,48 @@ button:active {
 
 .card h3 {
     padding: 12px 15px 5px;
-
     color: #ffd700;
-
     font-size: 21px;
 }
 
 .card p {
     padding: 0 15px;
-
     color: #bbb;
-
     font-size: 14px;
-
     line-height: 1.5;
 }
 
 
 /* =========================================
-   İNDİRİM ROZETİ
+   İNDİRİM ROZETİ & FAVORİ
 ========================================= */
 
 .badge {
     position: absolute;
-
     top: 12px;
     left: 12px;
-
     z-index: 5;
-
     padding: 7px 12px;
-
     border-radius: 20px;
-
     background: #e53935;
-
     color: #fff;
-
     font-size: 12px;
     font-weight: bold;
 }
 
-
-/* =========================================
-   FAVORİ
-========================================= */
-
 .favorite {
     position: absolute;
-
     top: 12px;
     right: 12px;
-
     z-index: 5;
-
     width: 42px;
     height: 42px;
-
     display: flex;
     align-items: center;
     justify-content: center;
-
     padding: 0;
-
     border-radius: 50%;
-
     background: rgba(255, 255, 255, 0.95);
-
     font-size: 20px;
 }
 
@@ -441,7 +347,6 @@ button:active {
 
 .favorite.active {
     background: #ff1744;
-
     color: #fff;
 }
 
@@ -454,28 +359,21 @@ button:active {
     display: flex;
     align-items: center;
     justify-content: space-between;
-
     gap: 10px;
-
     padding: 15px;
 }
 
 .price {
     color: #fff;
-
     font-size: 21px;
     font-weight: bold;
 }
 
 .addCart {
     padding: 12px 15px;
-
     border-radius: 12px;
-
     background: #ffd700;
-
     color: #111;
-
     font-size: 14px;
     font-weight: bold;
 }
@@ -491,68 +389,49 @@ button:active {
 
 .cart-box {
     margin: 20px;
-
     padding: 20px;
-
     background: #1b1b1b;
-
     border: 1px solid #292929;
-
     border-radius: 18px;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.25);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
 }
 
 .cart-box h2 {
     margin-bottom: 15px;
-
     color: #ffd700;
-
     font-size: 23px;
 }
 
 #cartItems {
     list-style: none;
-
     margin-bottom: 15px;
 }
 
 #cartItems li {
     padding: 12px 0;
-
     border-bottom: 1px solid #333;
-
     color: #ddd;
 }
 
 .cart-item {
     display: flex;
-
     align-items: center;
     justify-content: space-between;
-
     gap: 15px;
 }
 
 .cart-controls {
     display: flex;
-
     align-items: center;
-
     gap: 8px;
 }
 
 .cart-controls button {
     width: 34px;
     height: 34px;
-
     border-radius: 8px;
-
     background: #292929;
-
     color: #fff;
-
     font-size: 18px;
 }
 
@@ -566,23 +445,16 @@ button:active {
 
 #totalPrice {
     margin: 20px 0;
-
     color: #fff;
-
     font-size: 20px;
 }
 
 #finishOrder {
     width: 100%;
-
     padding: 16px;
-
     border-radius: 13px;
-
     background: #ffd700;
-
     color: #111;
-
     font-size: 17px;
     font-weight: bold;
 }
@@ -593,547 +465,515 @@ button:active {
 
 
 /* =========================================
-   TOAST
+   YÖNETİCİ PANELİ (ADMIN PANEL) STİLLERİ
 ========================================= */
 
-#toast {
-    position: fixed;
-
-    left: 50%;
-    bottom: -100px;
-
-    z-index: 99999;
-
-    transform: translateX(-50%);
-
-    width: calc(100% - 40px);
-    max-width: 400px;
-
-    padding: 15px 20px;
-
-    border-radius: 14px;
-
-    background: #16a34a;
-
-    color: #fff;
-
-    text-align: center;
-
-    font-size: 15px;
-    font-weight: bold;
-
-    box-shadow:
-        0 8px 25px rgba(0, 0, 0, 0.4);
-
-    transition: bottom 0.4s ease;
-}
-
-#toast.show {
-    bottom: 25px;
-}
-
-
-/* =========================================
-   SİPARİŞ MODALI
-========================================= */
-
-.order-modal {
-    position: fixed;
-
-    inset: 0;
-
-    z-index: 10000;
-
-    display: none;
-
+.business-header {
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #2d2d2d;
+    padding: 16px 24px;
+    display: flex;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-
-    padding: 15px;
-
-    background: rgba(0, 0, 0, 0.78);
-
-    backdrop-filter: blur(8px);
-
-    overflow-y: auto;
+    position: sticky;
+    top: 0;
+    z-index: 100;
 }
 
-.order-modal.show {
+.business-brand {
     display: flex;
+    align-items: center;
+    gap: 12px;
 }
 
-
-/* =========================================
-   MODAL İÇERİĞİ
-========================================= */
-
-.order-modal-content {
-    position: relative;
-
-    width: 100%;
-    max-width: 500px;
-
-    max-height: 92vh;
-
-    overflow-y: auto;
-
-    padding: 25px 20px;
-
-    background: #181818;
-
-    border: 1px solid #333;
-
-    border-radius: 22px;
-
-    box-shadow:
-        0 20px 60px rgba(0, 0, 0, 0.6);
-
-    animation: orderModalOpen 0.3s ease;
-}
-
-@keyframes orderModalOpen {
-    from {
-        opacity: 0;
-
-        transform:
-            translateY(30px)
-            scale(0.96);
-    }
-
-    to {
-        opacity: 1;
-
-        transform:
-            translateY(0)
-            scale(1);
-    }
-}
-
-
-/* =========================================
-   MODAL KAPAT
-========================================= */
-
-.close-order-modal {
-    position: absolute;
-
-    top: 12px;
-    right: 12px;
-
-    width: 42px;
-    height: 42px;
-
-    border-radius: 50%;
-
-    background: #292929;
-
-    color: #fff;
-
+.business-logo {
     font-size: 28px;
-
-    line-height: 1;
+    background: #2d2d2d;
+    padding: 8px;
+    border-radius: 12px;
 }
 
-.close-order-modal:hover {
-    background: #e53935;
+.business-brand h1 {
+    font-size: 18px;
+    color: #ffffff;
+    font-weight: 700;
 }
 
-
-/* =========================================
-   MODAL BAŞLIK
-========================================= */
-
-.order-modal-content h2 {
-    padding-right: 45px;
-
-    margin-bottom: 8px;
-
-    color: #ffd700;
-
-    font-size: 25px;
+.business-brand span {
+    font-size: 12px;
+    color: #888;
 }
 
-.order-subtitle {
-    margin-bottom: 20px;
-
-    color: #aaa;
-
-    font-size: 14px;
-
-    line-height: 1.5;
-}
-
-
-/* =========================================
-   SİPARİŞ ÖZETİ
-========================================= */
-
-.order-summary {
-    margin-bottom: 20px;
-
-    padding: 16px;
-
-    background: #111;
-
-    border: 1px solid #292929;
-
-    border-radius: 15px;
-}
-
-.order-summary h3 {
-    margin-bottom: 12px;
-
-    color: #ffd700;
-
-    font-size: 17px;
-}
-
-#orderSummaryItems {
+.business-status {
     display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    background: #252525;
+    padding: 6px 12px;
+    border-radius: 20px;
+}
 
-    flex-direction: column;
+.status-dot {
+    width: 10px;
+    height: 10px;
+    background-color: #ff5252;
+    border-radius: 50%;
+    display: inline-block;
+}
 
-    gap: 0;
+.status-dot.online {
+    background-color: #4caf50;
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.5);
+}
 
+.business-container {
+    max-width: 1200px;
+    margin: 24px auto;
+    padding: 0 16px;
+}
+
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    background: #1e1e1e;
+    padding: 20px;
+    border-radius: 14px;
+    border: 1px solid #2d2d2d;
+}
+
+.dashboard-header h2 {
+    font-size: 20px;
+    color: #fff;
+    margin-bottom: 4px;
+}
+
+.dashboard-header p {
+    font-size: 14px;
+    color: #999;
+}
+
+.refresh-btn {
+    background-color: #2e382e;
+    color: #4caf50;
+    border: 1px solid #4caf50;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.refresh-btn:hover {
+    background-color: #4caf50;
+    color: #fff;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.stat-card {
+    background: #1e1e1e;
+    border: 1px solid #2d2d2d;
+    padding: 20px;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.stat-icon {
+    font-size: 32px;
+    background: #252525;
+    padding: 12px;
+    border-radius: 10px;
+}
+
+.stat-info span {
+    font-size: 13px;
+    color: #888;
+    display: block;
+}
+
+.stat-info strong {
+    font-size: 22px;
+    color: #fff;
+}
+
+.orders-section {
+    background: #1e1e1e;
+    border: 1px solid #2d2d2d;
+    border-radius: 14px;
+    padding: 20px;
+    margin-bottom: 24px;
+}
+
+.orders-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 16px;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #2d2d2d;
+}
+
+.orders-header h2 {
+    font-size: 18px;
+    color: #fff;
+}
+
+.orders-header p {
+    font-size: 13px;
+    color: #888;
+}
+
+.order-filters {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.filter-btn {
+    background: #252525;
+    color: #aaa;
+    border: 1px solid #333;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.filter-btn.active, .filter-btn:hover {
+    background: #ffc107;
+    color: #121212;
+    border-color: #ffc107;
+    font-weight: 600;
+}
+
+.orders-list {
+    display: grid;
+    gap: 16px;
+}
+
+.order-card {
+    background: #252525;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.order-card:hover {
+    border-color: #555;
+}
+
+.order-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 12px;
+}
+
+.order-number {
+    font-size: 12px;
+    color: #ffc107;
+    font-weight: 700;
+}
+
+.order-card-header h3 {
+    font-size: 16px;
+    color: #fff;
+}
+
+.order-status {
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.status-new { background: rgba(33, 150, 243, 0.2); color: #64b5f6; }
+.status-preparing { background: rgba(255, 152, 0, 0.2); color: #ffb74d; }
+.status-ready { background: rgba(76, 175, 80, 0.2); color: #81c784; }
+.status-completed { background: rgba(158, 158, 158, 0.2); color: #e0e0e0; }
+
+.order-card-body {
+    font-size: 13px;
+    color: #aaa;
+}
+
+.order-card-info {
+    display: flex;
+    gap: 16px;
     margin-bottom: 10px;
 }
 
-.summary-item {
-    display: flex;
+.order-card-items {
+    background: #1e1e1e;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
 
-    align-items: center;
+.preview-item {
+    color: #ddd;
+}
+
+.preview-more {
+    color: #777;
+    font-style: italic;
+    font-size: 12px;
+    margin-top: 4px;
+}
+
+.order-card-footer {
+    display: flex;
     justify-content: space-between;
-
-    gap: 10px;
-
-    padding: 10px 0;
-
-    border-bottom: 1px solid #292929;
-
-    color: #ddd;
-
-    font-size: 14px;
+    align-items: center;
+    border-top: 1px solid #333;
+    padding-top: 10px;
 }
 
-.summary-item:last-child {
-    border-bottom: none;
-}
-
-.summary-item strong {
-    color: #ffd700;
-
-    white-space: nowrap;
-}
-
-.order-summary-total {
-    margin-top: 15px;
-
-    padding-top: 15px;
-
-    border-top: 1px solid #444;
-
-    color: #fff;
-
-    font-size: 19px;
-    font-weight: bold;
-
-    text-align: right;
-}
-
-
-/* =========================================
-   SİPARİŞ FORMU
-========================================= */
-
-#orderForm {
-    display: flex;
-
-    flex-direction: column;
-
-    gap: 9px;
-}
-
-#orderForm label {
-    margin-top: 7px;
-
-    color: #ddd;
-
-    font-size: 14px;
-    font-weight: bold;
-}
-
-#orderForm input,
-#orderForm select,
-#orderForm textarea {
-    width: 100%;
-
-    padding: 14px;
-
-    border: 1px solid #333;
-
-    border-radius: 12px;
-
-    outline: none;
-
-    background: #222;
-
-    color: #fff;
-
-    font-family: inherit;
-
-    font-size: 15px;
-}
-
-#orderForm input:focus,
-#orderForm select:focus,
-#orderForm textarea:focus {
-    border-color: #ffd700;
-
-    box-shadow:
-        0 0 0 2px
-        rgba(255, 215, 0, 0.08);
-}
-
-#orderForm textarea {
-    resize: vertical;
-
-    min-height: 80px;
-}
-
-#orderForm select {
-    appearance: auto;
-}
-
-
-/* =========================================
-   WHATSAPP BUTONU
-========================================= */
-
-.send-order-btn {
-    width: 100%;
-
-    margin-top: 15px;
-
-    padding: 17px;
-
-    border-radius: 14px;
-
-    background: #25d366;
-
-    color: #fff;
-
+.order-card-total {
     font-size: 16px;
-    font-weight: bold;
+    color: #4caf50;
 }
 
-.send-order-btn:hover {
-    background: #1ebe5d;
-
-    transform: translateY(-2px);
+.view-order-btn {
+    background: #333;
+    color: #fff;
+    border: none;
+    padding: 6px 12px;
+    border-radius: 6px;
+    cursor: pointer;
 }
 
-
-/* =========================================
-   KART ANİMASYONU
-========================================= */
-
-@keyframes cardAppear {
-    from {
-        opacity: 0;
-
-        transform: translateY(20px);
-    }
-
-    to {
-        opacity: 1;
-
-        transform: translateY(0);
-    }
+.view-order-btn:hover {
+    background: #444;
 }
 
-
-/* =========================================
-   TABLET
-========================================= */
-
-@media (min-width: 600px) {
-
-    .menu-grid {
-        grid-template-columns:
-            repeat(2, 1fr);
-    }
-
-    .menu-section {
-        max-width: 1100px;
-
-        margin: auto;
-    }
-
-    .cart-box {
-        max-width: 1060px;
-
-        margin:
-            20px auto;
-    }
+.empty-orders {
+    text-align: center;
+    padding: 40px 20px;
+    color: #777;
 }
 
-
-/* =========================================
-   MASAÜSTÜ
-========================================= */
-
-@media (min-width: 900px) {
-
-    .hero {
-        min-height: 75vh;
-    }
-
-    .hero h1 {
-        font-size: 55px;
-    }
-
-    .hero p {
-        font-size: 22px;
-    }
-
-    .menu-grid {
-        grid-template-columns:
-            repeat(3, 1fr);
-    }
-
-    .home-buttons {
-        flex-direction: row;
-
-        max-width: 1000px;
-    }
-
-    .home-buttons button {
-        flex: 1;
-    }
+.empty-icon {
+    font-size: 40px;
+    margin-bottom: 10px;
 }
 
-
-/* =========================================
-   TELEFON
-========================================= */
-
-@media (max-width: 480px) {
-
-    .topbar {
-        padding: 10px 14px;
-    }
-
-    .brand h2 {
-        font-size: 17px;
-    }
-
-    .brand img {
-        width: 38px;
-        height: 38px;
-    }
-
-    .hero {
-        min-height: 62vh;
-
-        padding: 30px 15px;
-    }
-
-    .logo {
-        width: 85px;
-    }
-
-    .hero h1 {
-        font-size: 32px;
-    }
-
-    .hero p {
-        font-size: 16px;
-    }
-
-    .status {
-        gap: 8px;
-    }
-
-    .card > img {
-        height: 200px;
-    }
-
-    .card-footer {
-        align-items: stretch;
-    }
-
-    .addCart {
-        padding: 11px 13px;
-    }
-
-    .cart-item {
-        align-items: flex-start;
-
-        flex-direction: column;
-    }
-
-    .cart-controls {
-        width: 100%;
-    }
-
-    .cart-controls button {
-        width: 38px;
-        height: 38px;
-    }
-
-    /* MODAL */
-
-    .order-modal {
-        align-items: flex-end;
-
-        padding: 0;
-    }
-
-    .order-modal-content {
-        max-height: 94vh;
-
-        padding: 22px 16px;
-
-        border-radius:
-            22px 22px 0 0;
-    }
-
-    .order-modal-content h2 {
-        font-size: 22px;
-    }
-
-    #orderForm input,
-    #orderForm select,
-    #orderForm textarea {
-        padding: 13px;
-
-        font-size: 16px;
-    }
-
-    .send-order-btn {
-        padding: 16px;
-
-        font-size: 16px;
-    }
+.empty-orders h3 {
+    color: #bbb;
+    margin-bottom: 6px;
 }
 
+.system-info {
+    background: #1e1e1e;
+    border: 1px solid #2d2d2d;
+    border-radius: 14px;
+    padding: 16px;
+}
 
-/* =========================================
-   KÜÇÜK TELEFON
-========================================= */
+.info-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+}
 
-@media (max-width: 360px) {
+.info-icon {
+    font-size: 20px;
+}
 
-    .hero h1 {
-        font-size: 28px;
-    }
+.info-card strong {
+    color: #fff;
+    display: block;
+    margin-bottom: 2px;
+}
 
-    .card-footer {
-        flex-direction: column;
-    }
+.info-card p {
+    color: #888;
+}
 
-    .addCart {
-            width: 100%;
-    }
+/* MODAL & TOAST */
+.order-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    pointer-events: none;
+    transition: 0.2s;
+}
 
+.order-modal.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.order-modal-content {
+    background: #1e1e1e;
+    border: 1px solid #333;
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    background: #2d2d2d;
+    color: #fff;
+    border: none;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 18px;
+    cursor: pointer;
+}
+
+.modal-header {
+    margin-bottom: 20px;
+}
+
+.modal-label {
+    font-size: 12px;
+    color: #ffc107;
+    font-weight: 700;
+}
+
+.modal-header h2 {
+    color: #fff;
+    font-size: 20px;
+}
+
+.customer-info, .modal-products, .modal-note, .status-actions {
+    background: #252525;
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 14px;
+    font-size: 13px;
+}
+
+.customer-info h3, .modal-products h3, .modal-note h3, .status-actions h3 {
+    font-size: 14px;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.customer-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 0;
+    border-bottom: 1px solid #333;
+}
+
+.customer-row span {
+    color: #888;
+}
+
+.customer-row strong {
+    color: #fff;
+}
+
+.modal-product-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid #333;
+    color: #ddd;
+}
+
+.modal-total {
+    display: flex;
+    justify-content: space-between;
+    font-size: 18px;
+    background: #2e382e;
+    padding: 12px 16px;
+    border-radius: 8px;
+    color: #4caf50;
+    margin-bottom: 16px;
+}
+
+.status-buttons {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.status-btn {
+    background: #333;
+    color: #aaa;
+    border: 1px solid #444;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.status-btn.active {
+    background: #ffc107;
+    color: #121212;
+    border-color: #ffc107;
+    font-weight: 600;
+}
+
+.delete-order-btn {
+    width: 100%;
+    background: rgba(244, 67, 54, 0.2);
+    color: #f44336;
+    border: 1px solid #f44336;
+    padding: 12px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s;
+}
+
+.delete-order-btn:hover {
+    background: #f44336;
+    color: #fff;
+}
+
+.business-toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(100px);
+    background: #333;
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 30px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    transition: 0.3s;
+    z-index: 2000;
+    font-size: 14px;
+}
+
+.business-toast.show {
+    transform: translateX(-50%) translateY(0);
+    background: #4caf50;
 }
