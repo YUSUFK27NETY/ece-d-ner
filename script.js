@@ -11,7 +11,22 @@
 // AYARLAR
 // ==========================================
 
-const API_URL = "https://ece-d-ner.onrender.com/api/orders";
+// =========================================
+// FİREBASE BAŞLATMA
+// =========================================
+const firebaseConfig = {
+  apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+  authDomain: "ece-2e44c.firebaseapp.com",
+  projectId: "ece-2e44c",
+  storageBucket: "ece-2e44c.firebasestorage.app",
+  messagingSenderId: "937356035748",
+  appId: "1:937356035748:web:6c8f79c774f4c3c64b0831",
+  measurementId: "G-9VEVNMW5T0"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
 
 
 // ==========================================
