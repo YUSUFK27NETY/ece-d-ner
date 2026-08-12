@@ -286,7 +286,6 @@ document.addEventListener("keydown", function (event) {
         if (orderModal) orderModal.classList.remove("show");
     }
 });
-
 // ==========================================
 // SİPARİŞ GÖNDER (FİREBASE + WHATSAPP)
 // ==========================================
@@ -294,12 +293,19 @@ if (orderForm) {
     orderForm.addEventListener("submit", async function (event) {
         event.preventDefault();
 
-        const customerName = document.querySelector("#customerName")?.value.trim() || "";
-        const customerPhone = document.querySelector("#customerPhone")?.value.trim() || "";
-        const orderType = document.querySelector("#orderType")?.value || "Paket Servis";
-        const tableNumber = document.querySelector("#tableNumber")?.value.trim() || "";
-        const orderAddress = document.querySelector("#orderAddress")?.value.trim() || "";
-        const orderNote = document.querySelector("#orderNote")?.value.trim() || "";
+        const nameEl = document.querySelector("#customerName");
+        const phoneEl = document.querySelector("#customerPhone");
+        const typeEl = document.querySelector("#orderType");
+        const tableEl = document.querySelector("#tableNumber");
+        const addressEl = document.querySelector("#orderAddress");
+        const noteEl = document.querySelector("#orderNote");
+
+        const customerName = nameEl ? nameEl.value.trim() : "";
+        const customerPhone = phoneEl ? phoneEl.value.trim() : "";
+        const orderType = typeEl ? typeEl.value : "Paket Servis";
+        const tableNumber = tableEl ? tableEl.value.trim() : "";
+        const orderAddress = addressEl ? addressEl.value.trim() : "";
+        const orderNote = noteEl ? noteEl.value.trim() : "";
 
         if (!customerName || !customerPhone) {
             showToast("Lütfen ad soyad ve telefon bilgilerini doldurun.");
@@ -312,9 +318,9 @@ if (orderForm) {
         }
 
         let total = 0;
-        cart.forEach(function (item) {
-            total += Number(item.price) * Number(item.quantity);
-        });
+        for (let i = 0; i < cart.length; i++) {
+            total += Number(cart[i].price) * Number(cart[i].quantity);
+        }
 
         const submitButton = orderForm.querySelector('button[type="submit"]');
         const oldButtonText = submitButton ? submitButton.innerText : "";
@@ -325,6 +331,15 @@ if (orderForm) {
         }
 
         try {
+            const mappedItems = [];
+            for (let i = 0; i < cart.length; i++) {
+                mappedItems.push({
+                    name: cart[i].name,
+                    price: Number(cart[i].price),
+                    quantity: Number(cart[i].quantity)
+                });
+            }
+
             // Firebase'e Kaydet
             await db.collection("orders").add({
                 customerName: customerName,
@@ -333,11 +348,7 @@ if (orderForm) {
                 address: orderAddress,
                 note: orderNote,
                 tableNumber: tableNumber,
-                items: cart.map(item => ({
-                    name: item.name,
-                    price: Number(item.price),
-                    quantity: Number(item.quantity)
-                })),
+                items: mappedItems,
                 total: total,
                 status: "new",
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -352,9 +363,9 @@ if (orderForm) {
             if (orderAddress) message += "📍 Adres: " + orderAddress + "\n";
             message += "\n🛒 SİPARİŞLER\n";
 
-            cart.forEach(function (item) {
-                message += "• " + item.name + " x" + item.quantity + " = " + (Number(item.price) * Number(item.quantity)) + "₺\n";
-            });
+            for (let i = 0; i < cart.length; i++) {
+                message += "• " + cart[i].name + " x" + cart[i].quantity + " = " + (Number(cart[i].price) * Number(cart[i].quantity)) + "₺\n";
+            }
 
             message += "\n💰 TOPLAM: " + total + "₺";
             if (orderNote) message += "\n\n📝 Not: " + orderNote;
