@@ -81,3 +81,20 @@ document.querySelectorAll(".addCart").forEach(btn => {
         alert("Eklendi!");
     });
 });
+
+document.addEventListener("DOMContentLoaded", function() {
+    const finishOrderBtn = document.querySelector("#finishOrder");
+    const orderModal = document.querySelector("#orderModal");
+
+    if (finishOrderBtn) {
+        finishOrderBtn.addEventListener("click", function() {
+            if (cart.length === 0) {
+                alert("Sepetiniz boş 🛒");
+                return;
+            }
+            if (orderModal) {
+                orderModal.classList.add("show");
+            }
+        });
+    }
+});
