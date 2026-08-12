@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="tr">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111111"
+    >
+
+    <meta
+        name="description"
+        content="Ece Döner işletme sipariş yönetim paneli"
+    >
+
+    <title>Ece Döner | İşletme Paneli</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <!-- =========================================
+         ÜST MENÜ
+    ========================================== -->
+
+    <header class="business-header">
+
+        <div class="business-brand">
+
+            <div class="business-logo">
+                🍽️
+            </div>
+
+            <div>
+                <h1>Ece Döner</h1>
+                <span>İşletme Paneli</span>
+            </div>
+
+        </div>
+
+        <div class="business-status">
+
+            <span
+                id="connectionDot"
+                class="status-dot"
+            ></span>
+
+            <span id="connectionText">
+                Sistem Aktif
+            </span>
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================================
+         ANA İÇERİK
+    ========================================== -->
+
+    <main class="business-container">
+
+
+        <!-- =====================================
+             PANEL BAŞLIĞI
+        ====================================== -->
+
+        <section class="dashboard-header">
+
+            <div>
+
+                <h2>Sipariş Yönetimi</h2>
+
+                <p>
+                    Gelen siparişleri buradan takip
+                    ve yönetebilirsiniz.
+                </p>
+
+            </div>
+
+            <button
+                id="refreshOrders"
+                class="refresh-btn"
+                type="button"
+            >
+                🔄 Yenile
+            </button>
+
+        </section>
+
+
+        <!-- =====================================
+             İSTATİSTİKLER
+        ====================================== -->
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🛒
+                </div>
+
+                <div class="stat-info">
+
+                    <span>
+                        Toplam Sipariş
+                    </span>
+
+                    <strong id="totalOrders">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🆕
+                </div>
+
+                <div class="stat-info">
+
+                    <span>
+                        Yeni Sipariş
+                    </span>
+
+                    <strong id="newOrders">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    👨‍🍳
+                </div>
+
+                <div class="stat-info">
+
+                    <span>
+                        Hazırlanıyor
+                    </span>
+
+                    <strong id="preparingOrders">
+                        0
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    💰
+                </div>
+
+                <div class="stat-info">
+
+                    <span>
+                        Toplam Ciro
+                    </span>
+
+                    <strong id="totalRevenue">
+                        0 ₺
+                    </strong>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================
+             FİLTRELER
+        ====================================== -->
+
+        <section class="orders-section">
+
+            <div class="orders-header">
+
+                <div>
+
+                    <h2>
+                        Siparişler
+                    </h2>
+
+                    <p id="orderCountText">
+                        0 sipariş
+                    </p>
+
+                </div>
+
+
+                <div class="order-filters">
+
+                    <button
+                        type="button"
+                        class="filter-btn active"
+                        data-filter="all"
+                    >
+                        Tümü
+                    </button>
+
+                    <button
+                        type="button"
+                        class="filter-btn"
+                        data-filter="new"
+                    >
+                        Yeni
+                    </button>
+
+                    <button
+                        type="button"
+                        class="filter-btn"
+                        data-filter="preparing"
+                    >
+                        Hazırlanıyor
+                    </button>
+
+                    <button
+                        type="button"
+                        class="filter-btn"
+                        data-filter="ready"
+                    >
+                        Hazır
+                    </button>
+
+                    <button
+                        type="button"
+                        class="filter-btn"
+                        data-filter="completed"
+                    >
+                        Tamamlandı
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================
+                 SİPARİŞ LİSTESİ
+            ================================== -->
+
+            <div
+                id="ordersList"
+                class="orders-list"
+            >
+
+                <!-- Siparişler JavaScript ile buraya gelecek -->
+
+                <div
+                    id="emptyOrders"
+                    class="empty-orders"
+                >
+
+                    <div class="empty-icon">
+                        📋
+                    </div>
+
+                    <h3>
+                        Henüz sipariş yok
+                    </h3>
+
+                    <p>
+                        Müşterilerden gelen siparişler
+                        burada görünecek.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- =====================================
+             SİSTEM BİLGİSİ
+        ====================================== -->
+
+        <section class="system-info">
+
+            <div class="info-card">
+
+                <span class="info-icon">
+                    ℹ️
+                </span>
+
+                <div>
+
+                    <strong>
+                        Sistem Durumu
+                    </strong>
+
+                    <p id="systemMessage">
+                        Sipariş sistemi hazır.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- =========================================
+         SİPARİŞ DETAY MODALI
+    ========================================== -->
+
+    <div
+        id="orderModal"
+        class="order-modal"
+        aria-hidden="true"
+    >
+
+        <div class="order-modal-content">
+
+            <button
+                id="closeOrderModal"
+                class="close-modal-btn"
+                type="button"
+                aria-label="Kapat"
+            >
+                ×
+            </button>
+
+
+            <div class="modal-header">
+
+                <div>
+
+                    <span class="modal-label">
+                        Sipariş Detayı
+                    </span>
+
+                    <h2 id="modalOrderNumber">
+                        Sipariş
+                    </h2>
+
+                </div>
+
+                <span
+                    id="modalOrderStatus"
+                    class="order-status"
+                >
+                    Yeni
+                </span>
+
+            </div>
+
+
+            <!-- MÜŞTERİ BİLGİLERİ -->
+
+            <div class="customer-info">
+
+                <h3>
+                    👤 Müşteri Bilgileri
+                </h3>
+
+                <div class="customer-row">
+
+                    <span>
+                        Ad Soyad
+                    </span>
+
+                    <strong id="modalCustomerName">
+                        -
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-row">
+
+                    <span>
+                        Telefon
+                    </span>
+
+                    <strong id="modalCustomerPhone">
+                        -
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-row">
+
+                    <span>
+                        Sipariş Türü
+                    </span>
+
+                    <strong id="modalOrderType">
+                        -
+                    </strong>
+
+                </div>
+
+
+                <div class="customer-row">
+
+                    <span>
+                        Adres / Masa
+                    </span>
+
+                    <strong id="modalAddress">
+                        -
+                    </strong>
+
+                </div>
+
+            </div>
+
+
+            <!-- ÜRÜNLER -->
+
+            <div class="modal-products">
+
+                <h3>
+                    🛒 Sipariş İçeriği
+                </h3>
+
+                <div
+                    id="modalOrderItems"
+                    class="modal-order-items"
+                >
+
+                    <!-- Ürünler JavaScript ile gelecek -->
+
+                </div>
+
+            </div>
+
+
+            <!-- NOT -->
+
+            <div class="modal-note">
+
+                <h3>
+                    📝 Müşteri Notu
+                </h3>
+
+                <p id="modalOrderNote">
+                    Not bulunmuyor.
+                </p>
+
+            </div>
+
+
+            <!-- TOPLAM -->
+
+            <div class="modal-total">
+
+                <span>
+                    Toplam
+                </span>
+
+                <strong id="modalTotalPrice">
+                    0 ₺
+                </strong>
+
+            </div>
+
+
+            <!-- DURUM DEĞİŞTİRME -->
+
+            <div class="status-actions">
+
+                <h3>
+                    Sipariş Durumu
+                </h3>
+
+                <div class="status-buttons">
+
+                    <button
+                        type="button"
+                        class="status-btn"
+                        data-status="new"
+                    >
+                        🆕 Yeni
+                    </button>
+
+                    <button
+                        type="button"
+                        class="status-btn"
+                        data-status="preparing"
+                    >
+                        👨‍🍳 Hazırlanıyor
+                    </button>
+
+                    <button
+                        type="button"
+                        class="status-btn"
+                        data-status="ready"
+                    >
+                        ✅ Hazır
+                    </button>
+
+                    <button
+                        type="button"
+                        class="status-btn"
+                        data-status="completed"
+                    >
+                        📦 Teslim Edildi
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <!-- SİPARİŞİ SİL -->
+
+            <button
+                id="deleteOrderBtn"
+                class="delete-order-btn"
+                type="button"
+            >
+                🗑️ Siparişi Sil
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- =========================================
+         TOAST
+    ========================================== -->
+
+    <div
+        id="businessToast"
+        class="business-toast"
+        role="status"
+        aria-live="polite"
+    >
+        İşlem başarılı.
+    </div>
+
+
+    <!-- =========================================
+         JAVASCRIPT
+    ========================================== -->
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
