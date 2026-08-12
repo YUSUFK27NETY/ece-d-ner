@@ -121,7 +121,7 @@ button:active {
     text-align: center;
 
     background:
-        url("../assets/images/hero.jpg")
+        url(hero.jpg")
         center / cover no-repeat;
 }
 
