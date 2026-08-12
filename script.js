@@ -436,4 +436,8 @@ function escapeHTML(value) {
 // BAŞLANGIÇ
 // ==========================================
 updateCart();
-console.log("QR Menü Pro Customer sistemi hazır ve Firebase'e bağlı.");
+console.log("QR Menü Pro Customer sistemi hazır ve Firebase'e bağlı.");}
+        }
+    });
+}
+
