@@ -1,616 +1,154 @@
 <!DOCTYPE html>
 <html lang="tr">
-
 <head>
     <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="theme-color"
-        content="#111111"
-    >
-
-    <meta
-        name="description"
-        content="Ece Döner işletme sipariş yönetim paneli"
-    >
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Ece Döner | İşletme Paneli</title>
-
-    <link
-        <link rel="stylesheet" href="style.css">
-
-
-    >
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, Helvetica, sans-serif; background: #111; color: #fff; overflow-x: hidden; }
+        .business-header { background-color: #1e1e1e; border-bottom: 1px solid #2d2d2d; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 100; }
+        .business-brand { display: flex; align-items: center; gap: 12px; }
+        .business-logo { font-size: 28px; background: #2d2d2d; padding: 8px; border-radius: 12px; }
+        .business-brand h1 { font-size: 18px; color: #ffffff; font-weight: 700; }
+        .business-brand span { font-size: 12px; color: #888; }
+        .business-status { display: flex; align-items: center; gap: 8px; font-size: 14px; background: #252525; padding: 6px 12px; border-radius: 20px; }
+        .status-dot { width: 10px; height: 10px; background-color: #ff5252; border-radius: 50%; display: inline-block; }
+        .status-dot.online { background-color: #4caf50; box-shadow: 0 0 8px rgba(76, 175, 80, 0.5); }
+        .business-container { max-width: 1200px; margin: 24px auto; padding: 0 16px; }
+        .dashboard-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; background: #1e1e1e; padding: 20px; border-radius: 14px; border: 1px solid #2d2d2d; }
+        .dashboard-header h2 { font-size: 20px; color: #fff; margin-bottom: 4px; }
+        .dashboard-header p { font-size: 14px; color: #999; }
+        .refresh-btn { background-color: #2e382e; color: #4caf50; border: 1px solid #4caf50; padding: 10px 16px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .refresh-btn:hover { background-color: #4caf50; color: #fff; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: #1e1e1e; border: 1px solid #2d2d2d; padding: 20px; border-radius: 14px; display: flex; align-items: center; gap: 16px; }
+        .stat-icon { font-size: 32px; background: #252525; padding: 12px; border-radius: 10px; }
+        .stat-info span { font-size: 13px; color: #888; display: block; }
+        .stat-info strong { font-size: 22px; color: #fff; }
+        .orders-section { background: #1e1e1e; border: 1px solid #2d2d2d; border-radius: 14px; padding: 20px; margin-bottom: 24px; }
+        .orders-header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid #2d2d2d; }
+        .orders-header h2 { font-size: 18px; color: #fff; }
+        .orders-header p { font-size: 13px; color: #888; }
+        .order-filters { display: flex; gap: 8px; flex-wrap: wrap; }
+        .filter-btn { background: #252525; color: #aaa; border: 1px solid #333; padding: 6px 12px; border-radius: 6px; font-size: 13px; cursor: pointer; transition: 0.2s; }
+        .filter-btn.active, .filter-btn:hover { background: #ffc107; color: #121212; border-color: #ffc107; font-weight: 600; }
+        .orders-list { display: grid; gap: 16px; }
+        .empty-orders { text-align: center; padding: 40px 20px; color: #777; }
+        .empty-icon { font-size: 40px; margin-bottom: 10px; }
+        .empty-orders h3 { color: #bbb; margin-bottom: 6px; }
+    </style>
 </head>
-
 <body>
 
-    <!-- =========================================
-         GİRİŞ EKRANI (ŞİFRE KORUMASI)
-    ========================================== -->
+    <!-- GİRİŞ EKRANI -->
     <div id="login-overlay" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #121212; z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white;">
         <div style="background: #1e1e1e; padding: 30px; border-radius: 16px; border: 1px solid #333; text-align: center; width: 90%; max-width: 400px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
             <h2 style="margin-bottom: 15px; color: #ffd700; font-size: 22px;">🔒 İşletme Girişi</h2>
             <p style="color: #888; font-size: 14px; margin-bottom: 20px;">Paneli yönetmek için şifreyi girin.</p>
             <input type="password" id="admin-pass" placeholder="Şifre" style="width: 100%; padding: 12px 15px; border-radius: 8px; border: 1px solid #444; background: #252525; color: white; margin-bottom: 15px; font-size: 16px; outline: none;">
-            <button onclick="checkPassword()" style="width: 100%; padding: 12px; background: #ffd700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; color: #111; transition: 0.2s;">Giriş Yap</button>
+            <button onclick="checkPassword()" style="width: 100%; padding: 12px; background: #ffd700; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 16px; color: #111;">Giriş Yap</button>
             <p id="error-msg" style="color: #ff5252; margin-top: 12px; font-size: 14px; display: none;">Hatalı Şifre!</p>
         </div>
     </div>
 
-    <!-- =========================================
-         ÜST MENÜ
-    ========================================== -->
-
+    <!-- ÜST MENÜ -->
     <header class="business-header">
-
         <div class="business-brand">
-
-            <div class="business-logo">
-                🍽️
-            </div>
-
+            <div class="business-logo">🍽️</div>
             <div>
                 <h1>Ece Döner</h1>
                 <span>İşletme Paneli</span>
             </div>
-
         </div>
-
         <div class="business-status">
-
-            <span
-                id="connectionDot"
-                class="status-dot"
-            ></span>
-
-            <span id="connectionText">
-                Sistem Aktif
-            </span>
-
+            <span id="connectionDot" class="status-dot"></span>
+            <span id="connectionText">Sistem Aktif</span>
         </div>
-
     </header>
 
-
-    <!-- =========================================
-         ANA İÇERİK
-    ========================================== -->
-
     <main class="business-container">
-
-
-        <!-- =====================================
-             PANEL BAŞLIĞI
-        ====================================== -->
-
         <section class="dashboard-header">
-
             <div>
-
                 <h2>Sipariş Yönetimi</h2>
-
-                <p>
-                    Gelen siparişleri buradan takip
-                    ve yönetebilirsiniz.
-                </p>
-
+                <p>Gelen siparişleri buradan takip ve yönetebilirsiniz.</p>
             </div>
-
-            <button
-                id="refreshOrders"
-                class="refresh-btn"
-                type="button"
-            >
-                🔄 Yenile
-            </button>
-
+            <button id="refreshOrders" class="refresh-btn" type="button">🔄 Yenile</button>
         </section>
-
-
-        <!-- =====================================
-             İSTATİSTİKLER
-        ====================================== -->
 
         <section class="stats-grid">
-
             <div class="stat-card">
-
-                <div class="stat-icon">
-                    🛒
-                </div>
-
+                <div class="stat-icon">🛒</div>
                 <div class="stat-info">
-
-                    <span>
-                        Toplam Sipariş
-                    </span>
-
-                    <strong id="totalOrders">
-                        0
-                    </strong>
-
+                    <span>Toplam Sipariş</span>
+                    <strong id="totalOrders">0</strong>
                 </div>
-
             </div>
-
-
             <div class="stat-card">
-
-                <div class="stat-icon">
-                    🆕
-                </div>
-
+                <div class="stat-icon">🆕</div>
                 <div class="stat-info">
-
-                    <span>
-                        Yeni Sipariş
-                    </span>
-
-                    <strong id="newOrders">
-                        0
-                    </strong>
-
+                    <span>Yeni Sipariş</span>
+                    <strong id="newOrders">0</strong>
                 </div>
-
             </div>
-
-
             <div class="stat-card">
-
-                <div class="stat-icon">
-                    👨‍🍳
-                </div>
-
+                <div class="stat-icon">👨‍🍳</div>
                 <div class="stat-info">
-
-                    <span>
-                        Hazırlanıyor
-                    </span>
-
-                    <strong id="preparingOrders">
-                        0
-                    </strong>
-
+                    <span>Hazırlanıyor</span>
+                    <strong id="preparingOrders">0</strong>
                 </div>
-
             </div>
-
-
             <div class="stat-card">
-
-                <div class="stat-icon">
-                    💰
-                </div>
-
+                <div class="stat-icon">💰</div>
                 <div class="stat-info">
-
-                    <span>
-                        Toplam Ciro
-                    </span>
-
-                    <strong id="totalRevenue">
-                        0 ₺
-                    </strong>
-
+                    <span>Toplam Ciro</span>
+                    <strong id="totalRevenue">0 ₺</strong>
                 </div>
-
             </div>
-
         </section>
-
-
-        <!-- =====================================
-             FİLTRELER
-        ====================================== -->
 
         <section class="orders-section">
-
             <div class="orders-header">
-
                 <div>
-
-                    <h2>
-                        Siparişler
-                    </h2>
-
-                    <p id="orderCountText">
-                        0 sipariş
-                    </p>
-
+                    <h2>Siparişler</h2>
+                    <p id="orderCountText">0 sipariş</p>
                 </div>
-
-
-                <div class="order-filters">
-
-                    <button
-                        type="button"
-                        class="filter-btn active"
-                        data-filter="all"
-                    >
-                        Tümü
-                    </button>
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-filter="new"
-                    >
-                        Yeni
-                    </button>
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-filter="preparing"
-                    >
-                        Hazırlanıyor
-                    </button>
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-filter="ready"
-                    >
-                        Hazır
-                    </button>
-
-                    <button
-                        type="button"
-                        class="filter-btn"
-                        data-filter="completed"
-                    >
-                        Tamamlandı
-                    </button>
-
-                </div>
-
             </div>
-
-
-            <!-- =================================
-                 SİPARİŞ LİSTESİ
-            ================================== -->
-
-            <div
-                id="ordersList"
-                class="orders-list"
-            >
-
-                <!-- Siparişler JavaScript ile buraya gelecek -->
-
-                <div
-                    id="emptyOrders"
-                    class="empty-orders"
-                >
-
-                    <div class="empty-icon">
-                        📋
-                    </div>
-
-                    <h3>
-                        Henüz sipariş yok
-                    </h3>
-
-                    <p>
-                        Müşterilerden gelen siparişler
-                        burada görünecek.
-                    </p>
-
+            <div id="ordersList" class="orders-list">
+                <div id="emptyOrders" class="empty-orders">
+                    <div class="empty-icon">📋</div>
+                    <h3>Henüz sipariş yok</h3>
+                    <p>Müşterilerden gelen siparişler burada görünecek.</p>
                 </div>
-
             </div>
-
         </section>
-
-
-        <!-- =====================================
-             SİSTEM BİLGİSİ
-        ====================================== -->
-
-        <section class="system-info">
-
-            <div class="info-card">
-
-                <span class="info-icon">
-                    ℹ️
-                </span>
-
-                <div>
-
-                    <strong>
-                        Sistem Durumu
-                    </strong>
-
-                    <p id="systemMessage">
-                        Sipariş sistemi hazır.
-                    </p>
-
-                </div>
-
-            </div>
-
-        </section>
-
     </main>
 
-
-    <!-- =========================================
-         SİPARİŞ DETAY MODALI
-    ========================================== -->
-
-    <div
-        id="orderModal"
-        class="order-modal"
-        aria-hidden="true"
-    >
-
-        <div class="order-modal-content">
-
-            <button
-                id="closeOrderModal"
-                class="close-modal-btn"
-                type="button"
-                aria-label="Kapat"
-            >
-                ×
-            </button>
-
-
-            <div class="modal-header">
-
-                <div>
-
-                    <span class="modal-label">
-                        Sipariş Detayı
-                    </span>
-
-                    <h2 id="modalOrderNumber">
-                        Sipariş
-                    </h2>
-
-                </div>
-
-                <span
-                    id="modalOrderStatus"
-                    class="order-status"
-                >
-                    Yeni
-                </span>
-
-            </div>
-
-
-            <!-- MÜŞTERİ BİLGİLERİ -->
-
-            <div class="customer-info">
-
-                <h3>
-                    👤 Müşteri Bilgileri
-                </h3>
-
-                <div class="customer-row">
-
-                    <span>
-                        Ad Soyad
-                    </span>
-
-                    <strong id="modalCustomerName">
-                        -
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-row">
-
-                    <span>
-                        Telefon
-                    </span>
-
-                    <strong id="modalCustomerPhone">
-                        -
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-row">
-
-                    <span>
-                        Sipariş Türü
-                    </span>
-
-                    <strong id="modalOrderType">
-                        -
-                    </strong>
-
-                </div>
-
-
-                <div class="customer-row">
-
-                    <span>
-                        Adres / Masa
-                    </span>
-
-                    <strong id="modalAddress">
-                        -
-                    </strong>
-
-                </div>
-
-            </div>
-
-
-            <!-- ÜRÜNLER -->
-
-            <div class="modal-products">
-
-                <h3>
-                    🛒 Sipariş İçeriği
-                </h3>
-
-                <div
-                    id="modalOrderItems"
-                    class="modal-order-items"
-                >
-
-                    <!-- Ürünler JavaScript ile gelecek -->
-
-                </div>
-
-            </div>
-
-
-            <!-- NOT -->
-
-            <div class="modal-note">
-
-                <h3>
-                    📝 Müşteri Notu
-                </h3>
-
-                <p id="modalOrderNote">
-                    Not bulunmuyor.
-                </p>
-
-            </div>
-
-
-            <!-- TOPLAM -->
-
-            <div class="modal-total">
-
-                <span>
-                    Toplam
-                </span>
-
-                <strong id="modalTotalPrice">
-                    0 ₺
-                </strong>
-
-            </div>
-
-
-            <!-- DURUM DEĞİŞTİRME -->
-
-            <div class="status-actions">
-
-                <h3>
-                    Sipariş Durumu
-                </h3>
-
-                <div class="status-buttons">
-
-                    <button
-                        type="button"
-                        class="status-btn"
-                        data-status="new"
-                    >
-                        🆕 Yeni
-                    </button>
-
-                    <button
-                        type="button"
-                        class="status-btn"
-                        data-status="preparing"
-                    >
-                        👨‍🍳 Hazırlanıyor
-                    </button>
-
-                    <button
-                        type="button"
-                        class="status-btn"
-                        data-status="ready"
-                    >
-                        ✅ Hazır
-                    </button>
-
-                    <button
-                        type="button"
-                        class="status-btn"
-                        data-status="completed"
-                    >
-                        📦 Teslim Edildi
-                    </button>
-
-                </div>
-
-            </div>
-
-
-            <!-- SİPARİŞİ SİL -->
-
-            <button
-                id="deleteOrderBtn"
-                class="delete-order-btn"
-                type="button"
-            >
-                🗑️ Siparişi Sil
-            </button>
-
-        </div>
-
-    </div>
-
-
-    <!-- =========================================
-         TOAST
-    ========================================== -->
-
-    <div
-        id="businessToast"
-        class="business-toast"
-        role="status"
-        aria-live="polite"
-    >
-        İşlem başarılı.
-    </div>
-
-
-    <!-- =========================================
-         JAVASCRIPT
-    ========================================== -->
-
     <script src="script.js"></script>
-
     <script>
-        // Belirlediğin Şifre
         const DOGRU_SIFRE = "ECE258025";
 
         function checkPassword() {
             const girilenSifre = document.getElementById("admin-pass").value;
-
             if (girilenSifre === DOGRU_SIFRE) {
                 document.getElementById("login-overlay").style.display = "none";
-                // Oturumu hafızaya al, sayfa yenilense de tekrar şifre sormasın
                 sessionStorage.setItem("adminAuth", "true");
             } else {
                 document.getElementById("error-msg").style.display = "block";
             }
         }
 
-        // Enter tuşuna basınca da giriş yapsın
         document.getElementById("admin-pass").addEventListener("keypress", function(event) {
             if (event.key === "Enter") {
                 checkPassword();
             }
         });
 
-        // Sayfa açıldığında daha önce giriş yapıldı mı diye kontrol et
         window.onload = function() {
             if (sessionStorage.getItem("adminAuth") === "true") {
                 document.getElementById("login-overlay").style.display = "none";
             }
         };
     </script>
-
 </body>
-
 </html>
