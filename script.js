@@ -1414,11 +1414,7 @@ if (orderForm) {
                 total,
 
                 status: "new",
-
-                createdAt:
-                    firebase.firestore
-                        .FieldValue
-                        .serverTimestamp()
+                 createdAt: new Date().toISOString()
 
             };
 
