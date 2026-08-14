@@ -1471,14 +1471,31 @@ if (orderForm) {
                 }
 
 
-                // ==================================
-                // FIREBASE'E KAYDET
-                // ==================================
+               // ==================================
+// RENDER BACKEND'E GÖNDER
+// ==================================
 
-                await db
-                    .collection("orders")
-                    .add(orderData);
+const response = await fetch(
+    "https://ece-d-ner-1.onrender.com/api/orders",
+    {
+        method: "POST",
 
+        headers: {
+            "Content-Type": "application/json"
+        },
+
+        body: JSON.stringify(orderData)
+    }
+);
+
+const result = await response.json();
+
+if (!response.ok || !result.success) {
+    throw new Error(
+        result.message ||
+        "Sipariş sunucuya gönderilemedi."
+    );
+}
 
                 // ==================================
                 // WHATSAPP MESAJI
