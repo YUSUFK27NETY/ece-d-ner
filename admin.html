@@ -1,1599 +1,801 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <title>Ece Döner | Yönetim Paneli</title>
-
-
-    <!-- =====================================================
-         FIREBASE
-    ====================================================== -->
-
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
-
-    <style>
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-
-        body {
-            font-family:
-                Arial,
-                Helvetica,
-                sans-serif;
-
-            background: #111;
-
-            color: #fff;
-
-            overflow-x: hidden;
-        }
-
-
-        button,
-        input,
-        select,
-        textarea {
-            font-family: inherit;
-        }
-
-
-        /* =====================================================
-           LOGIN
-        ====================================================== */
-
-        #login-overlay {
-
-            position: fixed;
-
-            inset: 0;
-
-            background:
-                radial-gradient(
-                    circle at top,
-                    #292929 0%,
-                    #111 55%
-                );
-
-            z-index: 99999;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            padding: 20px;
-        }
-
-
-        .login-box {
-
-            width: 100%;
-
-            max-width: 430px;
-
-            background: #1c1c1c;
-
-            border: 1px solid #3a3a3a;
-
-            border-radius: 20px;
-
-            padding: 32px;
-
-            box-shadow:
-                0 20px 60px
-                rgba(0,0,0,.6);
-        }
-
-
-        .login-logo {
-
-            width: 70px;
-
-            height: 70px;
-
-            margin:
-                0 auto 18px;
-
-            border-radius: 18px;
-
-            background: #292929;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-size: 36px;
-        }
-
-
-        .login-box h1 {
-
-            text-align: center;
-
-            color: #ffd700;
-
-            font-size: 25px;
-
-            margin-bottom: 8px;
-        }
-
-
-        .login-box p {
-
-            text-align: center;
-
-            color: #999;
-
-            font-size: 14px;
-
-            line-height: 1.5;
-
-            margin-bottom: 25px;
-        }
-
-
-        .form-group {
-
-            margin-bottom: 15px;
-        }
-
-
-        .form-group label {
-
-            display: block;
-
-            margin-bottom: 7px;
-
-            color: #ddd;
-
-            font-weight: 600;
-
-            font-size: 14px;
-        }
-
-
-        .form-input,
-        .form-select,
-        .form-textarea {
-
-            width: 100%;
-
-            background: #252525;
-
-            border: 1px solid #444;
-
-            color: #fff;
-
-            padding: 13px 14px;
-
-            border-radius: 10px;
-
-            outline: none;
-
-            font-size: 15px;
-        }
-
-
-        .form-input:focus,
-        .form-select:focus,
-        .form-textarea:focus {
-
-            border-color: #ffd700;
-        }
-
-
-        .form-textarea {
-
-            min-height: 90px;
-
-            resize: vertical;
-        }
-
-
-        .login-btn {
-
-            width: 100%;
-
-            border: none;
-
-            background: #ffd700;
-
-            color: #111;
-
-            padding: 14px;
-
-            border-radius: 10px;
-
-            cursor: pointer;
-
-            font-size: 16px;
-
-            font-weight: 800;
-
-            margin-top: 5px;
-        }
-
-
-        .login-btn:hover {
-
-            background: #ffe44d;
-        }
-
-
-        .login-error {
-
-            display: none;
-
-            margin-top: 13px;
-
-            background:
-                rgba(255,82,82,.15);
-
-            border:
-                1px solid #ff5252;
-
-            color: #ff8585;
-
-            padding: 10px;
-
-            border-radius: 8px;
-
-            text-align: center;
-
-            font-size: 13px;
-        }
-
-
-        /* =====================================================
-           HEADER
-        ====================================================== */
-
-        .business-header {
-
-            background: #1c1c1c;
-
-            border-bottom:
-                1px solid #303030;
-
-            padding: 15px 22px;
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            position: sticky;
-
-            top: 0;
-
-            z-index: 1000;
-        }
-
-
-        .business-brand {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 12px;
-        }
-
-
-        .business-logo {
-
-            width: 48px;
-
-            height: 48px;
-
-            background: #292929;
-
-            border-radius: 12px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-size: 25px;
-        }
-
-
-        .business-brand h1 {
-
-            font-size: 18px;
-        }
-
-
-        .business-brand span {
-
-            color: #888;
-
-            font-size: 12px;
-        }
-
-
-        .header-right {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 10px;
-        }
-
-
-        .business-status {
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 8px;
-
-            background: #252525;
-
-            padding: 8px 12px;
-
-            border-radius: 20px;
-
-            font-size: 13px;
-        }
-
-
-        .status-dot {
-
-            width: 9px;
-
-            height: 9px;
-
-            border-radius: 50%;
-
-            background: #ff5252;
-        }
-
-
-        .status-dot.online {
-
-            background: #4caf50;
-
-            box-shadow:
-                0 0 8px
-                rgba(76,175,80,.6);
-        }
-
-
-        .logout-btn {
-
-            background: #2b2020;
-
-            border:
-                1px solid #663333;
-
-            color: #ff7777;
-
-            padding: 8px 12px;
-
-            border-radius: 8px;
-
-            cursor: pointer;
-        }
-
-
-        /* =====================================================
-           CONTAINER
-        ====================================================== */
-
-        .business-container {
-
-            width: 100%;
-
-            max-width: 1250px;
-
-            margin: 24px auto;
-
-            padding:
-                0 16px 50px;
-        }
-
-
-        .dashboard-header {
-
-            background: #1c1c1c;
-
-            border:
-                1px solid #303030;
-
-            border-radius: 15px;
-
-            padding: 20px;
-
-            margin-bottom: 18px;
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            gap: 15px;
-        }
-
-
-        .dashboard-header h2 {
-
-            font-size: 21px;
-
-            margin-bottom: 5px;
-        }
-
-
-        .dashboard-header p {
-
-            color: #888;
-
-            font-size: 13px;
-        }
-
-
-        .refresh-btn,
-        .primary-btn {
-
-            background: #ffd700;
-
-            border: none;
-
-            color: #111;
-
-            padding: 11px 16px;
-
-            border-radius: 9px;
-
-            cursor: pointer;
-
-            font-weight: 800;
-        }
-
-
-        .refresh-btn:hover,
-        .primary-btn:hover {
-
-            background: #ffe44d;
-        }
-
-
-        /* =====================================================
-           STATS
-        ====================================================== */
-
-        .stats-grid {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(4, 1fr);
-
-            gap: 15px;
-
-            margin-bottom: 22px;
-        }
-
-
-        .stat-card {
-
-            background: #1c1c1c;
-
-            border:
-                1px solid #303030;
-
-            padding: 18px;
-
-            border-radius: 14px;
-
-            display: flex;
-
-            align-items: center;
-
-            gap: 13px;
-        }
-
-
-        .stat-icon {
-
-            width: 50px;
-
-            height: 50px;
-
-            background: #272727;
-
-            border-radius: 12px;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            font-size: 25px;
-        }
-
-
-        .stat-info span {
-
-            display: block;
-
-            color: #888;
-
-            font-size: 12px;
-
-            margin-bottom: 4px;
-        }
-
-
-        .stat-info strong {
-
-            font-size: 21px;
-        }
-
-
-        /* =====================================================
-           TABS
-        ====================================================== */
-
-        .tabs {
-
-            display: flex;
-
-            gap: 8px;
-
-            background: #1c1c1c;
-
-            padding: 8px;
-
-            border:
-                1px solid #303030;
-
-            border-radius: 13px;
-
-            margin-bottom: 18px;
-        }
-
-
-        .tab-btn {
-
-            flex: 1;
-
-            background: transparent;
-
-            border: none;
-
-            color: #888;
-
-            padding: 12px;
-
-            border-radius: 9px;
-
-            cursor: pointer;
-
-            font-weight: 700;
-        }
-
-
-        .tab-btn.active {
-
-            background: #ffd700;
-
-            color: #111;
-        }
-
-
-        .tab-content {
-
-            display: none;
-        }
-
-
-        .tab-content.active {
-
-            display: block;
-        }
-
-
-        /* =====================================================
-           SECTION
-        ====================================================== */
-
-        .panel-section {
-
-            background: #1c1c1c;
-
-            border:
-                1px solid #303030;
-
-            border-radius: 15px;
-
-            padding: 20px;
-
-            margin-bottom: 20px;
-        }
-
-
-        .section-header {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            gap: 15px;
-
-            flex-wrap: wrap;
-
-            padding-bottom: 15px;
-
-            margin-bottom: 18px;
-
-            border-bottom:
-                1px solid #303030;
-        }
-
-
-        .section-header h2 {
-
-            font-size: 18px;
-        }
-
-
-        .section-header p {
-
-            color: #888;
-
-            font-size: 13px;
-
-            margin-top: 4px;
-        }
-
-
-        /* =====================================================
-           PRODUCTS
-        ====================================================== */
-
-        .products-grid {
-
-            display: grid;
-
-            grid-template-columns:
-                repeat(3, 1fr);
-
-            gap: 16px;
-        }
-
-
-        .product-card {
-
-            background: #151515;
-
-            border:
-                1px solid #333;
-
-            border-radius: 14px;
-
-            overflow: hidden;
-
-            transition:
-                transform .2s,
-                border-color .2s;
-        }
-
-
-        .product-card:hover {
-
-            transform:
-                translateY(-3px);
-
-            border-color:
-                #555;
-        }
-
-
-        .product-image {
-
-            height: 190px;
-
-            background: #242424;
-
-            display: flex;
-
-            align-items: center;
-
-            justify-content: center;
-
-            overflow: hidden;
-        }
-
-
-        .product-image img {
-
-            width: 100%;
-
-            height: 100%;
-
-            object-fit: cover;
-
-            display: block;
-        }
-
-
-        .no-image {
-
-            color: #666;
-
-            font-size: 45px;
-        }
-
-
-        .product-body {
-
-            padding: 15px;
-        }
-
-
-        .product-category {
-
-            color: #ffd700;
-
-            font-size: 11px;
-
-            font-weight: 700;
-
-            text-transform: uppercase;
-
-            margin-bottom: 5px;
-        }
-
-
-        .product-name {
-
-            font-size: 17px;
-
-            font-weight: 800;
-
-            margin-bottom: 6px;
-        }
-
-
-        .product-description {
-
-            color: #888;
-
-            font-size: 12px;
-
-            min-height: 34px;
-
-            line-height: 1.4;
-
-            margin-bottom: 10px;
-        }
-
-
-        .product-price {
-
-            color: #4caf50;
-
-            font-size: 19px;
-
-            font-weight: 900;
-        }
-
-
-        .product-status {
-
-            display: inline-block;
-
-            margin-top: 9px;
-
-            padding: 5px 8px;
-
-            border-radius: 6px;
-
-            font-size: 11px;
-
-            font-weight: 700;
-        }
-
-
-        .status-active {
-
-            background:
-                rgba(76,175,80,.15);
-
-            color: #69e06f;
-        }
-
-
-        .status-passive {
-
-            background:
-                rgba(255,82,82,.15);
-
-            color: #ff7777;
-        }
-
-
-        .product-actions {
-
-            display: flex;
-
-            gap: 7px;
-
-            margin-top: 14px;
-        }
-
-
-        .small-btn {
-
-            flex: 1;
-
-            border:
-                1px solid #444;
-
-            background: #252525;
-
-            color: #ddd;
-
-            padding: 9px 7px;
-
-            border-radius: 8px;
-
-            cursor: pointer;
-
-            font-size: 12px;
-
-            font-weight: 700;
-        }
-
-
-        .small-btn:hover {
-
-            background: #333;
-        }
-
-
-        .edit-btn {
-
-            border-color:
-                #6d5c00;
-
-            color: #ffd700;
-        }
-
-
-        .delete-btn {
-
-            border-color:
-                #633333;
-
-            color: #ff7777;
-        }
-
-
-        /* =====================================================
-           ORDERS
-        ====================================================== */
-
-        .orders-list {
-
-            display: grid;
-
-            gap: 14px;
-        }
-
-
-        .order-card {
-
-            background: #151515;
-
-            border:
-                1px solid #333;
-
-            border-radius: 13px;
-
-            padding: 17px;
-        }
-
-
-        .order-top {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            gap: 10px;
-
-            flex-wrap: wrap;
-
-            margin-bottom: 12px;
-
-            padding-bottom: 12px;
-
-            border-bottom:
-                1px solid #303030;
-        }
-
-
-        .order-name {
-
-            font-weight: 800;
-
-            color: #38bdf8;
-        }
-
-
-        .order-status {
-
-            background: #075985;
-
-            color: #fff;
-
-            padding: 5px 9px;
-
-            border-radius: 6px;
-
-            font-size: 11px;
-
-            font-weight: 800;
-        }
-
-
-        .order-info {
-
-            color: #ccc;
-
-            font-size: 13px;
-
-            line-height: 1.7;
-        }
-
-
-        .order-items {
-
-            margin-top: 12px;
-
-            background: #0f0f0f;
-
-            border-radius: 8px;
-
-            padding: 11px;
-        }
-
-
-        .order-items ul {
-
-            padding-left: 18px;
-
-            margin-top: 6px;
-
-            color: #ddd;
-
-            font-size: 13px;
-        }
-
-
-        .order-controls {
-
-            display: flex;
-
-            gap: 8px;
-
-            margin-top: 12px;
-
-            flex-wrap: wrap;
-        }
-
-
-        .order-controls select {
-
-            background: #252525;
-
-            color: #fff;
-
-            border:
-                1px solid #444;
-
-            padding: 8px;
-
-            border-radius: 7px;
-        }
-
-
-        /* =====================================================
-           MODAL
-        ====================================================== */
-
-        .modal {
-
-            display: none;
-
-            position: fixed;
-
-            inset: 0;
-
-            background:
-                rgba(0,0,0,.78);
-
-            z-index: 5000;
-
-            align-items: center;
-
-            justify-content: center;
-
-            padding: 18px;
-        }
-
-
-        .modal.active {
-
-            display: flex;
-        }
-
-
-        .modal-box {
-
-            width: 100%;
-
-            max-width: 540px;
-
-            max-height: 92vh;
-
-            overflow-y: auto;
-
-            background: #1c1c1c;
-
-            border:
-                1px solid #444;
-
-            border-radius: 17px;
-
-            padding: 22px;
-        }
-
-
-        .modal-header {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            margin-bottom: 18px;
-        }
-
-
-        .modal-header h2 {
-
-            color: #ffd700;
-
-            font-size: 20px;
-        }
-
-
-        .close-btn {
-
-            background: #292929;
-
-            border:
-                1px solid #444;
-
-            color: #fff;
-
-            width: 35px;
-
-            height: 35px;
-
-            border-radius: 8px;
-
-            cursor: pointer;
-
-            font-size: 18px;
-        }
-
-
-        /* =====================================================
-           IMAGE UPLOAD
-        ====================================================== */
-
-        .image-upload-box {
-
-            border:
-                1px dashed #555;
-
-            background: #151515;
-
-            border-radius: 14px;
-
-            padding: 15px;
-        }
-
-
-        .image-upload-box input[type="file"] {
-
-            width: 100%;
-
-            color: #ddd;
-
-            background: #252525;
-
-            border:
-                1px solid #444;
-
-            border-radius: 9px;
-
-            padding: 10px;
-
-            cursor: pointer;
-        }
-
-
-        .image-help {
-
-            color: #888;
-
-            font-size: 12px;
-
-            line-height: 1.5;
-
-            margin-top: 8px;
-        }
-
-
-        .image-preview {
-
-            margin-top: 13px;
-
-            width: 100%;
-
-            height: 220px;
-
-            border-radius: 11px;
-
-            overflow: hidden;
-
-            background: #242424;
-
-            display: none;
-
-            align-items: center;
-
-            justify-content: center;
-
-            border:
-                1px solid #444;
-        }
-
-
-        .image-preview.show {
-
-            display: flex;
-        }
-
-
-        .image-preview img {
-
-            width: 100%;
-
-            height: 100%;
-
-            object-fit: cover;
-        }
-
-
-        .image-progress {
-
-            display: none;
-
-            margin-top: 10px;
-
-            padding: 10px;
-
-            background: #242424;
-
-            border-radius: 9px;
-
-            color: #ffd700;
-
-            font-size: 13px;
-
-            font-weight: 700;
-        }
-
-
-        .image-progress.show {
-
-            display: block;
-        }
-
-
-        .image-progress-bar {
-
-            width: 100%;
-
-            height: 7px;
-
-            background: #111;
-
-            border-radius: 10px;
-
-            overflow: hidden;
-
-            margin-top: 8px;
-        }
-
-
-        .image-progress-fill {
-
-            width: 0%;
-
-            height: 100%;
-
-            background: #ffd700;
-
-            transition:
-                width .15s ease;
-        }
-
-
-        .remove-image-btn {
-
-            display: none;
-
-            margin-top: 9px;
-
-            width: 100%;
-
-            background: #2b2020;
-
-            border:
-                1px solid #633333;
-
-            color: #ff7777;
-
-            padding: 9px;
-
-            border-radius: 8px;
-
-            cursor: pointer;
-
-            font-weight: 700;
-        }
-
-
-        .remove-image-btn.show {
-
-            display: block;
-        }
-
-
-        /* =====================================================
-           MODAL ACTIONS
-        ====================================================== */
-
-        .modal-actions {
-
-            display: flex;
-
-            gap: 10px;
-
-            margin-top: 18px;
-        }
-
-
-        .modal-actions button {
-
-            flex: 1;
-
-            padding: 12px;
-
-            border-radius: 9px;
-
-            cursor: pointer;
-
-            font-weight: 800;
-        }
-
-
-        .save-product {
-
-            background: #ffd700;
-
-            border: none;
-
-            color: #111;
-        }
-
-
-        .save-product:disabled {
-
-            opacity: .6;
-
-            cursor: not-allowed;
-        }
-
-
-        .cancel-product {
-
-            background: #292929;
-
-            border:
-                1px solid #444;
-
-            color: #fff;
-        }
-
-
-        /* =====================================================
-           EMPTY
-        ====================================================== */
-
-        .empty-state {
-
-            text-align: center;
-
-            padding: 45px 20px;
-
-            color: #777;
-        }
-
-
-        .empty-state .emoji {
-
-            font-size: 42px;
-
-            margin-bottom: 10px;
-        }
-
-
-        /* =====================================================
-           TOAST
-        ====================================================== */
-
-        #toast {
-
-            position: fixed;
-
-            right: 20px;
-
-            bottom: 20px;
-
-            z-index: 10000;
-
-            background: #242424;
-
-            border:
-                1px solid #444;
-
-            color: #fff;
-
-            padding: 13px 17px;
-
-            border-radius: 10px;
-
-            transform:
-                translateY(120px);
-
-            opacity: 0;
-
-            transition: .25s;
-
-            box-shadow:
-                0 10px 30px
-                rgba(0,0,0,.4);
-
-            max-width: 350px;
-        }
-
-
-        #toast.show {
-
-            transform:
-                translateY(0);
-
-            opacity: 1;
-        }
-
-
-        #toast.success {
-
-            border-color: #4caf50;
-        }
-
-
-        #toast.error {
-
-            border-color: #ff5252;
-        }
-
-
-        /* =====================================================
-           MOBILE
-        ====================================================== */
-
-        @media (max-width: 900px) {
-
-            .stats-grid {
-
-                grid-template-columns:
-                    repeat(2, 1fr);
-            }
-
-
-            .products-grid {
-
-                grid-template-columns:
-                    repeat(2, 1fr);
-            }
-
-        }
-
-
-        @media (max-width: 600px) {
-
-            .business-header {
-
-                padding: 12px;
-            }
-
-
-            .business-brand h1 {
-
-                font-size: 16px;
-            }
-
-
-            .business-status {
-
-                display: none;
-            }
-
-
-            .business-container {
-
-                margin-top: 14px;
-
-                padding:
-                    0 10px 35px;
-            }
-
-
-            .dashboard-header {
-
-                flex-direction: column;
-
-                align-items: stretch;
-            }
-
-
-            .stats-grid {
-
-                grid-template-columns:
-                    1fr 1fr;
-
-                gap: 9px;
-            }
-
-
-            .stat-card {
-
-                padding: 12px;
-
-                gap: 8px;
-            }
-
-
-            .stat-icon {
-
-                width: 40px;
-
-                height: 40px;
-
-                font-size: 20px;
-            }
-
-
-            .stat-info strong {
-
-                font-size: 17px;
-            }
-
-
-            .products-grid {
-
-                grid-template-columns: 1fr;
-            }
-
-
-            .tabs {
-
-                overflow-x: auto;
-            }
-
-
-            .tab-btn {
-
-                min-width: 130px;
-            }
-
-
-            .modal-box {
-
-                padding: 17px;
-            }
-
-
-            .image-preview {
-
-                height: 190px;
-            }
-
-        }
-
-    </style>
-
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ece Döner | Yönetim Paneli</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<style>
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+}
+
+body{
+    font-family:Arial,Helvetica,sans-serif;
+    background:#111;
+    color:#fff;
+    overflow-x:hidden;
+}
+
+button,input,select,textarea{
+    font-family:inherit;
+}
+
+button{
+    cursor:pointer;
+}
+
+/* LOGIN */
+
+#login-overlay{
+    position:fixed;
+    inset:0;
+    background:radial-gradient(circle at top,#292929 0%,#111 55%);
+    z-index:99999;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+}
+
+.login-box{
+    width:100%;
+    max-width:430px;
+    background:#1c1c1c;
+    border:1px solid #3a3a3a;
+    border-radius:20px;
+    padding:32px;
+    box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+
+.login-logo{
+    width:70px;
+    height:70px;
+    margin:0 auto 18px;
+    border-radius:18px;
+    background:#292929;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:36px;
+}
+
+.login-box h1{
+    text-align:center;
+    color:#ffd700;
+    font-size:25px;
+    margin-bottom:8px;
+}
+
+.login-box p{
+    text-align:center;
+    color:#999;
+    font-size:14px;
+    line-height:1.5;
+    margin-bottom:25px;
+}
+
+.form-group{
+    margin-bottom:15px;
+}
+
+.form-group label{
+    display:block;
+    margin-bottom:7px;
+    color:#ddd;
+    font-weight:600;
+    font-size:14px;
+}
+
+.form-input,
+.form-select,
+.form-textarea{
+    width:100%;
+    background:#252525;
+    border:1px solid #444;
+    color:#fff;
+    padding:13px 14px;
+    border-radius:10px;
+    outline:none;
+    font-size:15px;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus{
+    border-color:#ffd700;
+}
+
+.form-textarea{
+    min-height:90px;
+    resize:vertical;
+}
+
+.login-btn{
+    width:100%;
+    border:none;
+    background:#ffd700;
+    color:#111;
+    padding:14px;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:800;
+    margin-top:5px;
+}
+
+.login-error{
+    display:none;
+    margin-top:13px;
+    background:rgba(255,82,82,.15);
+    border:1px solid #ff5252;
+    color:#ff8585;
+    padding:10px;
+    border-radius:8px;
+    text-align:center;
+    font-size:13px;
+}
+
+/* HEADER */
+
+.business-header{
+    background:#1c1c1c;
+    border-bottom:1px solid #303030;
+    padding:15px 22px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    position:sticky;
+    top:0;
+    z-index:1000;
+}
+
+.business-brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.business-logo{
+    width:48px;
+    height:48px;
+    background:#292929;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:25px;
+}
+
+.business-brand h1{
+    font-size:18px;
+}
+
+.business-brand span{
+    color:#888;
+    font-size:12px;
+}
+
+.header-right{
+    display:flex;
+    align-items:center;
+    gap:10px;
+}
+
+.business-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    background:#252525;
+    padding:8px 12px;
+    border-radius:20px;
+    font-size:13px;
+}
+
+.status-dot{
+    width:9px;
+    height:9px;
+    border-radius:50%;
+    background:#ff5252;
+}
+
+.status-dot.online{
+    background:#4caf50;
+    box-shadow:0 0 8px rgba(76,175,80,.6);
+}
+
+.logout-btn{
+    background:#2b2020;
+    border:1px solid #663333;
+    color:#ff7777;
+    padding:8px 12px;
+    border-radius:8px;
+}
+
+/* CONTAINER */
+
+.business-container{
+    width:100%;
+    max-width:1250px;
+    margin:24px auto;
+    padding:0 16px 50px;
+}
+
+.dashboard-header{
+    background:#1c1c1c;
+    border:1px solid #303030;
+    border-radius:15px;
+    padding:20px;
+    margin-bottom:18px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+}
+
+.dashboard-header h2{
+    font-size:21px;
+    margin-bottom:5px;
+}
+
+.dashboard-header p{
+    color:#888;
+    font-size:13px;
+}
+
+.refresh-btn,
+.primary-btn{
+    background:#ffd700;
+    border:none;
+    color:#111;
+    padding:11px 16px;
+    border-radius:9px;
+    font-weight:800;
+}
+
+/* STATS */
+
+.stats-grid{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:15px;
+    margin-bottom:22px;
+}
+
+.stat-card{
+    background:#1c1c1c;
+    border:1px solid #303030;
+    padding:18px;
+    border-radius:14px;
+    display:flex;
+    align-items:center;
+    gap:13px;
+}
+
+.stat-icon{
+    width:50px;
+    height:50px;
+    background:#272727;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:25px;
+}
+
+.stat-info span{
+    display:block;
+    color:#888;
+    font-size:12px;
+    margin-bottom:4px;
+}
+
+.stat-info strong{
+    font-size:21px;
+}
+
+/* TABS */
+
+.tabs{
+    display:flex;
+    gap:8px;
+    background:#1c1c1c;
+    padding:8px;
+    border:1px solid #303030;
+    border-radius:13px;
+    margin-bottom:18px;
+}
+
+.tab-btn{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:#888;
+    padding:12px;
+    border-radius:9px;
+    font-weight:700;
+}
+
+.tab-btn.active{
+    background:#ffd700;
+    color:#111;
+}
+
+.tab-content{
+    display:none;
+}
+
+.tab-content.active{
+    display:block;
+}
+
+/* SECTION */
+
+.panel-section{
+    background:#1c1c1c;
+    border:1px solid #303030;
+    border-radius:15px;
+    padding:20px;
+    margin-bottom:20px;
+}
+
+.section-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:15px;
+    flex-wrap:wrap;
+    padding-bottom:15px;
+    margin-bottom:18px;
+    border-bottom:1px solid #303030;
+}
+
+.section-header h2{
+    font-size:18px;
+}
+
+.section-header p{
+    color:#888;
+    font-size:13px;
+    margin-top:4px;
+}
+
+/* PRODUCTS */
+
+.products-grid{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:16px;
+}
+
+.product-card{
+    background:#151515;
+    border:1px solid #333;
+    border-radius:14px;
+    overflow:hidden;
+}
+
+.product-image{
+    height:190px;
+    background:#242424;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+}
+
+.product-image img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.no-image{
+    color:#666;
+    font-size:45px;
+}
+
+.product-body{
+    padding:15px;
+}
+
+.product-category{
+    color:#ffd700;
+    font-size:11px;
+    font-weight:700;
+    text-transform:uppercase;
+    margin-bottom:5px;
+}
+
+.product-name{
+    font-size:17px;
+    font-weight:800;
+    margin-bottom:6px;
+}
+
+.product-description{
+    color:#888;
+    font-size:12px;
+    min-height:34px;
+    line-height:1.4;
+    margin-bottom:10px;
+}
+
+.product-price{
+    color:#4caf50;
+    font-size:19px;
+    font-weight:900;
+}
+
+.product-status{
+    display:inline-block;
+    margin-top:9px;
+    padding:5px 8px;
+    border-radius:6px;
+    font-size:11px;
+    font-weight:700;
+}
+
+.status-active{
+    background:rgba(76,175,80,.15);
+    color:#69e06f;
+}
+
+.status-passive{
+    background:rgba(255,82,82,.15);
+    color:#ff7777;
+}
+
+.product-actions{
+    display:flex;
+    gap:7px;
+    margin-top:14px;
+}
+
+.small-btn{
+    flex:1;
+    border:1px solid #444;
+    background:#252525;
+    color:#ddd;
+    padding:9px 7px;
+    border-radius:8px;
+    font-size:12px;
+    font-weight:700;
+}
+
+.edit-btn{
+    border-color:#6d5c00;
+    color:#ffd700;
+}
+
+.delete-btn{
+    border-color:#633333;
+    color:#ff7777;
+}
+
+/* ORDERS */
+
+.orders-list{
+    display:grid;
+    gap:14px;
+}
+
+.order-card{
+    background:#151515;
+    border:1px solid #333;
+    border-radius:13px;
+    padding:17px;
+}
+
+.order-top{
+    display:flex;
+    justify-content:space-between;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:12px;
+    padding-bottom:12px;
+    border-bottom:1px solid #303030;
+}
+
+.order-name{
+    font-weight:800;
+    color:#38bdf8;
+}
+
+.order-status{
+    background:#075985;
+    color:#fff;
+    padding:5px 9px;
+    border-radius:6px;
+    font-size:11px;
+    font-weight:800;
+}
+
+.order-info{
+    color:#ccc;
+    font-size:13px;
+    line-height:1.7;
+}
+
+.order-items{
+    margin-top:12px;
+    background:#0f0f0f;
+    border-radius:8px;
+    padding:11px;
+}
+
+.order-items ul{
+    padding-left:18px;
+    margin-top:6px;
+    color:#ddd;
+    font-size:13px;
+}
+
+.order-controls{
+    display:flex;
+    gap:8px;
+    margin-top:12px;
+    flex-wrap:wrap;
+}
+
+.order-controls select{
+    background:#252525;
+    color:#fff;
+    border:1px solid #444;
+    padding:8px;
+    border-radius:7px;
+}
+
+/* MODAL */
+
+.modal{
+    display:none;
+    position:fixed;
+    inset:0;
+    background:rgba(0,0,0,.78);
+    z-index:5000;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+}
+
+.modal.active{
+    display:flex;
+}
+
+.modal-box{
+    width:100%;
+    max-width:520px;
+    max-height:92vh;
+    overflow-y:auto;
+    background:#1c1c1c;
+    border:1px solid #444;
+    border-radius:17px;
+    padding:22px;
+}
+
+.modal-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:18px;
+}
+
+.modal-header h2{
+    color:#ffd700;
+    font-size:20px;
+}
+
+.close-btn{
+    background:#292929;
+    border:1px solid #444;
+    color:#fff;
+    width:35px;
+    height:35px;
+    border-radius:8px;
+    font-size:18px;
+}
+
+.modal-actions{
+    display:flex;
+    gap:10px;
+    margin-top:18px;
+}
+
+.modal-actions button{
+    flex:1;
+    padding:12px;
+    border-radius:9px;
+    font-weight:800;
+}
+
+.save-product{
+    background:#ffd700;
+    border:none;
+    color:#111;
+}
+
+.cancel-product{
+    background:#292929;
+    border:1px solid #444;
+    color:#fff;
+}
+
+/* IMAGE PICKER */
+
+.image-picker{
+    background:#151515;
+    border:1px dashed #555;
+    border-radius:12px;
+    padding:14px;
+}
+
+.image-picker input[type="file"]{
+    width:100%;
+    color:#ddd;
+    font-size:13px;
+}
+
+.image-preview{
+    display:none;
+    margin-top:12px;
+    width:100%;
+    height:190px;
+    border-radius:10px;
+    overflow:hidden;
+    background:#242424;
+}
+
+.image-preview img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+}
+
+.image-info{
+    color:#777;
+    font-size:11px;
+    margin-top:8px;
+    line-height:1.5;
+}
+
+/* EMPTY */
+
+.empty-state{
+    text-align:center;
+    padding:45px 20px;
+    color:#777;
+}
+
+.empty-state .emoji{
+    font-size:42px;
+    margin-bottom:10px;
+}
+
+/* TOAST */
+
+#toast{
+    position:fixed;
+    right:20px;
+    bottom:20px;
+    z-index:10000;
+    background:#242424;
+    border:1px solid #444;
+    color:#fff;
+    padding:13px 17px;
+    border-radius:10px;
+    transform:translateY(120px);
+    opacity:0;
+    transition:.25s;
+    box-shadow:0 10px 30px rgba(0,0,0,.4);
+}
+
+#toast.show{
+    transform:translateY(0);
+    opacity:1;
+}
+
+#toast.success{
+    border-color:#4caf50;
+}
+
+#toast.error{
+    border-color:#ff5252;
+}
+
+/* MOBILE */
+
+@media(max-width:900px){
+
+    .stats-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+
+    .products-grid{
+        grid-template-columns:repeat(2,1fr);
+    }
+}
+
+@media(max-width:600px){
+
+    .business-header{
+        padding:12px;
+    }
+
+    .business-brand h1{
+        font-size:16px;
+    }
+
+    .business-status{
+        display:none;
+    }
+
+    .business-container{
+        margin-top:14px;
+        padding:0 10px 35px;
+    }
+
+    .dashboard-header{
+        flex-direction:column;
+        align-items:stretch;
+    }
+
+    .stats-grid{
+        grid-template-columns:1fr 1fr;
+        gap:9px;
+    }
+
+    .stat-card{
+        padding:12px;
+        gap:8px;
+    }
+
+    .stat-icon{
+        width:40px;
+        height:40px;
+        font-size:20px;
+    }
+
+    .stat-info strong{
+        font-size:17px;
+    }
+
+    .products-grid{
+        grid-template-columns:1fr;
+    }
+
+    .tabs{
+        overflow-x:auto;
+    }
+
+    .tab-btn{
+        min-width:130px;
+    }
+}
+</style>
 </head>
-
 
 <body>
 
-
-<!-- =====================================================
-     LOGIN
-====================================================== -->
+<!-- LOGIN -->
 
 <div id="login-overlay">
 
     <div class="login-box">
 
-        <div class="login-logo">
-            🍽️
-        </div>
+        <div class="login-logo">🍽️</div>
 
-        <h1>
-            İşletme Girişi
-        </h1>
+        <h1>İşletme Girişi</h1>
 
         <p>
             Ece Döner yönetim paneline erişmek için
             Firebase hesabınızla giriş yapın.
         </p>
-
 
         <form id="loginForm">
 
@@ -1614,7 +816,6 @@
 
             </div>
 
-
             <div class="form-group">
 
                 <label for="loginPassword">
@@ -1632,17 +833,13 @@
 
             </div>
 
-
             <button
                 class="login-btn"
                 type="submit">
-
                 🔐 Giriş Yap
-
             </button>
 
         </form>
-
 
         <div
             id="loginError"
@@ -1654,10 +851,7 @@
 </div>
 
 
-
-<!-- =====================================================
-     ADMIN APP
-====================================================== -->
+<!-- ADMIN -->
 
 <div
     id="admin-app"
@@ -1673,9 +867,7 @@
 
             <div>
 
-                <h1>
-                    Ece Döner
-                </h1>
+                <h1>Ece Döner</h1>
 
                 <span>
                     İşletme Yönetim Paneli
@@ -1684,7 +876,6 @@
             </div>
 
         </div>
-
 
         <div class="header-right">
 
@@ -1695,20 +886,17 @@
                     class="status-dot online">
                 </span>
 
-                <span id="connectionText">
+                <span>
                     Sistem Aktif
                 </span>
 
             </div>
 
-
             <button
                 id="logoutBtn"
                 class="logout-btn"
                 type="button">
-
                 Çıkış
-
             </button>
 
         </div>
@@ -1716,11 +904,7 @@
     </header>
 
 
-
     <main class="business-container">
-
-
-        <!-- DASHBOARD -->
 
         <section class="dashboard-header">
 
@@ -1736,24 +920,19 @@
 
             </div>
 
-
             <button
                 id="refreshBtn"
                 class="refresh-btn"
                 type="button">
-
                 🔄 Yenile
-
             </button>
 
         </section>
 
 
-
         <!-- STATS -->
 
         <section class="stats-grid">
-
 
             <div class="stat-card">
 
@@ -1838,9 +1017,7 @@
 
             </div>
 
-
         </section>
-
 
 
         <!-- TABS -->
@@ -1851,28 +1028,20 @@
                 class="tab-btn active"
                 data-tab="ordersTab"
                 type="button">
-
                 🛒 Siparişler
-
             </button>
-
 
             <button
                 class="tab-btn"
                 data-tab="productsTab"
                 type="button">
-
                 🍽️ Menü Yönetimi
-
             </button>
 
         </div>
 
 
-
-        <!-- =================================================
-             ORDERS
-        ================================================== -->
+        <!-- ORDERS -->
 
         <div
             id="ordersTab"
@@ -1895,7 +1064,6 @@
                     </div>
 
                 </div>
-
 
                 <div
                     id="ordersContainer"
@@ -1920,10 +1088,7 @@
         </div>
 
 
-
-        <!-- =================================================
-             PRODUCTS
-        ================================================== -->
+        <!-- PRODUCTS -->
 
         <div
             id="productsTab"
@@ -1940,19 +1105,16 @@
                         </h2>
 
                         <p>
-                            Ürünleri, fiyatları ve stok durumlarını buradan yönetin.
+                            Ürünleri, fiyatları ve stok durumlarını yönetin.
                         </p>
 
                     </div>
-
 
                     <button
                         id="addProductBtn"
                         class="primary-btn"
                         type="button">
-
                         ➕ Yeni Ürün Ekle
-
                     </button>
 
                 </div>
@@ -1980,16 +1142,12 @@
 
         </div>
 
-
     </main>
 
 </div>
 
 
-
-<!-- =====================================================
-     PRODUCT MODAL
-====================================================== -->
+<!-- PRODUCT MODAL -->
 
 <div
     id="productModal"
@@ -1997,37 +1155,29 @@
 
     <div class="modal-box">
 
-
         <div class="modal-header">
 
             <h2 id="modalTitle">
                 ➕ Yeni Ürün
             </h2>
 
-
             <button
                 id="closeModalBtn"
                 class="close-btn"
                 type="button">
-
                 ×
-
             </button>
 
         </div>
 
 
-
         <form id="productForm">
-
 
             <input
                 type="hidden"
                 id="productId"
             >
 
-
-            <!-- PRODUCT NAME -->
 
             <div class="form-group">
 
@@ -2046,9 +1196,6 @@
             </div>
 
 
-
-            <!-- CATEGORY -->
-
             <div class="form-group">
 
                 <label for="productCategory">
@@ -2065,9 +1212,6 @@
 
             </div>
 
-
-
-            <!-- PRICE -->
 
             <div class="form-group">
 
@@ -2088,9 +1232,6 @@
             </div>
 
 
-
-            <!-- DESCRIPTION -->
-
             <div class="form-group">
 
                 <label for="productDescription">
@@ -2105,40 +1246,21 @@
             </div>
 
 
-
-            <!-- =================================================
-                 DIRECT IMAGE SELECT
-            ================================================== -->
+            <!-- YENİ FOTOĞRAF SİSTEMİ -->
 
             <div class="form-group">
 
                 <label>
-                    📸 Ürün Görseli
+                    📷 Ürün Fotoğrafı
                 </label>
 
-
-                <div class="image-upload-box">
-
+                <div class="image-picker">
 
                     <input
                         id="productImageFile"
                         type="file"
                         accept="image/*"
                     >
-
-
-                    <div class="image-help">
-
-                        📱 Telefondan galeriden direkt fotoğraf seçebilirsiniz.<br>
-
-                        🗜️ Fotoğraf otomatik olarak sıkıştırılır.<br>
-
-                        📦 Maksimum orijinal dosya: 5 MB.<br>
-
-                        ☁️ Firebase Storage kullanılmaz.
-
-                    </div>
-
 
                     <div
                         id="imagePreview"
@@ -2147,57 +1269,26 @@
                         <img
                             id="imagePreviewImg"
                             src=""
-                            alt="Ürün önizleme"
-                        >
+                            alt="Fotoğraf önizleme">
 
                     </div>
 
-
-                    <div
-                        id="imageProgress"
-                        class="image-progress">
-
-                        <span id="imageProgressText">
-                            Hazırlanıyor...
-                        </span>
-
-
-                        <div class="image-progress-bar">
-
-                            <div
-                                id="imageProgressFill"
-                                class="image-progress-fill">
-                            </div>
-
-                        </div>
-
+                    <div class="image-info">
+                        📱 Telefonda galeriden fotoğraf seçebilirsin.
+                        Fotoğraf otomatik olarak küçültülüp sıkıştırılır.
+                        Firebase Storage kullanılmaz.
                     </div>
-
-
-                    <button
-                        id="removeImageBtn"
-                        class="remove-image-btn"
-                        type="button">
-
-                        🗑️ Görseli Kaldır
-
-                    </button>
-
 
                 </div>
 
             </div>
 
 
-
-            <!-- AVAILABLE -->
-
             <div class="form-group">
 
                 <label for="productAvailable">
                     Satış Durumu
                 </label>
-
 
                 <select
                     id="productAvailable"
@@ -2216,32 +1307,23 @@
             </div>
 
 
-
-            <!-- ACTIONS -->
-
             <div class="modal-actions">
 
                 <button
                     id="cancelProductBtn"
                     class="cancel-product"
                     type="button">
-
                     Vazgeç
-
                 </button>
-
 
                 <button
                     id="saveProductBtn"
                     class="save-product"
                     type="submit">
-
                     💾 Kaydet
-
                 </button>
 
             </div>
-
 
         </form>
 
@@ -2250,19 +1332,14 @@
 </div>
 
 
-
-<!-- TOAST -->
-
 <div id="toast"></div>
-
 
 
 <script>
 
-
-/* ============================================================
-   FIREBASE CONFIG
-============================================================ */
+/* =====================================================
+   FIREBASE
+===================================================== */
 
 const firebaseConfig = {
 
@@ -2286,267 +1363,153 @@ const firebaseConfig = {
 
     measurementId:
         "G-9VEVNMW5T0"
-
 };
 
 
-if (!firebase.apps.length) {
+if(!firebase.apps.length){
 
-    firebase.initializeApp(
-        firebaseConfig
-    );
+    firebase.initializeApp(firebaseConfig);
 
 }
 
-
-const auth =
-    firebase.auth();
-
-
-const db =
-    firebase.firestore();
-
+const auth = firebase.auth();
+const db = firebase.firestore();
 
 const productsCollection =
     db.collection("products");
 
 
-
-/* ============================================================
+/* =====================================================
    ELEMENTLER
-============================================================ */
+===================================================== */
 
 const loginOverlay =
-    document.getElementById(
-        "login-overlay"
-    );
-
+    document.getElementById("login-overlay");
 
 const adminApp =
-    document.getElementById(
-        "admin-app"
-    );
-
+    document.getElementById("admin-app");
 
 const loginForm =
-    document.getElementById(
-        "loginForm"
-    );
-
+    document.getElementById("loginForm");
 
 const loginError =
-    document.getElementById(
-        "loginError"
-    );
-
-
-const logoutBtn =
-    document.getElementById(
-        "logoutBtn"
-    );
-
+    document.getElementById("loginError");
 
 const productModal =
-    document.getElementById(
-        "productModal"
-    );
-
+    document.getElementById("productModal");
 
 const productForm =
-    document.getElementById(
-        "productForm"
-    );
+    document.getElementById("productForm");
 
-
-const imageFileInput =
-    document.getElementById(
-        "productImageFile"
-    );
-
+const imageFile =
+    document.getElementById("productImageFile");
 
 const imagePreview =
-    document.getElementById(
-        "imagePreview"
-    );
-
+    document.getElementById("imagePreview");
 
 const imagePreviewImg =
-    document.getElementById(
-        "imagePreviewImg"
-    );
-
-
-const imageProgress =
-    document.getElementById(
-        "imageProgress"
-    );
-
-
-const imageProgressText =
-    document.getElementById(
-        "imageProgressText"
-    );
-
-
-const imageProgressFill =
-    document.getElementById(
-        "imageProgressFill"
-    );
-
-
-const removeImageBtn =
-    document.getElementById(
-        "removeImageBtn"
-    );
-
+    document.getElementById("imagePreviewImg");
 
 const saveProductBtn =
-    document.getElementById(
-        "saveProductBtn"
-    );
+    document.getElementById("saveProductBtn");
 
-
-
-/* ============================================================
-   VARIABLES
-============================================================ */
 
 let products = [];
 
 let currentImageData = "";
 
-let imageRemoved = false;
-
-let imageProcessing = false;
-
+let productsUnsubscribe = null;
+let ordersUnsubscribe = null;
 
 
-/* ============================================================
+/* =====================================================
    TOAST
-============================================================ */
+===================================================== */
 
-function showToast(
-    message,
-    type = "success"
-) {
+function showToast(message,type="success"){
 
     const toast =
-        document.getElementById(
-            "toast"
-        );
+        document.getElementById("toast");
 
+    toast.textContent = message;
 
-    toast.textContent =
-        message;
-
-
-    toast.className =
-        "";
-
-
-    toast.id =
-        "toast";
-
+    toast.className = "";
 
     toast.classList.add(
         "show",
         type
     );
 
+    setTimeout(function(){
 
-    setTimeout(
-        () => {
+        toast.classList.remove("show");
 
-            toast.classList.remove(
-                "show"
-            );
-
-        },
-        3000
-    );
+    },2500);
 
 }
 
 
-
-/* ============================================================
+/* =====================================================
    LOGIN
-============================================================ */
+===================================================== */
 
 loginForm.addEventListener(
     "submit",
-    async function(event) {
+    async function(event){
 
         event.preventDefault();
 
-
-        loginError.style.display =
-            "none";
-
+        loginError.style.display = "none";
 
         const email =
             document
-                .getElementById(
-                    "loginEmail"
-                )
+                .getElementById("loginEmail")
                 .value
                 .trim();
 
-
         const password =
             document
-                .getElementById(
-                    "loginPassword"
-                )
+                .getElementById("loginPassword")
                 .value;
 
+        try{
 
-        try {
-
-            await auth
-                .signInWithEmailAndPassword(
-                    email,
-                    password
-                );
+            await auth.signInWithEmailAndPassword(
+                email,
+                password
+            );
 
         }
 
-        catch (error) {
+        catch(error){
 
-            console.error(
-                error
-            );
-
+            console.error(error);
 
             let message =
                 "E-posta veya şifre hatalı.";
 
-
-            if (
+            if(
                 error.code ===
                 "auth/too-many-requests"
-            ) {
+            ){
 
                 message =
                     "Çok fazla deneme yapıldı. Bir süre bekleyin.";
 
             }
 
-
-            else if (
+            else if(
                 error.code ===
                 "auth/network-request-failed"
-            ) {
+            ){
 
                 message =
-                    "İnternet bağlantınızı kontrol edin.";
+                    "İnternet bağlantısını kontrol edin.";
 
             }
 
-
             loginError.textContent =
                 message;
-
 
             loginError.style.display =
                 "block";
@@ -2557,144 +1520,407 @@ loginForm.addEventListener(
 );
 
 
+/* =====================================================
+   AUTH
+===================================================== */
 
-/* ============================================================
-   AUTH STATE
-============================================================ */
+auth.onAuthStateChanged(function(user){
 
-auth.onAuthStateChanged(
-    function(user) {
+    if(user){
 
-        if (user) {
+        loginOverlay.style.display = "none";
 
-            loginOverlay.style.display =
-                "none";
+        adminApp.style.display = "block";
 
+        loadProducts();
 
-            adminApp.style.display =
-                "block";
-
-
-            loadOrders();
-
-            loadProducts();
-
-        }
-
-        else {
-
-            loginOverlay.style.display =
-                "flex";
-
-
-            adminApp.style.display =
-                "none";
-
-        }
+        loadOrders();
 
     }
-);
+
+    else{
+
+        loginOverlay.style.display = "flex";
+
+        adminApp.style.display = "none";
+
+    }
+
+});
 
 
-
-/* ============================================================
+/* =====================================================
    LOGOUT
-============================================================ */
-
-logoutBtn.addEventListener(
-    "click",
-    async function() {
-
-        await auth.signOut();
-
-    }
-);
-
-
-
-/* ============================================================
-   TAB SYSTEM
-============================================================ */
+===================================================== */
 
 document
-    .querySelectorAll(".tab-btn")
-    .forEach(
-        button => {
+    .getElementById("logoutBtn")
+    .addEventListener(
+        "click",
+        async function(){
 
-            button.addEventListener(
-                "click",
-                function() {
-
-                    document
-                        .querySelectorAll(
-                            ".tab-btn"
-                        )
-                        .forEach(
-                            btn =>
-                                btn.classList.remove(
-                                    "active"
-                                )
-                        );
-
-
-                    document
-                        .querySelectorAll(
-                            ".tab-content"
-                        )
-                        .forEach(
-                            tab =>
-                                tab.classList.remove(
-                                    "active"
-                                )
-                        );
-
-
-                    button.classList.add(
-                        "active"
-                    );
-
-
-                    document
-                        .getElementById(
-                            button.dataset.tab
-                        )
-                        .classList.add(
-                            "active"
-                        );
-
-                }
-            );
+            await auth.signOut();
 
         }
     );
 
 
+/* =====================================================
+   TABS
+===================================================== */
 
-/* ============================================================
-   PRODUCTS LISTENER
-============================================================ */
+document
+    .querySelectorAll(".tab-btn")
+    .forEach(function(button){
 
-function loadProducts() {
+        button.addEventListener(
+            "click",
+            function(){
+
+                document
+                    .querySelectorAll(".tab-btn")
+                    .forEach(function(btn){
+
+                        btn.classList.remove("active");
+
+                    });
+
+                document
+                    .querySelectorAll(".tab-content")
+                    .forEach(function(tab){
+
+                        tab.classList.remove("active");
+
+                    });
+
+                button.classList.add("active");
+
+                document
+                    .getElementById(
+                        button.dataset.tab
+                    )
+                    .classList.add("active");
+
+            }
+        );
+
+    });
+
+
+/* =====================================================
+   FOTOĞRAF SEÇME
+===================================================== */
+
+imageFile.addEventListener(
+    "change",
+    async function(){
+
+        const file =
+            imageFile.files[0];
+
+        if(!file){
+
+            currentImageData = "";
+
+            imagePreview.style.display = "none";
+
+            return;
+
+        }
+
+
+        if(!file.type.startsWith("image/")){
+
+            showToast(
+                "Lütfen bir fotoğraf seçin.",
+                "error"
+            );
+
+            imageFile.value = "";
+
+            return;
+
+        }
+
+
+        showToast(
+            "Fotoğraf hazırlanıyor..."
+        );
+
+
+        try{
+
+            currentImageData =
+                await compressImage(file);
+
+            imagePreviewImg.src =
+                currentImageData;
+
+            imagePreview.style.display =
+                "block";
+
+
+            showToast(
+                "Fotoğraf hazır."
+            );
+
+        }
+
+        catch(error){
+
+            console.error(
+                "Fotoğraf işleme hatası:",
+                error
+            );
+
+            showToast(
+                "Fotoğraf işlenemedi.",
+                "error"
+            );
+
+            currentImageData = "";
+
+        }
+
+    }
+);
+
+
+/* =====================================================
+   FOTOĞRAF SIKIŞTIRMA
+===================================================== */
+
+function compressImage(file){
+
+    return new Promise(function(resolve,reject){
+
+        const reader =
+            new FileReader();
+
+        reader.onload = function(event){
+
+            const img =
+                new Image();
+
+            img.onload = function(){
+
+                const MAX_WIDTH = 700;
+                const MAX_HEIGHT = 700;
+
+                let width =
+                    img.width;
+
+                let height =
+                    img.height;
+
+
+                if(
+                    width > MAX_WIDTH ||
+                    height > MAX_HEIGHT
+                ){
+
+                    const ratio =
+                        Math.min(
+                            MAX_WIDTH / width,
+                            MAX_HEIGHT / height
+                        );
+
+                    width =
+                        Math.round(
+                            width * ratio
+                        );
+
+                    height =
+                        Math.round(
+                            height * ratio
+                        );
+
+                }
+
+
+                const canvas =
+                    document.createElement("canvas");
+
+                canvas.width =
+                    width;
+
+                canvas.height =
+                    height;
+
+
+                const ctx =
+                    canvas.getContext("2d");
+
+                ctx.drawImage(
+                    img,
+                    0,
+                    0,
+                    width,
+                    height
+                );
+
+
+                const result =
+                    canvas.toDataURL(
+                        "image/jpeg",
+                        0.55
+                    );
+
+
+                /*
+                    Firestore 1 MiB sınırına
+                    yaklaşmamak için gerektiğinde
+                    daha fazla sıkıştır.
+                */
+
+                let finalResult = result;
+
+                if(finalResult.length > 700000){
+
+                    finalResult =
+                        canvas.toDataURL(
+                            "image/jpeg",
+                            0.35
+                        );
+
+                }
+
+
+                if(finalResult.length > 900000){
+
+                    reject(
+                        new Error(
+                            "Fotoğraf yeterince küçültülemedi."
+                        )
+                    );
+
+                    return;
+
+                }
+
+
+                resolve(finalResult);
+
+            };
+
+
+            img.onerror = function(){
+
+                reject(
+                    new Error(
+                        "Fotoğraf okunamadı."
+                    )
+                );
+
+            };
+
+
+            img.src =
+                event.target.result;
+
+        };
+
+
+        reader.onerror = function(){
+
+            reject(
+                new Error(
+                    "Dosya okunamadı."
+                )
+            );
+
+        };
+
+
+        reader.readAsDataURL(file);
+
+    });
+
+}
+
+
+/* =====================================================
+   PRODUCTS
+===================================================== */
+
+function loadProducts(){
+
+    if(productsUnsubscribe){
+
+        productsUnsubscribe();
+
+    }
+
+
+    productsUnsubscribe =
+        productsCollection
+            .orderBy(
+                "createdAt",
+                "desc"
+            )
+            .onSnapshot(
+                function(snapshot){
+
+                    products = [];
+
+                    snapshot.forEach(
+                        function(doc){
+
+                            products.push({
+
+                                id:doc.id,
+
+                                ...doc.data()
+
+                            });
+
+                        }
+                    );
+
+                    renderProducts();
+
+                    updateProductStats();
+
+                },
+                function(error){
+
+                    console.error(
+                        "Ürünler alınamadı:",
+                        error
+                    );
+
+                    /*
+                        createdAt sıralamasında sorun
+                        varsa normal collection
+                        sorgusunu deniyoruz.
+                    */
+
+                    loadProductsFallback();
+
+                }
+            );
+
+}
+
+
+/* =====================================================
+   PRODUCT FALLBACK
+===================================================== */
+
+function loadProductsFallback(){
 
     productsCollection
-        .orderBy(
-            "createdAt",
-            "desc"
-        )
         .onSnapshot(
-
-            function(snapshot) {
+            function(snapshot){
 
                 products = [];
 
-
                 snapshot.forEach(
-                    function(doc) {
+                    function(doc){
 
                         products.push({
 
-                            id:
-                                doc.id,
+                            id:doc.id,
 
                             ...doc.data()
 
@@ -2703,21 +1929,32 @@ function loadProducts() {
                     }
                 );
 
+                products.sort(function(a,b){
+
+                    const aTime =
+                        a.createdAt &&
+                        a.createdAt.toMillis
+                            ? a.createdAt.toMillis()
+                            : 0;
+
+                    const bTime =
+                        b.createdAt &&
+                        b.createdAt.toMillis
+                            ? b.createdAt.toMillis()
+                            : 0;
+
+                    return bTime - aTime;
+
+                });
 
                 renderProducts();
 
                 updateProductStats();
 
             },
+            function(error){
 
-
-            function(error) {
-
-                console.error(
-                    "Ürünler alınamadı:",
-                    error
-                );
-
+                console.error(error);
 
                 showToast(
                     "Ürünler alınamadı.",
@@ -2725,18 +1962,16 @@ function loadProducts() {
                 );
 
             }
-
         );
 
 }
 
 
+/* =====================================================
+   PRODUCT RENDER
+===================================================== */
 
-/* ============================================================
-   RENDER PRODUCTS
-============================================================ */
-
-function renderProducts() {
+function renderProducts(){
 
     const container =
         document.getElementById(
@@ -2744,7 +1979,7 @@ function renderProducts() {
         );
 
 
-    if (!products.length) {
+    if(!products.length){
 
         container.innerHTML = `
 
@@ -2775,36 +2010,27 @@ function renderProducts() {
 
     container.innerHTML =
         products
-            .map(
-                createProductHTML
-            )
+            .map(createProductHTML)
             .join("");
 
 }
 
 
-
-/* ============================================================
+/* =====================================================
    PRODUCT HTML
-============================================================ */
+===================================================== */
 
-function createProductHTML(
-    product
-) {
+function createProductHTML(product){
 
     const name =
         escapeHTML(
-            product.name ||
-            "Ürün"
+            product.name || "Ürün"
         );
-
 
     const category =
         escapeHTML(
-            product.category ||
-            "Kategori"
+            product.category || "Kategori"
         );
-
 
     const description =
         escapeHTML(
@@ -2812,36 +2038,36 @@ function createProductHTML(
             "Açıklama bulunmuyor."
         );
 
-
     const price =
-        Number(
-            product.price
-        ) || 0;
+        Number(product.price) || 0;
 
+    /*
+        Yeni sistemde imageData kullanılabilir.
+        Eski URL sistemi de bozulmasın diye
+        product.image de destekleniyor.
+    */
 
     const image =
+        product.imageData ||
         product.image ||
         "";
-
 
     const available =
         product.available !== false;
 
 
-    let imageHTML;
+    let imageHTML = "";
 
-
-    if (image) {
+    if(image){
 
         imageHTML = `
 
             <img
                 src="${escapeAttribute(image)}"
                 alt="${name}"
-                loading="lazy"
                 onerror="
                     this.style.display='none';
-                    this.parentElement.innerHTML='<div class=no-image>🍽️</div>';
+                    this.parentElement.innerHTML='<div class=&quot;no-image&quot;>🍽️</div>';
                 "
             >
 
@@ -2849,7 +2075,7 @@ function createProductHTML(
 
     }
 
-    else {
+    else{
 
         imageHTML = `
 
@@ -2866,7 +2092,6 @@ function createProductHTML(
 
         <article class="product-card">
 
-
             <div class="product-image">
 
                 ${imageHTML}
@@ -2876,21 +2101,17 @@ function createProductHTML(
 
             <div class="product-body">
 
-
                 <div class="product-category">
                     ${category}
                 </div>
-
 
                 <div class="product-name">
                     ${name}
                 </div>
 
-
                 <div class="product-description">
                     ${description}
                 </div>
-
 
                 <div class="product-price">
                     ${formatPrice(price)} ₺
@@ -2899,11 +2120,9 @@ function createProductHTML(
 
                 <span class="
                     product-status
-                    ${
-                        available
-                            ? "status-active"
-                            : "status-passive"
-                    }
+                    ${available
+                        ? "status-active"
+                        : "status-passive"}
                 ">
 
                     ${
@@ -2916,7 +2135,6 @@ function createProductHTML(
 
 
                 <div class="product-actions">
-
 
                     <button
                         class="small-btn edit-btn"
@@ -2951,7 +2169,6 @@ function createProductHTML(
 
                     </button>
 
-
                 </div>
 
             </div>
@@ -2963,18 +2180,15 @@ function createProductHTML(
 }
 
 
-
-/* ============================================================
-   OPEN MODAL
-============================================================ */
+/* =====================================================
+   PRODUCT MODAL
+===================================================== */
 
 document
-    .getElementById(
-        "addProductBtn"
-    )
+    .getElementById("addProductBtn")
     .addEventListener(
         "click",
-        function() {
+        function(){
 
             openProductModal();
 
@@ -2982,43 +2196,28 @@ document
     );
 
 
-
 document
-    .getElementById(
-        "closeModalBtn"
-    )
+    .getElementById("closeModalBtn")
     .addEventListener(
         "click",
         closeProductModal
     );
 
 
-
 document
-    .getElementById(
-        "cancelProductBtn"
-    )
+    .getElementById("cancelProductBtn")
     .addEventListener(
         "click",
         closeProductModal
     );
 
 
+function openProductModal(product=null){
 
-function openProductModal(
-    product = null
-) {
-
-    productModal.classList.add(
-        "active"
-    );
+    productModal.classList.add("active");
 
 
-    imageProcessing =
-        false;
-
-
-    if (product) {
+    if(product){
 
         document.getElementById(
             "modalTitle"
@@ -3035,29 +2234,49 @@ function openProductModal(
         document.getElementById(
             "productName"
         ).value =
-            product.name ||
-            "";
+            product.name || "";
 
 
         document.getElementById(
             "productCategory"
         ).value =
-            product.category ||
-            "";
+            product.category || "";
 
 
         document.getElementById(
             "productPrice"
         ).value =
-            product.price ||
-            "";
+            product.price || "";
 
 
         document.getElementById(
             "productDescription"
         ).value =
-            product.description ||
+            product.description || "";
+
+
+        currentImageData =
+            product.imageData ||
+            product.image ||
             "";
+
+
+        if(currentImageData){
+
+            imagePreviewImg.src =
+                currentImageData;
+
+            imagePreview.style.display =
+                "block";
+
+        }
+
+        else{
+
+            imagePreview.style.display =
+                "none";
+
+        }
 
 
         document.getElementById(
@@ -3067,651 +2286,64 @@ function openProductModal(
                 ? "false"
                 : "true";
 
-
-        currentImageData =
-            product.image ||
-            "";
-
-
-        imageRemoved =
-            false;
-
-
-        if (currentImageData) {
-
-            showImagePreview(
-                currentImageData
-            );
-
-        }
-
-        else {
-
-            clearImagePreview();
-
-        }
-
     }
 
-    else {
+    else{
 
         productForm.reset();
 
-
         document.getElementById(
             "productId"
-        ).value =
-            "";
-
+        ).value = "";
 
         document.getElementById(
             "modalTitle"
         ).textContent =
             "➕ Yeni Ürün";
 
+        currentImageData = "";
 
-        currentImageData =
-            "";
+        imagePreview.style.display =
+            "none";
 
-
-        imageRemoved =
-            false;
-
-
-        clearImagePreview();
+        imagePreviewImg.src = "";
 
     }
 
 }
 
 
-
-/* ============================================================
+/* =====================================================
    CLOSE MODAL
-============================================================ */
+===================================================== */
 
-function closeProductModal() {
-
-    if (imageProcessing) {
-
-        showToast(
-            "Görsel hazırlanıyor. Lütfen bekleyin.",
-            "error"
-        );
-
-        return;
-
-    }
-
+function closeProductModal(){
 
     productModal.classList.remove(
         "active"
     );
 
-
     productForm.reset();
 
+    currentImageData = "";
 
-    currentImageData =
-        "";
+    imagePreview.style.display =
+        "none";
 
-
-    imageRemoved =
-        false;
-
-
-    clearImagePreview();
+    imagePreviewImg.src = "";
 
 }
 
 
-
-/* ============================================================
-   IMAGE FILE SELECT
-============================================================ */
-
-imageFileInput.addEventListener(
-    "change",
-    async function() {
-
-        const file =
-            this.files &&
-            this.files[0];
-
-
-        if (!file) {
-            return;
-        }
-
-
-        if (
-            !file.type.startsWith(
-                "image/"
-            )
-        ) {
-
-            showToast(
-                "Lütfen bir fotoğraf seçin.",
-                "error"
-            );
-
-
-            this.value =
-                "";
-
-
-            return;
-
-        }
-
-
-        if (
-            file.size >
-            5 * 1024 * 1024
-        ) {
-
-            showToast(
-                "Fotoğraf 5 MB'dan küçük olmalı.",
-                "error"
-            );
-
-
-            this.value =
-                "";
-
-
-            return;
-
-        }
-
-
-        try {
-
-            imageProcessing =
-                true;
-
-
-            saveProductBtn.disabled =
-                true;
-
-
-            showProgress(
-                5,
-                "📷 Fotoğraf okunuyor..."
-            );
-
-
-            const imageData =
-                await compressImage(
-                    file
-                );
-
-
-            showProgress(
-                100,
-                "✅ Fotoğraf hazır."
-            );
-
-
-            currentImageData =
-                imageData;
-
-
-            imageRemoved =
-                false;
-
-
-            showImagePreview(
-                imageData
-            );
-
-
-            setTimeout(
-                () => {
-
-                    imageProgress.classList.remove(
-                        "show"
-                    );
-
-                },
-                1200
-            );
-
-        }
-
-        catch (error) {
-
-            console.error(
-                "Görsel işleme hatası:",
-                error
-            );
-
-
-            showToast(
-                "Fotoğraf hazırlanamadı.",
-                "error"
-            );
-
-
-            clearImagePreview();
-
-        }
-
-        finally {
-
-            imageProcessing =
-                false;
-
-
-            saveProductBtn.disabled =
-                false;
-
-        }
-
-    }
-);
-
-
-
-/* ============================================================
-   IMAGE COMPRESSION
-============================================================ */
-
-function compressImage(
-    file
-) {
-
-    return new Promise(
-        function(resolve, reject) {
-
-            const reader =
-                new FileReader();
-
-
-            reader.onload =
-                function(event) {
-
-                    showProgress(
-                        20,
-                        "🖼️ Fotoğraf işleniyor..."
-                    );
-
-
-                    const img =
-                        new Image();
-
-
-                    img.onload =
-                        function() {
-
-                            try {
-
-                                showProgress(
-                                    40,
-                                    "🗜️ Fotoğraf sıkıştırılıyor..."
-                                );
-
-
-                                const MAX_WIDTH =
-                                    1000;
-
-
-                                const MAX_HEIGHT =
-                                    1000;
-
-
-                                let width =
-                                    img.width;
-
-
-                                let height =
-                                    img.height;
-
-
-                                const ratio =
-                                    Math.min(
-                                        MAX_WIDTH / width,
-                                        MAX_HEIGHT / height,
-                                        1
-                                    );
-
-
-                                width =
-                                    Math.round(
-                                        width * ratio
-                                    );
-
-
-                                height =
-                                    Math.round(
-                                        height * ratio
-                                    );
-
-
-                                const canvas =
-                                    document.createElement(
-                                        "canvas"
-                                    );
-
-
-                                canvas.width =
-                                    width;
-
-
-                                canvas.height =
-                                    height;
-
-
-                                const ctx =
-                                    canvas.getContext(
-                                        "2d"
-                                    );
-
-
-                                ctx.fillStyle =
-                                    "#ffffff";
-
-
-                                ctx.fillRect(
-                                    0,
-                                    0,
-                                    width,
-                                    height
-                                );
-
-
-                                ctx.drawImage(
-                                    img,
-                                    0,
-                                    0,
-                                    width,
-                                    height
-                                );
-
-
-                                showProgress(
-                                    60,
-                                    "⚙️ Kalite ayarlanıyor..."
-                                );
-
-
-                                let quality =
-                                    0.75;
-
-
-                                let dataUrl =
-                                    canvas.toDataURL(
-                                        "image/jpeg",
-                                        quality
-                                    );
-
-
-                                let attempts =
-                                    0;
-
-
-                                while (
-                                    dataUrl.length >
-                                    340000 &&
-                                    attempts < 8
-                                ) {
-
-                                    quality -=
-                                        0.08;
-
-
-                                    if (
-                                        quality < 0.35
-                                    ) {
-
-                                        break;
-
-                                    }
-
-
-                                    dataUrl =
-                                        canvas.toDataURL(
-                                            "image/jpeg",
-                                            quality
-                                        );
-
-
-                                    attempts++;
-
-                                }
-
-
-                                showProgress(
-                                    85,
-                                    "📦 Son kontroller yapılıyor..."
-                                );
-
-
-                                if (
-                                    dataUrl.length >
-                                    700000
-                                ) {
-
-                                    reject(
-                                        new Error(
-                                            "Fotoğraf yeterince küçültülemedi."
-                                        )
-                                    );
-
-
-                                    return;
-
-                                }
-
-
-                                showProgress(
-                                    95,
-                                    "💾 Kayda hazırlanıyor..."
-                                );
-
-
-                                resolve(
-                                    dataUrl
-                                );
-
-                            }
-
-                            catch (error) {
-
-                                reject(
-                                    error
-                                );
-
-                            }
-
-                        };
-
-
-                    img.onerror =
-                        function() {
-
-                            reject(
-                                new Error(
-                                    "Fotoğraf okunamadı."
-                                )
-                            );
-
-                        };
-
-
-                    img.src =
-                        event.target.result;
-
-                };
-
-
-            reader.onerror =
-                function() {
-
-                    reject(
-                        new Error(
-                            "Dosya okunamadı."
-                        )
-                    );
-
-                };
-
-
-            reader.readAsDataURL(
-                file
-            );
-
-        }
-    );
-
-}
-
-
-
-/* ============================================================
-   IMAGE PREVIEW
-============================================================ */
-
-function showImagePreview(
-    src
-) {
-
-    if (!src) {
-
-        clearImagePreview();
-
-        return;
-
-    }
-
-
-    imagePreviewImg.src =
-        src;
-
-
-    imagePreview.classList.add(
-        "show"
-    );
-
-
-    removeImageBtn.classList.add(
-        "show"
-    );
-
-}
-
-
-
-/* ============================================================
-   CLEAR IMAGE
-============================================================ */
-
-function clearImagePreview() {
-
-    imagePreviewImg.src =
-        "";
-
-
-    imagePreview.classList.remove(
-        "show"
-    );
-
-
-    removeImageBtn.classList.remove(
-        "show"
-    );
-
-
-    imageProgress.classList.remove(
-        "show"
-    );
-
-}
-
-
-
-/* ============================================================
-   REMOVE IMAGE
-============================================================ */
-
-removeImageBtn.addEventListener(
-    "click",
-    function() {
-
-        currentImageData =
-            "";
-
-
-        imageRemoved =
-            true;
-
-
-        imageFileInput.value =
-            "";
-
-
-        clearImagePreview();
-
-
-        showToast(
-            "Görsel kaldırıldı."
-        );
-
-    }
-);
-
-
-
-/* ============================================================
-   IMAGE PROGRESS
-============================================================ */
-
-function showProgress(
-    percent,
-    text
-) {
-
-    imageProgress.classList.add(
-        "show"
-    );
-
-
-    imageProgressText.textContent =
-        text;
-
-
-    imageProgressFill.style.width =
-        `${percent}%`;
-
-}
-
-
-
-/* ============================================================
+/* =====================================================
    SAVE PRODUCT
-============================================================ */
+===================================================== */
 
 productForm.addEventListener(
     "submit",
-    async function(event) {
+    async function(event){
 
         event.preventDefault();
-
-
-        if (imageProcessing) {
-
-            showToast(
-                "Fotoğraf hazırlanıyor. Lütfen bekleyin.",
-                "error"
-            );
-
-            return;
-
-        }
-
-
-        saveProductBtn.disabled =
-            true;
 
 
         const id =
@@ -3723,16 +2355,14 @@ productForm.addEventListener(
         const name =
             document.getElementById(
                 "productName"
-            )
-            .value
+            ).value
             .trim();
 
 
         const category =
             document.getElementById(
                 "productCategory"
-            )
-            .value
+            ).value
             .trim();
 
 
@@ -3747,66 +2377,49 @@ productForm.addEventListener(
         const description =
             document.getElementById(
                 "productDescription"
-            )
-            .value
+            ).value
             .trim();
 
 
         const available =
             document.getElementById(
                 "productAvailable"
-            ).value ===
-            "true";
+            ).value === "true";
 
 
-        if (!name) {
+        if(!name){
 
             showToast(
                 "Ürün adı gerekli.",
                 "error"
             );
 
-
-            saveProductBtn.disabled =
-                false;
-
-
             return;
 
         }
 
 
-        if (!category) {
+        if(!category){
 
             showToast(
                 "Kategori gerekli.",
                 "error"
             );
 
-
-            saveProductBtn.disabled =
-                false;
-
-
             return;
 
         }
 
 
-        if (
+        if(
             !Number.isFinite(price) ||
             price < 0
-        ) {
+        ){
 
             showToast(
                 "Geçerli bir fiyat girin.",
                 "error"
             );
-
-
-            saveProductBtn.disabled =
-                false;
-
 
             return;
 
@@ -3814,39 +2427,24 @@ productForm.addEventListener(
 
 
         /*
-         * Eğer yeni fotoğraf seçilmediyse
-         * mevcut fotoğraf korunur.
-         *
-         * Eğer "Görseli Kaldır" denildiyse
-         * image boş kaydedilir.
-         */
+            Fotoğraf varsa imageData olarak
+            Firestore'a kaydediyoruz.
 
-        let finalImage =
-            currentImageData;
-
-
-        if (imageRemoved) {
-
-            finalImage =
-                "";
-
-        }
-
+            Fotoğraf yoksa eski fotoğrafı
+            koruyoruz.
+        */
 
         const data = {
 
-            name,
+            name:name,
 
-            category,
+            category:category,
 
-            price,
+            price:price,
 
-            description,
+            description:description,
 
-            image:
-                finalImage,
-
-            available,
+            available:available,
 
             updatedAt:
                 firebase.firestore
@@ -3856,15 +2454,24 @@ productForm.addEventListener(
         };
 
 
-        try {
+        if(currentImageData){
 
-            showProgress(
-                100,
-                "💾 Ürün Firebase'e kaydediliyor..."
-            );
+            data.imageData =
+                currentImageData;
+
+        }
 
 
-            if (id) {
+        try{
+
+            saveProductBtn.disabled =
+                true;
+
+            saveProductBtn.textContent =
+                "⏳ Kaydediliyor...";
+
+
+            if(id){
 
                 await productsCollection
                     .doc(id)
@@ -3872,12 +2479,12 @@ productForm.addEventListener(
 
 
                 showToast(
-                    "✅ Ürün güncellendi."
+                    "Ürün güncellendi."
                 );
 
             }
 
-            else {
+            else{
 
                 data.createdAt =
                     firebase.firestore
@@ -3890,7 +2497,7 @@ productForm.addEventListener(
 
 
                 showToast(
-                    "✅ Ürün başarıyla eklendi."
+                    "Ürün başarıyla eklendi."
                 );
 
             }
@@ -3900,7 +2507,7 @@ productForm.addEventListener(
 
         }
 
-        catch (error) {
+        catch(error){
 
             console.error(
                 "Ürün kaydetme hatası:",
@@ -3912,37 +2519,26 @@ productForm.addEventListener(
                 "Ürün kaydedilemedi.";
 
 
-            if (
+            if(
                 error.code ===
                 "permission-denied"
-            ) {
+            ){
 
                 message =
-                    "❌ Firebase Firestore izni reddedildi.";
+                    "Firebase yetki hatası. Firestore kurallarını kontrol edin.";
 
             }
 
 
-            else if (
+            if(
                 error.message &&
                 error.message.includes(
-                    "maximum allowed size"
+                    "maximum"
                 )
-            ) {
+            ){
 
                 message =
-                    "❌ Fotoğraf çok büyük. Daha küçük bir fotoğraf seçin.";
-
-            }
-
-
-            else if (
-                error.message
-            ) {
-
-                console.error(
-                    error.message
-                );
+                    "Fotoğraf çok büyük. Daha küçük bir fotoğraf seçin.";
 
             }
 
@@ -3954,14 +2550,13 @@ productForm.addEventListener(
 
         }
 
-        finally {
+        finally{
 
             saveProductBtn.disabled =
                 false;
 
-
-            imageProcessing =
-                false;
+            saveProductBtn.textContent =
+                "💾 Kaydet";
 
         }
 
@@ -3969,73 +2564,71 @@ productForm.addEventListener(
 );
 
 
-
-/* ============================================================
-   EDIT PRODUCT
-============================================================ */
+/* =====================================================
+   EDIT
+===================================================== */
 
 window.editProduct =
-    function(id) {
+    function(id){
 
         const product =
             products.find(
-                item =>
-                    item.id === id
+                function(item){
+
+                    return item.id === id;
+
+                }
             );
 
 
-        if (!product) {
+        if(!product){
 
             showToast(
                 "Ürün bulunamadı.",
                 "error"
             );
 
-
             return;
 
         }
 
 
-        openProductModal(
-            product
-        );
+        openProductModal(product);
 
     };
 
 
-
-/* ============================================================
-   TOGGLE PRODUCT
-============================================================ */
+/* =====================================================
+   TOGGLE
+===================================================== */
 
 window.toggleProduct =
-    async function(id) {
+    async function(id){
 
         const product =
             products.find(
-                item =>
-                    item.id === id
+                function(item){
+
+                    return item.id === id;
+
+                }
             );
 
 
-        if (!product) {
-            return;
-        }
+        if(!product) return;
 
 
         const newStatus =
             product.available === false;
 
 
-        try {
+        try{
 
             await productsCollection
                 .doc(id)
                 .update({
 
-                    available:
-                        newStatus,
+                    available:newStatus,
 
                     updatedAt:
                         firebase.firestore
@@ -4047,18 +2640,15 @@ window.toggleProduct =
 
             showToast(
                 newStatus
-                    ? "🟢 Ürün satışa açıldı."
-                    : "🔴 Ürün satıştan kaldırıldı."
+                    ? "Ürün satışa açıldı."
+                    : "Ürün satıştan kaldırıldı."
             );
 
         }
 
-        catch (error) {
+        catch(error){
 
-            console.error(
-                error
-            );
-
+            console.error(error);
 
             showToast(
                 "Durum değiştirilemedi.",
@@ -4070,38 +2660,38 @@ window.toggleProduct =
     };
 
 
-
-/* ============================================================
+/* =====================================================
    DELETE PRODUCT
-============================================================ */
+===================================================== */
 
 window.deleteProduct =
-    async function(id) {
+    async function(id){
 
         const product =
             products.find(
-                item =>
-                    item.id === id
+                function(item){
+
+                    return item.id === id;
+
+                }
             );
 
 
-        if (!product) {
-            return;
-        }
+        if(!product) return;
 
 
-        const confirmed =
-            confirm(
+        if(
+            !confirm(
                 `"${product.name}" ürününü silmek istediğinize emin misiniz?`
-            );
+            )
+        ){
 
-
-        if (!confirmed) {
             return;
+
         }
 
 
-        try {
+        try{
 
             await productsCollection
                 .doc(id)
@@ -4109,17 +2699,14 @@ window.deleteProduct =
 
 
             showToast(
-                "🗑️ Ürün silindi."
+                "Ürün silindi."
             );
 
         }
 
-        catch (error) {
+        catch(error){
 
-            console.error(
-                error
-            );
-
+            console.error(error);
 
             showToast(
                 "Ürün silinemedi.",
@@ -4131,12 +2718,11 @@ window.deleteProduct =
     };
 
 
-
-/* ============================================================
+/* =====================================================
    PRODUCT STATS
-============================================================ */
+===================================================== */
 
-function updateProductStats() {
+function updateProductStats(){
 
     document.getElementById(
         "totalProducts"
@@ -4146,58 +2732,54 @@ function updateProductStats() {
 }
 
 
-
-/* ============================================================
+/* =====================================================
    ORDERS
-============================================================ */
+===================================================== */
 
-function loadOrders() {
+function loadOrders(){
 
-    db.collection(
-        "orders"
-    )
-    .orderBy(
-        "createdAt",
-        "desc"
-    )
-    .onSnapshot(
+    if(ordersUnsubscribe){
 
-        function(snapshot) {
+        ordersUnsubscribe();
 
-            renderOrders(
-                snapshot
+    }
+
+
+    ordersUnsubscribe =
+        db.collection("orders")
+            .orderBy(
+                "createdAt",
+                "desc"
+            )
+            .onSnapshot(
+                function(snapshot){
+
+                    renderOrders(snapshot);
+
+                },
+                function(error){
+
+                    console.error(
+                        "Sipariş hatası:",
+                        error
+                    );
+
+                    showToast(
+                        "Siparişler alınamadı.",
+                        "error"
+                    );
+
+                }
             );
-
-        },
-
-        function(error) {
-
-            console.error(
-                "Sipariş hatası:",
-                error
-            );
-
-
-            showToast(
-                "Siparişler alınamadı.",
-                "error"
-            );
-
-        }
-
-    );
 
 }
 
 
-
-/* ============================================================
+/* =====================================================
    RENDER ORDERS
-============================================================ */
+===================================================== */
 
-function renderOrders(
-    snapshot
-) {
+function renderOrders(snapshot){
 
     const container =
         document.getElementById(
@@ -4205,17 +2787,12 @@ function renderOrders(
         );
 
 
-    let totalRevenue =
-        0;
+    let totalRevenue = 0;
+
+    let newCount = 0;
 
 
-    let newCount =
-        0;
-
-
-    if (
-        snapshot.empty
-    ) {
+    if(snapshot.empty){
 
         container.innerHTML = `
 
@@ -4239,57 +2816,50 @@ function renderOrders(
 
     }
 
-    else {
+    else{
 
-        const ordersHTML =
-            [];
+        const ordersHTML = [];
 
 
         snapshot.forEach(
-            function(doc) {
+            function(doc){
 
                 const order =
                     doc.data();
 
 
-                if (
-                    order.status ===
-                    "new"
-                ) {
+                if(
+                    order.status === "new"
+                ){
 
                     newCount++;
 
                 }
 
 
-                let orderTotal =
-                    0;
+                let orderTotal = 0;
+
+                let itemsHTML = "";
 
 
-                let itemsHTML =
-                    "";
-
-
-                if (
+                if(
                     Array.isArray(
                         order.items
                     )
-                ) {
+                ){
 
                     order.items.forEach(
-                        function(item) {
+                        function(item){
 
                             const price =
                                 Number(
                                     item.price
                                 ) || 0;
 
-
                             const quantity =
                                 Number(
                                     item.quantity
                                 ) || 1;
-
 
                             const subtotal =
                                 price *
@@ -4303,23 +2873,18 @@ function renderOrders(
                             itemsHTML += `
 
                                 <li>
-
                                     ${escapeHTML(
                                         item.name ||
                                         "Ürün"
                                     )}
 
-                                    ×
-                                    ${quantity}
-
+                                    × ${quantity}
                                     —
-
                                     <strong>
                                         ${formatPrice(
                                             subtotal
                                         )} ₺
                                     </strong>
-
                                 </li>
 
                             `;
@@ -4341,45 +2906,30 @@ function renderOrders(
 
                 ordersHTML.push(`
 
-                    <article
-                        class="order-card">
+                    <article class="order-card">
 
+                        <div class="order-top">
 
-                        <div
-                            class="order-top">
-
-                            <div
-                                class="order-name">
-
+                            <div class="order-name">
                                 👤
-
                                 ${escapeHTML(
                                     order.customerName ||
                                     "Müşteri"
                                 )}
-
                             </div>
 
-
-                            <span
-                                class="order-status">
-
-                                ${getStatusText(
-                                    status
-                                )}
-
+                            <span class="order-status">
+                                ${getStatusText(status)}
                             </span>
 
                         </div>
 
 
-                        <div
-                            class="order-info">
+                        <div class="order-info">
 
                             📞
                             ${escapeHTML(
-                                order.phone ||
-                                "-"
+                                order.phone || "-"
                             )}
 
                             <br>
@@ -4394,38 +2944,29 @@ function renderOrders(
                             <br>
 
                             💰
-
                             <strong>
-
                                 ${formatPrice(
                                     orderTotal
                                 )} ₺
-
                             </strong>
 
                         </div>
 
 
-                        <div
-                            class="order-items">
+                        <div class="order-items">
 
                             <strong>
                                 🛒 Ürünler
                             </strong>
 
-
                             <ul>
-
                                 ${itemsHTML}
-
                             </ul>
 
                         </div>
 
 
-                        <div
-                            class="order-controls">
-
+                        <div class="order-controls">
 
                             <select
                                 onchange="
@@ -4435,7 +2976,6 @@ function renderOrders(
                                     )
                                 ">
 
-
                                 <option
                                     value="new"
                                     ${
@@ -4443,11 +2983,8 @@ function renderOrders(
                                             ? "selected"
                                             : ""
                                     }>
-
                                     🆕 Yeni
-
                                 </option>
-
 
                                 <option
                                     value="preparing"
@@ -4456,11 +2993,8 @@ function renderOrders(
                                             ? "selected"
                                             : ""
                                     }>
-
                                     👨‍🍳 Hazırlanıyor
-
                                 </option>
-
 
                                 <option
                                     value="ready"
@@ -4469,11 +3003,8 @@ function renderOrders(
                                             ? "selected"
                                             : ""
                                     }>
-
                                     ✅ Hazır
-
                                 </option>
-
 
                                 <option
                                     value="completed"
@@ -4482,11 +3013,8 @@ function renderOrders(
                                             ? "selected"
                                             : ""
                                     }>
-
                                     ✔️ Tamamlandı
-
                                 </option>
-
 
                             </select>
 
@@ -4501,7 +3029,6 @@ function renderOrders(
                                 🗑️ Sil
 
                             </button>
-
 
                         </div>
 
@@ -4548,25 +3075,21 @@ function renderOrders(
 }
 
 
-
-/* ============================================================
+/* =====================================================
    ORDER STATUS
-============================================================ */
+===================================================== */
 
 window.changeOrderStatus =
-    async function(
-        docId,
-        status
-    ) {
+    async function(docId,status){
 
-        try {
+        try{
 
             await db
                 .collection("orders")
                 .doc(docId)
                 .update({
 
-                    status
+                    status:status
 
                 });
 
@@ -4577,12 +3100,9 @@ window.changeOrderStatus =
 
         }
 
-        catch (error) {
+        catch(error){
 
-            console.error(
-                error
-            );
-
+            console.error(error);
 
             showToast(
                 "Sipariş durumu güncellenemedi.",
@@ -4594,28 +3114,25 @@ window.changeOrderStatus =
     };
 
 
-
-/* ============================================================
+/* =====================================================
    DELETE ORDER
-============================================================ */
+===================================================== */
 
 window.deleteOrder =
-    async function(
-        docId
-    ) {
+    async function(docId){
 
-        if (
+        if(
             !confirm(
                 "Bu siparişi silmek istediğinize emin misiniz?"
             )
-        ) {
+        ){
 
             return;
 
         }
 
 
-        try {
+        try{
 
             await db
                 .collection("orders")
@@ -4624,17 +3141,14 @@ window.deleteOrder =
 
 
             showToast(
-                "🗑️ Sipariş silindi."
+                "Sipariş silindi."
             );
 
         }
 
-        catch (error) {
+        catch(error){
 
-            console.error(
-                error
-            );
-
+            console.error(error);
 
             showToast(
                 "Sipariş silinemedi.",
@@ -4646,18 +3160,15 @@ window.deleteOrder =
     };
 
 
-
-/* ============================================================
+/* =====================================================
    REFRESH
-============================================================ */
+===================================================== */
 
 document
-    .getElementById(
-        "refreshBtn"
-    )
+    .getElementById("refreshBtn")
     .addEventListener(
         "click",
-        function() {
+        function(){
 
             location.reload();
 
@@ -4665,131 +3176,18 @@ document
     );
 
 
-
-/* ============================================================
-   HELPERS
-============================================================ */
-
-function formatPrice(
-    value
-) {
-
-    return Number(
-        value || 0
-    ).toLocaleString(
-        "tr-TR",
-        {
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 2
-        }
-    );
-
-}
-
-
-
-function getStatusText(
-    status
-) {
-
-    const statuses = {
-
-        new:
-            "🆕 Yeni",
-
-        preparing:
-            "👨‍🍳 Hazırlanıyor",
-
-        ready:
-            "✅ Hazır",
-
-        completed:
-            "✔️ Tamamlandı"
-
-    };
-
-
-    return statuses[
-        status
-    ] ||
-    "Yeni";
-
-}
-
-
-
-function escapeHTML(
-    value
-) {
-
-    return String(
-        value
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /'/g,
-        "&#039;"
-    );
-
-}
-
-
-
-function escapeAttribute(
-    value
-) {
-
-    return String(
-        value
-    )
-    .replace(
-        /&/g,
-        "&amp;"
-    )
-    .replace(
-        /"/g,
-        "&quot;"
-    )
-    .replace(
-        /</g,
-        "&lt;"
-    )
-    .replace(
-        />/g,
-        "&gt;"
-    );
-
-}
-
-
-
-/* ============================================================
+/* =====================================================
    MODAL DIŞINA TIKLAMA
-============================================================ */
+===================================================== */
 
 productModal.addEventListener(
     "click",
-    function(event) {
+    function(event){
 
-        if (
+        if(
             event.target ===
             productModal
-        ) {
+        ){
 
             closeProductModal();
 
@@ -4798,6 +3196,105 @@ productModal.addEventListener(
     }
 );
 
+
+/* =====================================================
+   HELPERS
+===================================================== */
+
+function formatPrice(value){
+
+    return Number(
+        value || 0
+    ).toLocaleString(
+        "tr-TR",
+        {
+            minimumFractionDigits:0,
+            maximumFractionDigits:2
+        }
+    );
+
+}
+
+
+function getStatusText(status){
+
+    const statuses = {
+
+        new:"🆕 Yeni",
+
+        preparing:"👨‍🍳 Hazırlanıyor",
+
+        ready:"✅ Hazır",
+
+        completed:"✔️ Tamamlandı"
+
+    };
+
+    return (
+        statuses[status] ||
+        "Yeni"
+    );
+
+}
+
+
+function escapeHTML(value){
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+}
+
+
+function escapeAttribute(value){
+
+    return String(value)
+
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+
+        .replace(
+            /</g,
+            "&lt;"
+        )
+
+        .replace(
+            />/g,
+            "&gt;"
+        );
+
+}
 
 </script>
 
