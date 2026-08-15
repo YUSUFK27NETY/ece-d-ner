@@ -2,1345 +2,1090 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ece Döner | Yönetim Paneli</title>
 
-    <title>Ece Döner | İşletme Paneli</title>
-
-    <!-- ==========================================
-         FIREBASE SDK
-    =========================================== -->
-
+    <!-- Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
-
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-
-    <!-- ==========================================
-         TASARIM
-    =========================================== -->
-
     <style>
-
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
         }
 
-
         body {
-            font-family:
-                Arial,
-                Helvetica,
-                sans-serif;
-
+            font-family: Arial, Helvetica, sans-serif;
             background: #111;
             color: #fff;
-
             overflow-x: hidden;
         }
 
-
         button,
-        input {
+        input,
+        select,
+        textarea {
             font-family: inherit;
         }
 
-
-        /* ==========================================
-           GİRİŞ EKRANI
-        =========================================== */
+        /* =========================
+           LOGIN
+        ========================= */
 
         #login-overlay {
-
             position: fixed;
-
             inset: 0;
-
-            width: 100%;
-            height: 100%;
-
             background:
-                radial-gradient(
-                    circle at top,
-                    #252525 0%,
-                    #121212 45%,
-                    #090909 100%
-                );
-
+                radial-gradient(circle at top, #292929 0%, #111 55%);
             z-index: 99999;
-
             display: flex;
-
             align-items: center;
-
             justify-content: center;
-
             padding: 20px;
         }
 
-
         .login-box {
-
             width: 100%;
-            max-width: 420px;
-
-            background: #1e1e1e;
-
-            border:
-                1px solid #333;
-
-            border-radius: 18px;
-
+            max-width: 430px;
+            background: #1c1c1c;
+            border: 1px solid #3a3a3a;
+            border-radius: 20px;
             padding: 32px;
-
-            box-shadow:
-                0 20px 60px
-                rgba(0, 0, 0, 0.55);
-
-            text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,.6);
         }
 
-
         .login-logo {
-
             width: 70px;
             height: 70px;
-
+            margin: 0 auto 18px;
+            border-radius: 18px;
+            background: #292929;
             display: flex;
-
             align-items: center;
             justify-content: center;
-
-            margin:
-                0 auto 18px;
-
-            border-radius: 18px;
-
-            background: #292929;
-
             font-size: 36px;
         }
 
-
-        .login-box h2 {
-
+        .login-box h1 {
+            text-align: center;
             color: #ffd700;
-
-            font-size: 24px;
-
+            font-size: 25px;
             margin-bottom: 8px;
         }
 
-
         .login-box p {
-
-            color: #888;
-
+            text-align: center;
+            color: #999;
             font-size: 14px;
-
             line-height: 1.5;
-
-            margin-bottom: 24px;
+            margin-bottom: 25px;
         }
 
-
-        .login-field {
-
-            text-align: left;
-
+        .form-group {
             margin-bottom: 15px;
         }
 
-
-        .login-field label {
-
+        .form-group label {
             display: block;
-
-            color: #bbb;
-
-            font-size: 13px;
-
             margin-bottom: 7px;
+            color: #ddd;
+            font-weight: 600;
+            font-size: 14px;
         }
 
-
-        .login-field input {
-
+        .form-input,
+        .form-select,
+        .form-textarea {
             width: 100%;
-
-            padding: 13px 14px;
-
             background: #252525;
-
-            border:
-                1px solid #444;
-
-            border-radius: 9px;
-
+            border: 1px solid #444;
             color: #fff;
-
-            font-size: 15px;
-
+            padding: 13px 14px;
+            border-radius: 10px;
             outline: none;
-
-            transition: 0.2s;
+            font-size: 15px;
         }
 
-
-        .login-field input:focus {
-
+        .form-input:focus,
+        .form-select:focus,
+        .form-textarea:focus {
             border-color: #ffd700;
-
-            box-shadow:
-                0 0 0 3px
-                rgba(255, 215, 0, 0.08);
         }
 
+        .form-textarea {
+            min-height: 90px;
+            resize: vertical;
+        }
 
-        #login-button {
-
+        .login-btn {
             width: 100%;
-
-            padding: 13px;
-
-            margin-top: 5px;
-
             border: none;
-
-            border-radius: 9px;
-
             background: #ffd700;
-
             color: #111;
-
-            font-size: 16px;
-
-            font-weight: 700;
-
+            padding: 14px;
+            border-radius: 10px;
             cursor: pointer;
-
-            transition: 0.2s;
+            font-size: 16px;
+            font-weight: 800;
+            margin-top: 5px;
         }
 
-
-        #login-button:hover {
-
-            background: #ffdf32;
-
-            transform: translateY(-1px);
+        .login-btn:hover {
+            background: #ffe44d;
         }
 
-
-        #login-button:disabled {
-
-            opacity: 0.6;
-
-            cursor: not-allowed;
-
-            transform: none;
-        }
-
-
-        #login-error {
-
+        .login-error {
             display: none;
-
-            margin-top: 14px;
-
+            margin-top: 13px;
+            background: rgba(255,82,82,.15);
+            border: 1px solid #ff5252;
+            color: #ff8585;
             padding: 10px;
-
             border-radius: 8px;
-
-            background:
-                rgba(255, 82, 82, 0.1);
-
-            border:
-                1px solid
-                rgba(255, 82, 82, 0.3);
-
-            color: #ff7070;
-
-            font-size: 13px;
-
-            line-height: 1.4;
-        }
-
-
-        #login-loading {
-
-            display: none;
-
-            margin-top: 12px;
-
-            color: #aaa;
-
+            text-align: center;
             font-size: 13px;
         }
 
-
-        /* ==========================================
-           ANA HEADER
-        =========================================== */
+        /* =========================
+           HEADER
+        ========================= */
 
         .business-header {
-
-            background-color: #1e1e1e;
-
-            border-bottom:
-                1px solid #2d2d2d;
-
-            padding:
-                16px 24px;
-
+            background: #1c1c1c;
+            border-bottom: 1px solid #303030;
+            padding: 15px 22px;
             display: flex;
-
-            justify-content:
-                space-between;
-
+            justify-content: space-between;
             align-items: center;
-
-            gap: 15px;
-
             position: sticky;
-
             top: 0;
-
-            z-index: 100;
+            z-index: 1000;
         }
 
-
         .business-brand {
-
             display: flex;
-
             align-items: center;
-
             gap: 12px;
         }
 
-
         .business-logo {
-
-            font-size: 28px;
-
-            background: #2d2d2d;
-
-            padding: 8px;
-
+            width: 48px;
+            height: 48px;
+            background: #292929;
             border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
         }
-
 
         .business-brand h1 {
-
             font-size: 18px;
-
-            color: #fff;
-
-            font-weight: 700;
         }
-
 
         .business-brand span {
-
-            font-size: 12px;
-
             color: #888;
+            font-size: 12px;
         }
-
 
         .header-right {
-
             display: flex;
-
             align-items: center;
-
             gap: 10px;
         }
-
 
         .business-status {
-
             display: flex;
-
             align-items: center;
-
             gap: 8px;
-
-            font-size: 14px;
-
             background: #252525;
-
-            padding:
-                6px 12px;
-
+            padding: 8px 12px;
             border-radius: 20px;
+            font-size: 13px;
         }
-
 
         .status-dot {
-
-            width: 10px;
-            height: 10px;
-
-            background-color: #ff5252;
-
+            width: 9px;
+            height: 9px;
             border-radius: 50%;
-
-            display: inline-block;
+            background: #ff5252;
         }
-
 
         .status-dot.online {
-
-            background-color: #4caf50;
-
-            box-shadow:
-                0 0 8px
-                rgba(76, 175, 80, 0.5);
+            background: #4caf50;
+            box-shadow: 0 0 8px rgba(76,175,80,.6);
         }
 
-
-        #logoutButton {
-
-            border:
-                1px solid #444;
-
-            background: #252525;
-
-            color: #ddd;
-
-            padding:
-                8px 12px;
-
+        .logout-btn {
+            background: #2b2020;
+            border: 1px solid #663333;
+            color: #ff7777;
+            padding: 8px 12px;
             border-radius: 8px;
-
             cursor: pointer;
-
-            font-size: 13px;
-
-            transition: 0.2s;
         }
 
-
-        #logoutButton:hover {
-
-            background: #333;
-
-            color: #fff;
-        }
-
-
-        /* ==========================================
+        /* =========================
            CONTAINER
-        =========================================== */
+        ========================= */
 
         .business-container {
-
-            max-width: 1200px;
-
-            margin:
-                24px auto;
-
-            padding:
-                0 16px;
+            width: 100%;
+            max-width: 1250px;
+            margin: 24px auto;
+            padding: 0 16px 50px;
         }
-
-
-        /* ==========================================
-           DASHBOARD HEADER
-        =========================================== */
 
         .dashboard-header {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            gap: 15px;
-
-            margin-bottom: 24px;
-
-            background: #1e1e1e;
-
+            background: #1c1c1c;
+            border: 1px solid #303030;
+            border-radius: 15px;
             padding: 20px;
-
-            border-radius: 14px;
-
-            border:
-                1px solid #2d2d2d;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
         }
-
 
         .dashboard-header h2 {
-
-            font-size: 20px;
-
-            color: #fff;
-
-            margin-bottom: 4px;
+            font-size: 21px;
+            margin-bottom: 5px;
         }
-
 
         .dashboard-header p {
-
-            font-size: 14px;
-
-            color: #999;
+            color: #888;
+            font-size: 13px;
         }
 
-
-        .refresh-btn {
-
-            background-color: #2e382e;
-
-            color: #4caf50;
-
-            border:
-                1px solid #4caf50;
-
-            padding:
-                10px 16px;
-
-            border-radius: 8px;
-
-            font-weight: 600;
-
+        .refresh-btn,
+        .primary-btn {
+            background: #ffd700;
+            border: none;
+            color: #111;
+            padding: 11px 16px;
+            border-radius: 9px;
             cursor: pointer;
-
-            transition: 0.2s;
+            font-weight: 800;
         }
 
-
-        .refresh-btn:hover {
-
-            background-color: #4caf50;
-
-            color: #fff;
+        .refresh-btn:hover,
+        .primary-btn:hover {
+            background: #ffe44d;
         }
 
-
-        /* ==========================================
+        /* =========================
            STATS
-        =========================================== */
+        ========================= */
 
         .stats-grid {
-
             display: grid;
-
-            grid-template-columns:
-                repeat(
-                    auto-fit,
-                    minmax(220px, 1fr)
-                );
-
-            gap: 16px;
-
-            margin-bottom: 24px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-bottom: 22px;
         }
-
 
         .stat-card {
-
-            background: #1e1e1e;
-
-            border:
-                1px solid #2d2d2d;
-
-            padding: 20px;
-
+            background: #1c1c1c;
+            border: 1px solid #303030;
+            padding: 18px;
             border-radius: 14px;
-
             display: flex;
-
             align-items: center;
-
-            gap: 16px;
+            gap: 13px;
         }
-
 
         .stat-icon {
-
-            font-size: 32px;
-
-            background: #252525;
-
-            padding: 12px;
-
-            border-radius: 10px;
+            width: 50px;
+            height: 50px;
+            background: #272727;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 25px;
         }
-
 
         .stat-info span {
-
-            font-size: 13px;
-
-            color: #888;
-
             display: block;
-
+            color: #888;
+            font-size: 12px;
             margin-bottom: 4px;
         }
-
 
         .stat-info strong {
-
-            font-size: 22px;
-
-            color: #fff;
+            font-size: 21px;
         }
 
+        /* =========================
+           TABS
+        ========================= */
 
-        /* ==========================================
-           ORDERS
-        =========================================== */
-
-        .orders-section {
-
-            background: #1e1e1e;
-
-            border:
-                1px solid #2d2d2d;
-
-            border-radius: 14px;
-
-            padding: 20px;
-
-            margin-bottom: 24px;
-        }
-
-
-        .orders-header {
-
+        .tabs {
             display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            flex-wrap: wrap;
-
-            gap: 16px;
-
-            margin-bottom: 20px;
-
-            padding-bottom: 16px;
-
-            border-bottom:
-                1px solid #2d2d2d;
-        }
-
-
-        .orders-header h2 {
-
-            font-size: 18px;
-
-            color: #fff;
-
-            margin-bottom: 4px;
-        }
-
-
-        .orders-header p {
-
-            font-size: 13px;
-
-            color: #888;
-        }
-
-
-        .orders-list {
-
-            display: grid;
-
-            gap: 16px;
-        }
-
-
-        /* ==========================================
-           ORDER CARD
-        =========================================== */
-
-        .order-card {
-
-            background: #1e293b;
-
-            color: #f8fafc;
-
-            padding: 20px;
-
-            border-radius: 12px;
-
-            border:
-                1px solid #334155;
-
-            box-shadow:
-                0 4px 6px
-                rgba(0,0,0,0.2);
-        }
-
-
-        .order-card-header {
-
-            display: flex;
-
-            justify-content:
-                space-between;
-
-            align-items: center;
-
-            gap: 10px;
-
-            flex-wrap: wrap;
-
-            border-bottom:
-                1px solid #334155;
-
-            padding-bottom: 10px;
-
-            margin-bottom: 12px;
-        }
-
-
-        .order-card-header h3 {
-
-            color: #38bdf8;
-
-            font-size: 18px;
-        }
-
-
-        .order-status {
-
-            padding:
-                5px 10px;
-
-            border-radius: 6px;
-
-            font-size: 12px;
-
-            font-weight: bold;
-        }
-
-
-        .status-new {
-
-            background: #0284c7;
-        }
-
-
-        .status-preparing {
-
-            background: #d97706;
-        }
-
-
-        .status-ready {
-
-            background: #16a34a;
-        }
-
-
-        .status-completed {
-
-            background: #64748b;
-        }
-
-
-        .order-card p {
-
-            margin:
-                7px 0;
-
-            font-size: 14px;
-        }
-
-
-        .order-products {
-
-            margin-top: 12px;
-
-            background: #0f172a;
-
-            padding: 12px;
-
-            border-radius: 8px;
-        }
-
-
-        .order-products strong {
-
-            color: #cbd5e1;
-
-            font-size: 13px;
-        }
-
-
-        .order-products ul {
-
-            margin:
-                7px 0 0 18px;
-
-            color: #e2e8f0;
-
-            font-size: 14px;
-        }
-
-
-        .order-actions {
-
-            display: flex;
-
-            flex-wrap: wrap;
-
             gap: 8px;
-
-            margin-top: 15px;
-
-            padding-top: 14px;
-
-            border-top:
-                1px solid #334155;
+            background: #1c1c1c;
+            padding: 8px;
+            border: 1px solid #303030;
+            border-radius: 13px;
+            margin-bottom: 18px;
         }
 
-
-        .order-action-btn {
-
+        .tab-btn {
+            flex: 1;
+            background: transparent;
             border: none;
-
-            padding:
-                9px 12px;
-
-            border-radius: 7px;
-
+            color: #888;
+            padding: 12px;
+            border-radius: 9px;
             cursor: pointer;
-
-            font-size: 12px;
-
             font-weight: 700;
         }
 
-
-        .prepare-btn {
-
-            background: #f59e0b;
-
+        .tab-btn.active {
+            background: #ffd700;
             color: #111;
         }
 
-
-        .ready-btn {
-
-            background: #22c55e;
-
-            color: #111;
+        .tab-content {
+            display: none;
         }
 
+        .tab-content.active {
+            display: block;
+        }
 
-        .complete-btn {
+        /* =========================
+           SECTION
+        ========================= */
 
-            background: #64748b;
+        .panel-section {
+            background: #1c1c1c;
+            border: 1px solid #303030;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
 
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+            padding-bottom: 15px;
+            margin-bottom: 18px;
+            border-bottom: 1px solid #303030;
+        }
+
+        .section-header h2 {
+            font-size: 18px;
+        }
+
+        .section-header p {
+            color: #888;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+
+        /* =========================
+           PRODUCT
+        ========================= */
+
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        .product-card {
+            background: #151515;
+            border: 1px solid #333;
+            border-radius: 14px;
+            overflow: hidden;
+        }
+
+        .product-image {
+            height: 170px;
+            background: #242424;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+
+        .product-image img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .no-image {
+            color: #666;
+            font-size: 45px;
+        }
+
+        .product-body {
+            padding: 15px;
+        }
+
+        .product-category {
+            color: #ffd700;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            margin-bottom: 5px;
+        }
+
+        .product-name {
+            font-size: 17px;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }
+
+        .product-description {
+            color: #888;
+            font-size: 12px;
+            min-height: 34px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+        }
+
+        .product-price {
+            color: #4caf50;
+            font-size: 19px;
+            font-weight: 900;
+        }
+
+        .product-status {
+            display: inline-block;
+            margin-top: 9px;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+        }
+
+        .status-active {
+            background: rgba(76,175,80,.15);
+            color: #69e06f;
+        }
+
+        .status-passive {
+            background: rgba(255,82,82,.15);
+            color: #ff7777;
+        }
+
+        .product-actions {
+            display: flex;
+            gap: 7px;
+            margin-top: 14px;
+        }
+
+        .small-btn {
+            flex: 1;
+            border: 1px solid #444;
+            background: #252525;
+            color: #ddd;
+            padding: 9px 7px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .small-btn:hover {
+            background: #333;
+        }
+
+        .edit-btn {
+            border-color: #6d5c00;
+            color: #ffd700;
+        }
+
+        .delete-btn {
+            border-color: #633333;
+            color: #ff7777;
+        }
+
+        /* =========================
+           ORDERS
+        ========================= */
+
+        .orders-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .order-card {
+            background: #151515;
+            border: 1px solid #333;
+            border-radius: 13px;
+            padding: 17px;
+        }
+
+        .order-top {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #303030;
+        }
+
+        .order-name {
+            font-weight: 800;
+            color: #38bdf8;
+        }
+
+        .order-status {
+            background: #075985;
             color: #fff;
+            padding: 5px 9px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 800;
         }
 
+        .order-info {
+            color: #ccc;
+            font-size: 13px;
+            line-height: 1.7;
+        }
 
-        .delete-order-btn {
+        .order-items {
+            margin-top: 12px;
+            background: #0f0f0f;
+            border-radius: 8px;
+            padding: 11px;
+        }
 
-            background: #dc2626;
+        .order-items ul {
+            padding-left: 18px;
+            margin-top: 6px;
+            color: #ddd;
+            font-size: 13px;
+        }
 
+        .order-controls {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .order-controls select {
+            background: #252525;
             color: #fff;
+            border: 1px solid #444;
+            padding: 8px;
+            border-radius: 7px;
         }
 
+        /* =========================
+           MODAL
+        ========================= */
 
-        /* ==========================================
-           TOAST
-        =========================================== */
-
-        #admin-toast {
-
+        .modal {
+            display: none;
             position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.78);
+            z-index: 5000;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+        }
 
-            left: 50%;
+        .modal.active {
+            display: flex;
+        }
 
-            bottom: 25px;
+        .modal-box {
+            width: 100%;
+            max-width: 520px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #1c1c1c;
+            border: 1px solid #444;
+            border-radius: 17px;
+            padding: 22px;
+        }
 
-            transform:
-                translate(-50%, 20px);
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 18px;
+        }
 
-            background: #222;
+        .modal-header h2 {
+            color: #ffd700;
+            font-size: 20px;
+        }
 
+        .close-btn {
+            background: #292929;
+            border: 1px solid #444;
             color: #fff;
+            width: 35px;
+            height: 35px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+        }
 
-            border:
-                1px solid #444;
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 18px;
+        }
 
-            padding:
-                12px 18px;
+        .modal-actions button {
+            flex: 1;
+            padding: 12px;
+            border-radius: 9px;
+            cursor: pointer;
+            font-weight: 800;
+        }
 
+        .save-product {
+            background: #ffd700;
+            border: none;
+            color: #111;
+        }
+
+        .cancel-product {
+            background: #292929;
+            border: 1px solid #444;
+            color: #fff;
+        }
+
+        /* =========================
+           EMPTY
+        ========================= */
+
+        .empty-state {
+            text-align: center;
+            padding: 45px 20px;
+            color: #777;
+        }
+
+        .empty-state .emoji {
+            font-size: 42px;
+            margin-bottom: 10px;
+        }
+
+        /* =========================
+           TOAST
+        ========================= */
+
+        #toast {
+            position: fixed;
+            right: 20px;
+            bottom: 20px;
+            z-index: 10000;
+            background: #242424;
+            border: 1px solid #444;
+            color: #fff;
+            padding: 13px 17px;
             border-radius: 10px;
-
+            transform: translateY(120px);
             opacity: 0;
-
-            pointer-events: none;
-
-            transition: 0.25s;
-
-            z-index: 100000;
-
-            font-size: 14px;
-
-            box-shadow:
-                0 10px 30px
-                rgba(0,0,0,0.4);
+            transition: .25s;
+            box-shadow: 0 10px 30px rgba(0,0,0,.4);
         }
 
-
-        #admin-toast.show {
-
+        #toast.show {
+            transform: translateY(0);
             opacity: 1;
-
-            transform:
-                translate(-50%, 0);
         }
 
+        #toast.success {
+            border-color: #4caf50;
+        }
 
-        /* ==========================================
-           MOBİL
-        =========================================== */
+        #toast.error {
+            border-color: #ff5252;
+        }
 
-        @media (max-width: 650px) {
+        /* =========================
+           MOBILE
+        ========================= */
 
-            .business-header {
-
-                padding:
-                    13px 14px;
+        @media (max-width: 900px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
             }
 
+            .products-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .business-header {
+                padding: 12px;
+            }
 
             .business-brand h1 {
-
                 font-size: 16px;
             }
 
-
-            .business-brand span {
-
-                font-size: 11px;
-            }
-
-
             .business-status {
-
                 display: none;
             }
 
-
-            .header-right {
-
-                gap: 5px;
-            }
-
-
-            #logoutButton {
-
-                padding:
-                    7px 9px;
-
-                font-size: 12px;
-            }
-
-
             .business-container {
-
-                margin-top: 15px;
-
-                padding:
-                    0 10px;
+                margin-top: 14px;
+                padding: 0 10px 35px;
             }
-
 
             .dashboard-header {
-
-                padding: 16px;
-
-                align-items:
-                    flex-start;
-
-                flex-direction:
-                    column;
+                flex-direction: column;
+                align-items: stretch;
             }
 
-
-            .refresh-btn {
-
-                width: 100%;
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 9px;
             }
 
-
-            .orders-section {
-
-                padding: 14px;
+            .stat-card {
+                padding: 12px;
+                gap: 8px;
             }
 
-
-            .order-card {
-
-                padding: 15px;
+            .stat-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
             }
 
-
-            .login-box {
-
-                padding: 25px 20px;
+            .stat-info strong {
+                font-size: 17px;
             }
 
+            .products-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .tabs {
+                overflow-x: auto;
+            }
+
+            .tab-btn {
+                min-width: 130px;
+            }
         }
-
     </style>
 </head>
 
-
 <body>
 
+<!-- =====================================================
+     FIREBASE AUTH LOGIN
+===================================================== -->
 
-    <!-- ==========================================
-         GİRİŞ EKRANI
-    =========================================== -->
+<div id="login-overlay">
 
-    <div id="login-overlay">
+    <div class="login-box">
 
-        <div class="login-box">
+        <div class="login-logo">🍽️</div>
 
-            <div class="login-logo">
-                🍽️
-            </div>
+        <h1>İşletme Girişi</h1>
 
-            <h2>
-                İşletme Girişi
-            </h2>
+        <p>
+            Ece Döner yönetim paneline erişmek için
+            Firebase hesabınızla giriş yapın.
+        </p>
 
-            <p>
-                Ece Döner yönetim paneline
-                erişmek için Firebase hesabınızla
-                giriş yapın.
-            </p>
+        <form id="loginForm">
 
-
-            <div class="login-field">
-
-                <label for="admin-email">
-                    E-posta
-                </label>
-
+            <div class="form-group">
+                <label for="loginEmail">E-posta</label>
                 <input
+                    id="loginEmail"
+                    class="form-input"
                     type="email"
-                    id="admin-email"
-                    placeholder="ornek@email.com"
                     autocomplete="email"
+                    placeholder="E-posta adresiniz"
+                    required
                 >
-
             </div>
 
-
-            <div class="login-field">
-
-                <label for="admin-password">
-                    Şifre
-                </label>
-
+            <div class="form-group">
+                <label for="loginPassword">Şifre</label>
                 <input
+                    id="loginPassword"
+                    class="form-input"
                     type="password"
-                    id="admin-password"
-                    placeholder="Şifreniz"
                     autocomplete="current-password"
+                    placeholder="Şifreniz"
+                    required
                 >
-
             </div>
 
-
-            <button
-                id="login-button"
-                type="button"
-            >
+            <button class="login-btn" type="submit">
                 🔐 Giriş Yap
             </button>
 
+        </form>
 
-            <div id="login-loading">
-                ⏳ Giriş yapılıyor...
-            </div>
-
-
-            <div id="login-error"></div>
-
-        </div>
+        <div id="loginError" class="login-error"></div>
 
     </div>
 
-
-    <!-- ==========================================
-         ANA PANEL
-    =========================================== -->
-
-    <div id="admin-panel" style="display:none;">
+</div>
 
 
-        <!-- ======================================
-             HEADER
-        ======================================= -->
+<!-- =====================================================
+     ANA PANEL
+===================================================== -->
 
-        <header class="business-header">
+<div id="admin-app" style="display:none;">
 
-            <div class="business-brand">
+    <header class="business-header">
 
-                <div class="business-logo">
+        <div class="business-brand">
+
+            <div class="business-logo">
+                🍽️
+            </div>
+
+            <div>
+                <h1>Ece Döner</h1>
+                <span>İşletme Yönetim Paneli</span>
+            </div>
+
+        </div>
+
+        <div class="header-right">
+
+            <div class="business-status">
+
+                <span
+                    id="connectionDot"
+                    class="status-dot online">
+                </span>
+
+                <span id="connectionText">
+                    Sistem Aktif
+                </span>
+
+            </div>
+
+            <button
+                id="logoutBtn"
+                class="logout-btn"
+                type="button">
+                Çıkış
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <main class="business-container">
+
+        <!-- DASHBOARD -->
+
+        <section class="dashboard-header">
+
+            <div>
+                <h2>Kontrol Merkezi</h2>
+
+                <p>
+                    Siparişleri ve menüyü tek yerden yönetin.
+                </p>
+            </div>
+
+            <button
+                id="refreshBtn"
+                class="refresh-btn"
+                type="button">
+                🔄 Yenile
+            </button>
+
+        </section>
+
+
+        <!-- STATS -->
+
+        <section class="stats-grid">
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🛒
+                </div>
+
+                <div class="stat-info">
+                    <span>Toplam Sipariş</span>
+                    <strong id="totalOrders">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
+                    🆕
+                </div>
+
+                <div class="stat-info">
+                    <span>Yeni Sipariş</span>
+                    <strong id="newOrders">0</strong>
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-icon">
                     🍽️
                 </div>
 
-                <div>
-
-                    <h1>
-                        Ece Döner
-                    </h1>
-
-                    <span>
-                        İşletme Paneli
-                    </span>
-
+                <div class="stat-info">
+                    <span>Toplam Ürün</span>
+                    <strong id="totalProducts">0</strong>
                 </div>
 
             </div>
 
 
-            <div class="header-right">
+            <div class="stat-card">
 
-                <div class="business-status">
-
-                    <span
-                        id="connectionDot"
-                        class="status-dot online"
-                    ></span>
-
-                    <span id="connectionText">
-                        Sistem Aktif
-                    </span>
-
+                <div class="stat-icon">
+                    💰
                 </div>
 
-
-                <button
-                    id="logoutButton"
-                    type="button"
-                >
-                    🚪 Çıkış
-                </button>
+                <div class="stat-info">
+                    <span>Toplam Ciro</span>
+                    <strong id="totalRevenue">0 ₺</strong>
+                </div>
 
             </div>
 
-        </header>
+        </section>
 
 
-        <!-- ======================================
-             ANA CONTAINER
-        ======================================= -->
+        <!-- TABS -->
 
-        <main class="business-container">
+        <div class="tabs">
 
+            <button
+                class="tab-btn active"
+                data-tab="ordersTab"
+                type="button">
+                🛒 Siparişler
+            </button>
 
-            <!-- ==================================
-                 DASHBOARD HEADER
-            =================================== -->
+            <button
+                class="tab-btn"
+                data-tab="productsTab"
+                type="button">
+                🍽️ Menü Yönetimi
+            </button>
 
-            <section class="dashboard-header">
-
-                <div>
-
-                    <h2>
-                        Sipariş Yönetimi
-                    </h2>
-
-                    <p>
-                        Gelen siparişleri buradan
-                        takip ve yönetebilirsiniz.
-                    </p>
-
-                </div>
+        </div>
 
 
-                <button
-                    id="refreshOrders"
-                    class="refresh-btn"
-                    type="button"
-                >
-                    🔄 Yenile
-                </button>
+        <!-- =================================================
+             ORDERS TAB
+        ================================================== -->
 
-            </section>
+        <div
+            id="ordersTab"
+            class="tab-content active">
 
+            <section class="panel-section">
 
-            <!-- ==================================
-                 İSTATİSTİKLER
-            =================================== -->
-
-            <section class="stats-grid">
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        🛒
-                    </div>
-
-                    <div class="stat-info">
-
-                        <span>
-                            Toplam Sipariş
-                        </span>
-
-                        <strong id="totalOrders">
-                            0
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        🆕
-                    </div>
-
-                    <div class="stat-info">
-
-                        <span>
-                            Yeni Sipariş
-                        </span>
-
-                        <strong id="newOrders">
-                            0
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        👨‍🍳
-                    </div>
-
-                    <div class="stat-info">
-
-                        <span>
-                            Hazırlanıyor
-                        </span>
-
-                        <strong id="preparingOrders">
-                            0
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-                <div class="stat-card">
-
-                    <div class="stat-icon">
-                        💰
-                    </div>
-
-                    <div class="stat-info">
-
-                        <span>
-                            Toplam Ciro
-                        </span>
-
-                        <strong id="totalRevenue">
-                            0 ₺
-                        </strong>
-
-                    </div>
-
-                </div>
-
-
-            </section>
-
-
-            <!-- ==================================
-                 SİPARİŞLER
-            =================================== -->
-
-            <section class="orders-section">
-
-                <div class="orders-header">
+                <div class="section-header">
 
                     <div>
-
-                        <h2>
-                            Siparişler
-                        </h2>
+                        <h2>Siparişler</h2>
 
                         <p id="orderCountText">
                             0 sipariş
                         </p>
+                    </div>
+
+                </div>
+
+                <div
+                    id="ordersContainer"
+                    class="orders-list">
+
+                    <div class="empty-state">
+
+                        <div class="emoji">
+                            📋
+                        </div>
+
+                        <h3>
+                            Siparişler yükleniyor...
+                        </h3>
 
                     </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+
+        <!-- =================================================
+             PRODUCTS TAB
+        ================================================== -->
+
+        <div
+            id="productsTab"
+            class="tab-content">
+
+            <section class="panel-section">
+
+                <div class="section-header">
+
+                    <div>
+                        <h2>🍽️ Menü Yönetimi</h2>
+
+                        <p>
+                            Ürünleri, fiyatları ve stok durumlarını buradan yönetin.
+                        </p>
+                    </div>
+
+                    <button
+                        id="addProductBtn"
+                        class="primary-btn"
+                        type="button">
+                        ➕ Yeni Ürün Ekle
+                    </button>
 
                 </div>
 
 
                 <div
-                    id="ordersContainer"
-                    class="orders-list"
-                >
+                    id="productsContainer"
+                    class="products-grid">
 
-                    <div
-                        style="
-                            text-align:center;
-                            padding:40px;
-                            color:#777;
-                        "
-                    >
+                    <div class="empty-state">
 
-                        <div
-                            style="
-                                font-size:40px;
-                                margin-bottom:10px;
-                            "
-                        >
-                            📋
+                        <div class="emoji">
+                            🍽️
                         </div>
 
-                        <h3
-                            style="
-                                color:#bbb;
-                                margin-bottom:6px;
-                            "
-                        >
-                            Siparişler yükleniyor...
+                        <h3>
+                            Ürünler yükleniyor...
                         </h3>
-
-                        <p>
-                            Firebase bağlantısı
-                            kuruluyor.
-                        </p>
 
                     </div>
 
@@ -1348,1523 +1093,1159 @@
 
             </section>
 
+        </div>
 
-        </main>
+    </main>
+
+</div>
+
+
+<!-- =====================================================
+     PRODUCT MODAL
+===================================================== -->
+
+<div
+    id="productModal"
+    class="modal">
+
+    <div class="modal-box">
+
+        <div class="modal-header">
+
+            <h2 id="modalTitle">
+                Yeni Ürün
+            </h2>
+
+            <button
+                id="closeModalBtn"
+                class="close-btn"
+                type="button">
+                ×
+            </button>
+
+        </div>
+
+
+        <form id="productForm">
+
+            <input
+                type="hidden"
+                id="productId"
+            >
+
+
+            <div class="form-group">
+
+                <label for="productName">
+                    Ürün Adı *
+                </label>
+
+                <input
+                    id="productName"
+                    class="form-input"
+                    type="text"
+                    placeholder="Örn: Tavuk Döner"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="productCategory">
+                    Kategori *
+                </label>
+
+                <input
+                    id="productCategory"
+                    class="form-input"
+                    type="text"
+                    placeholder="Örn: Döner"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="productPrice">
+                    Fiyat (₺) *
+                </label>
+
+                <input
+                    id="productPrice"
+                    class="form-input"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    placeholder="180"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="productDescription">
+                    Açıklama
+                </label>
+
+                <textarea
+                    id="productDescription"
+                    class="form-textarea"
+                    placeholder="Ürün açıklaması...">
+                </textarea>
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="productImage">
+                    Görsel URL
+                </label>
+
+                <input
+                    id="productImage"
+                    class="form-input"
+                    type="url"
+                    placeholder="https://..."
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="productAvailable">
+                    Satış Durumu
+                </label>
+
+                <select
+                    id="productAvailable"
+                    class="form-select">
+
+                    <option value="true">
+                        🟢 Satışta
+                    </option>
+
+                    <option value="false">
+                        🔴 Tükendi / Kapalı
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="modal-actions">
+
+                <button
+                    id="cancelProductBtn"
+                    class="cancel-product"
+                    type="button">
+                    Vazgeç
+                </button>
+
+                <button
+                    class="save-product"
+                    type="submit">
+                    💾 Kaydet
+                </button>
+
+            </div>
+
+        </form>
 
     </div>
 
-
-    <!-- ==========================================
-         TOAST
-    =========================================== -->
-
-    <div id="admin-toast"></div>
+</div>
 
 
-    <!-- ==========================================
-         JAVASCRIPT
-    =========================================== -->
+<!-- TOAST -->
 
-    <script>
+<div id="toast"></div>
 
 
-        "use strict";
+<script>
+
+    /* =====================================================
+       FIREBASE CONFIG
+    ===================================================== */
+
+    const firebaseConfig = {
+
+        apiKey:
+            "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+
+        authDomain:
+            "ece-2e44c.firebaseapp.com",
+
+        projectId:
+            "ece-2e44c",
+
+        storageBucket:
+            "ece-2e44c.firebasestorage.app",
+
+        messagingSenderId:
+            "937356035748",
+
+        appId:
+            "1:937356035748:web:6c8f79c774f4c3c64b0831",
+
+        measurementId:
+            "G-9VEVNMW5T0"
+    };
 
 
-        /* ==========================================
-           FIREBASE AYARLARI
-        =========================================== */
+    /* =====================================================
+       FIREBASE BAŞLAT
+    ===================================================== */
 
-        const firebaseConfig = {
+    if (!firebase.apps.length) {
 
-            apiKey:
-                "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+        firebase.initializeApp(
+            firebaseConfig
+        );
 
-            authDomain:
-                "ece-2e44c.firebaseapp.com",
-
-            projectId:
-                "ece-2e44c",
-
-            storageBucket:
-                "ece-2e44c.firebasestorage.app",
-
-            messagingSenderId:
-                "937356035748",
-
-            appId:
-                "1:937356035748:web:6c8f79c774f4c3c64b0831",
-
-            measurementId:
-                "G-9VEVNMW5T0"
-        };
+    }
 
 
-        /* ==========================================
-           FIREBASE BAŞLAT
-        =========================================== */
+    const auth =
+        firebase.auth();
 
-        let auth = null;
-
-        let db = null;
+    const db =
+        firebase.firestore();
 
 
-        try {
+    /* =====================================================
+       ELEMENTLER
+    ===================================================== */
 
-            if (!firebase.apps.length) {
+    const loginOverlay =
+        document.getElementById(
+            "login-overlay"
+        );
 
-                firebase.initializeApp(
-                    firebaseConfig
-                );
+    const adminApp =
+        document.getElementById(
+            "admin-app"
+        );
 
-            }
+    const loginForm =
+        document.getElementById(
+            "loginForm"
+        );
+
+    const loginError =
+        document.getElementById(
+            "loginError"
+        );
+
+    const logoutBtn =
+        document.getElementById(
+            "logoutBtn"
+        );
 
 
-            auth =
-                firebase.auth();
+    /* =====================================================
+       TOAST
+    ===================================================== */
 
+    function showToast(
+        message,
+        type = "success"
+    ) {
 
-            db =
-                firebase.firestore();
-
-
-            console.log(
-                "✅ Firebase bağlantısı hazır."
+        const toast =
+            document.getElementById(
+                "toast"
             );
 
+        toast.textContent =
+            message;
 
-        } catch (error) {
+        toast.className =
+            "";
 
-            console.error(
-                "Firebase başlatma hatası:",
-                error
-            );
+        toast.id =
+            "toast";
 
-        }
+        toast.classList.add(
+            "show",
+            type
+        );
 
+        setTimeout(() => {
 
-        /* ==========================================
-           DOM
-        =========================================== */
-
-        const loginOverlay =
-            document.querySelector(
-                "#login-overlay"
-            );
-
-
-        const adminPanel =
-            document.querySelector(
-                "#admin-panel"
-            );
-
-
-        const emailInput =
-            document.querySelector(
-                "#admin-email"
-            );
-
-
-        const passwordInput =
-            document.querySelector(
-                "#admin-password"
-            );
-
-
-        const loginButton =
-            document.querySelector(
-                "#login-button"
-            );
-
-
-        const loginError =
-            document.querySelector(
-                "#login-error"
-            );
-
-
-        const loginLoading =
-            document.querySelector(
-                "#login-loading"
-            );
-
-
-        const logoutButton =
-            document.querySelector(
-                "#logoutButton"
-            );
-
-
-        const ordersContainer =
-            document.querySelector(
-                "#ordersContainer"
-            );
-
-
-        const totalOrdersEl =
-            document.querySelector(
-                "#totalOrders"
-            );
-
-
-        const newOrdersEl =
-            document.querySelector(
-                "#newOrders"
-            );
-
-
-        const preparingOrdersEl =
-            document.querySelector(
-                "#preparingOrders"
-            );
-
-
-        const totalRevenueEl =
-            document.querySelector(
-                "#totalRevenue"
-            );
-
-
-        const orderCountText =
-            document.querySelector(
-                "#orderCountText"
-            );
-
-
-        const refreshOrders =
-            document.querySelector(
-                "#refreshOrders"
-            );
-
-
-        let unsubscribeOrders = null;
-
-
-        /* ==========================================
-           TOAST
-        =========================================== */
-
-        function showToast(message) {
-
-            const toast =
-                document.querySelector(
-                    "#admin-toast"
-                );
-
-
-            if (!toast) return;
-
-
-            toast.textContent =
-                message;
-
-
-            toast.classList.add(
+            toast.classList.remove(
                 "show"
             );
 
+        }, 2500);
 
-            clearTimeout(
-                window.adminToastTimer
-            );
-
-
-            window.adminToastTimer =
-                setTimeout(
-                    function () {
-
-                        toast.classList.remove(
-                            "show"
-                        );
-
-                    },
-                    2500
-                );
-
-        }
+    }
 
 
-        /* ==========================================
-           GİRİŞ HATASI
-        =========================================== */
+    /* =====================================================
+       LOGIN
+    ===================================================== */
 
-        function showLoginError(message) {
+    loginForm.addEventListener(
+        "submit",
+        async function(event) {
 
-            if (!loginError) return;
-
-
-            loginError.textContent =
-                message;
-
-
-            loginError.style.display =
-                "block";
-
-        }
-
-
-        function clearLoginError() {
-
-            if (!loginError) return;
-
-
-            loginError.textContent =
-                "";
-
+            event.preventDefault();
 
             loginError.style.display =
                 "none";
 
-        }
-
-
-        /* ==========================================
-           LOGIN BUTTON DURUMU
-        =========================================== */
-
-        function setLoginLoading(
-            loading
-        ) {
-
-            if (!loginButton) return;
-
-
-            loginButton.disabled =
-                loading;
-
-
-            if (loading) {
-
-                loginButton.textContent =
-                    "⏳ Giriş yapılıyor...";
-
-
-                if (loginLoading) {
-
-                    loginLoading.style.display =
-                        "block";
-
-                }
-
-            } else {
-
-                loginButton.textContent =
-                    "🔐 Giriş Yap";
-
-
-                if (loginLoading) {
-
-                    loginLoading.style.display =
-                        "none";
-
-                }
-
-            }
-
-        }
-
-
-        /* ==========================================
-           FIREBASE GİRİŞ
-        =========================================== */
-
-        async function loginAdmin() {
-
-            clearLoginError();
-
-
-            if (!auth) {
-
-                showLoginError(
-                    "Firebase Authentication başlatılamadı."
-                );
-
-                return;
-
-            }
-
-
             const email =
-                emailInput
-                    ? emailInput.value.trim()
-                    : "";
-
+                document
+                    .getElementById(
+                        "loginEmail"
+                    )
+                    .value
+                    .trim();
 
             const password =
-                passwordInput
-                    ? passwordInput.value
-                    : "";
-
-
-            if (!email) {
-
-                showLoginError(
-                    "Lütfen e-posta adresinizi girin."
-                );
-
-                return;
-
-            }
-
-
-            if (!password) {
-
-                showLoginError(
-                    "Lütfen şifrenizi girin."
-                );
-
-                return;
-
-            }
-
-
-            setLoginLoading(true);
+                document
+                    .getElementById(
+                        "loginPassword"
+                    )
+                    .value;
 
 
             try {
 
-                const result =
-                    await auth.signInWithEmailAndPassword(
-                        email,
-                        password
-                    );
-
-
-                console.log(
-                    "✅ Yönetici girişi başarılı:",
-                    result.user.email
+                await auth.signInWithEmailAndPassword(
+                    email,
+                    password
                 );
 
+            }
 
-                showAdminPanel(
-                    result.user
-                );
-
-
-            } catch (error) {
+            catch (error) {
 
                 console.error(
                     "Firebase giriş hatası:",
                     error
                 );
 
-
                 let message =
                     "E-posta veya şifre hatalı.";
 
+                if (
+                    error.code ===
+                    "auth/invalid-credential"
+                ) {
 
-                switch (error.code) {
-
-                    case
-                    "auth/user-not-found":
-
-                        message =
-                            "Bu e-posta ile kayıtlı bir Firebase kullanıcısı bulunamadı.";
-
-                        break;
-
-
-                    case
-                    "auth/wrong-password":
-
-                        message =
-                            "Şifre hatalı.";
-
-                        break;
-
-
-                    case
-                    "auth/invalid-credential":
-
-                        message =
-                            "E-posta veya şifre hatalı.";
-
-                        break;
-
-
-                    case
-                    "auth/invalid-email":
-
-                        message =
-                            "Geçerli bir e-posta adresi girin.";
-
-                        break;
-
-
-                    case
-                    "auth/too-many-requests":
-
-                        message =
-                            "Çok fazla başarısız giriş denemesi yapıldı. Biraz bekleyip tekrar deneyin.";
-
-                        break;
-
-
-                    case
-                    "auth/network-request-failed":
-
-                        message =
-                            "İnternet bağlantısı kurulamadı.";
-
-                        break;
-
-
-                    case
-                    "auth/user-disabled":
-
-                        message =
-                            "Bu kullanıcı hesabı devre dışı bırakılmış.";
-
-                        break;
-
-
-                    default:
-
-                        message =
-                            error.message ||
-                            "Giriş yapılamadı.";
+                    message =
+                        "E-posta veya şifre hatalı.";
 
                 }
 
+                else if (
+                    error.code ===
+                    "auth/too-many-requests"
+                ) {
 
-                showLoginError(
-                    message
-                );
-
-
-            } finally {
-
-                setLoginLoading(false);
-
-            }
-
-        }
-
-
-        /* ==========================================
-           GİRİŞ BUTONU
-        =========================================== */
-
-        if (loginButton) {
-
-            loginButton.addEventListener(
-                "click",
-                loginAdmin
-            );
-
-        }
-
-
-        /* ==========================================
-           ENTER İLE GİRİŞ
-        =========================================== */
-
-        if (passwordInput) {
-
-            passwordInput.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (
-                        event.key ===
-                        "Enter"
-                    ) {
-
-                        loginAdmin();
-
-                    }
+                    message =
+                        "Çok fazla deneme yapıldı. Bir süre bekleyin.";
 
                 }
-            );
 
-        }
+                else if (
+                    error.code ===
+                    "auth/network-request-failed"
+                ) {
 
-
-        if (emailInput) {
-
-            emailInput.addEventListener(
-                "keydown",
-                function (event) {
-
-                    if (
-                        event.key ===
-                        "Enter"
-                    ) {
-
-                        loginAdmin();
-
-                    }
+                    message =
+                        "İnternet bağlantısı kontrol edin.";
 
                 }
-            );
 
-        }
+                loginError.textContent =
+                    message;
 
-
-        /* ==========================================
-           PANELİ GÖSTER
-        =========================================== */
-
-        function showAdminPanel(user) {
-
-            if (loginOverlay) {
-
-                loginOverlay.style.display =
-                    "none";
-
-            }
-
-
-            if (adminPanel) {
-
-                adminPanel.style.display =
+                loginError.style.display =
                     "block";
 
             }
 
-
-            console.log(
-                "Panel açıldı:",
-                user?.email
-            );
-
-
-            startOrdersListener();
-
         }
+    );
 
 
-        /* ==========================================
-           PANELİ GİZLE
-        =========================================== */
+    /* =====================================================
+       AUTH STATE
+    ===================================================== */
 
-        function hideAdminPanel() {
+    auth.onAuthStateChanged(
+        function(user) {
 
-            if (adminPanel) {
+            if (user) {
 
-                adminPanel.style.display =
+                loginOverlay.style.display =
                     "none";
+
+                adminApp.style.display =
+                    "block";
+
+                loadOrders();
+
+                loadProducts();
 
             }
 
-
-            if (loginOverlay) {
+            else {
 
                 loginOverlay.style.display =
                     "flex";
 
-            }
-
-
-            if (unsubscribeOrders) {
-
-                unsubscribeOrders();
-
-                unsubscribeOrders =
-                    null;
-
-            }
-
-
-            if (passwordInput) {
-
-                passwordInput.value =
-                    "";
+                adminApp.style.display =
+                    "none";
 
             }
 
         }
+    );
 
 
-        /* ==========================================
-           ÇIKIŞ
-        =========================================== */
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
 
-        if (logoutButton) {
+    logoutBtn.addEventListener(
+        "click",
+        async function() {
 
-            logoutButton.addEventListener(
+            await auth.signOut();
+
+        }
+    );
+
+
+    /* =====================================================
+       TAB SİSTEMİ
+    ===================================================== */
+
+    document
+        .querySelectorAll(".tab-btn")
+        .forEach(button => {
+
+            button.addEventListener(
                 "click",
-                async function () {
+                function() {
 
-                    try {
-
-                        await auth.signOut();
-
-                        showToast(
-                            "Oturum kapatıldı."
+                    document
+                        .querySelectorAll(
+                            ".tab-btn"
+                        )
+                        .forEach(btn =>
+                            btn.classList.remove(
+                                "active"
+                            )
                         );
 
-                    } catch (error) {
-
-                        console.error(
-                            "Çıkış hatası:",
-                            error
+                    document
+                        .querySelectorAll(
+                            ".tab-content"
+                        )
+                        .forEach(tab =>
+                            tab.classList.remove(
+                                "active"
+                            )
                         );
 
-                    }
-
-                }
-            );
-
-        }
-
-
-        /* ==========================================
-           AUTH STATE
-        =========================================== */
-
-        if (auth) {
-
-            auth.onAuthStateChanged(
-                function (user) {
-
-                    if (user) {
-
-                        console.log(
-                            "Firebase kullanıcı aktif:",
-                            user.email
-                        );
-
-
-                        showAdminPanel(
-                            user
-                        );
-
-                    } else {
-
-                        console.log(
-                            "Firebase kullanıcı oturumu yok."
-                        );
-
-
-                        hideAdminPanel();
-
-                    }
-
-                }
-            );
-
-        }
-
-
-        /* ==========================================
-           PARA FORMAT
-        =========================================== */
-
-        function formatPrice(
-            price
-        ) {
-
-            return Number(
-                price || 0
-            ).toLocaleString(
-                "tr-TR"
-            ) + " ₺";
-
-        }
-
-
-        /* ==========================================
-           HTML GÜVENLİK
-        =========================================== */
-
-        function escapeHtml(
-            value
-        ) {
-
-            return String(
-                value ?? ""
-            )
-                .replace(
-                    /&/g,
-                    "&amp;"
-                )
-                .replace(
-                    /</g,
-                    "&lt;"
-                )
-                .replace(
-                    />/g,
-                    "&gt;"
-                )
-                .replace(
-                    /"/g,
-                    "&quot;"
-                )
-                .replace(
-                    /'/g,
-                    "&#039;"
-                );
-
-        }
-
-
-        /* ==========================================
-           SİPARİŞ DURUMU
-        =========================================== */
-
-        const statusNames = {
-
-            new:
-                "Yeni Sipariş",
-
-            preparing:
-                "Hazırlanıyor",
-
-            ready:
-                "Hazır",
-
-            completed:
-                "Tamamlandı"
-
-        };
-
-
-        function getStatusName(
-            status
-        ) {
-
-            return (
-                statusNames[status] ||
-                "Yeni Sipariş"
-            );
-
-        }
-
-
-        /* ==========================================
-           SİPARİŞ DURUMU CLASS
-        =========================================== */
-
-        function getStatusClass(
-            status
-        ) {
-
-            switch (status) {
-
-                case "preparing":
-                    return "status-preparing";
-
-                case "ready":
-                    return "status-ready";
-
-                case "completed":
-                    return "status-completed";
-
-                default:
-                    return "status-new";
-
-            }
-
-        }
-
-
-        /* ==========================================
-           SİPARİŞLERİ DİNLE
-        =========================================== */
-
-        function startOrdersListener() {
-
-            if (!db) {
-
-                console.error(
-                    "Firestore hazır değil."
-                );
-
-                return;
-
-            }
-
-
-            if (unsubscribeOrders) {
-
-                unsubscribeOrders();
-
-                unsubscribeOrders =
-                    null;
-
-            }
-
-
-            unsubscribeOrders =
-                db.collection("orders")
-                    .orderBy(
-                        "createdAt",
-                        "desc"
-                    )
-                    .onSnapshot(
-
-                        function (snapshot) {
-
-                            renderOrders(
-                                snapshot
-                            );
-
-                        },
-
-                        function (error) {
-
-                            console.error(
-                                "Sipariş dinleme hatası:",
-                                error
-                            );
-
-
-                            if (
-                                ordersContainer
-                            ) {
-
-                                ordersContainer.innerHTML = `
-
-                                    <div
-                                        style="
-                                            text-align:center;
-                                            padding:40px;
-                                            color:#ff7070;
-                                        "
-                                    >
-
-                                        <div
-                                            style="
-                                                font-size:40px;
-                                                margin-bottom:10px;
-                                            "
-                                        >
-                                            ⚠️
-                                        </div>
-
-                                        <h3>
-                                            Siparişler yüklenemedi
-                                        </h3>
-
-                                        <p
-                                            style="
-                                                margin-top:8px;
-                                                color:#999;
-                                            "
-                                        >
-                                            ${escapeHtml(
-                                                error.message
-                                            )}
-                                        </p>
-
-                                    </div>
-
-                                `;
-
-                            }
-
-                        }
-
+                    button.classList.add(
+                        "active"
                     );
 
+                    document
+                        .getElementById(
+                            button.dataset.tab
+                        )
+                        .classList.add(
+                            "active"
+                        );
+
+                }
+            );
+
+        });
+
+
+    /* =====================================================
+       PRODUCT VARIABLES
+    ===================================================== */
+
+    let products = [];
+
+    const productsCollection =
+        db.collection(
+            "products"
+        );
+
+
+    /* =====================================================
+       PRODUCTS LISTENER
+    ===================================================== */
+
+    function loadProducts() {
+
+        productsCollection
+            .orderBy(
+                "createdAt",
+                "desc"
+            )
+            .onSnapshot(
+                function(snapshot) {
+
+                    products = [];
+
+                    snapshot.forEach(
+                        function(doc) {
+
+                            products.push({
+
+                                id:
+                                    doc.id,
+
+                                ...doc.data()
+
+                            });
+
+                        }
+                    );
+
+                    renderProducts();
+
+                    updateProductStats();
+
+                },
+
+                function(error) {
+
+                    console.error(
+                        "Ürünler alınamadı:",
+                        error
+                    );
+
+                    showToast(
+                        "Ürünler alınamadı.",
+                        "error"
+                    );
+
+                }
+            );
+
+    }
+
+
+    /* =====================================================
+       PRODUCT RENDER
+    ===================================================== */
+
+    function renderProducts() {
+
+        const container =
+            document.getElementById(
+                "productsContainer"
+            );
+
+        if (!products.length) {
+
+            container.innerHTML = `
+
+                <div class="empty-state"
+                     style="grid-column:1/-1;">
+
+                    <div class="emoji">
+                        🍽️
+                    </div>
+
+                    <h3>
+                        Henüz ürün eklenmemiş.
+                    </h3>
+
+                    <p style="margin-top:7px;">
+                        "Yeni Ürün Ekle" butonuyla başlayabilirsiniz.
+                    </p>
+
+                </div>
+
+            `;
+
+            return;
+
         }
 
 
-        /* ==========================================
-           SİPARİŞLERİ RENDER
-        =========================================== */
+        container.innerHTML =
+            products
+                .map(
+                    product =>
+                        createProductHTML(
+                            product
+                        )
+                )
+                .join("");
 
-        function renderOrders(
-            snapshot
-        ) {
-
-            if (!ordersContainer)
-                return;
-
-
-            ordersContainer.innerHTML =
-                "";
+    }
 
 
-            let totalRevenue =
-                0;
+    /* =====================================================
+       PRODUCT HTML
+    ===================================================== */
+
+    function createProductHTML(
+        product
+    ) {
+
+        const name =
+            escapeHTML(
+                product.name ||
+                "Ürün"
+            );
+
+        const category =
+            escapeHTML(
+                product.category ||
+                "Kategori"
+            );
+
+        const description =
+            escapeHTML(
+                product.description ||
+                "Açıklama bulunmuyor."
+            );
+
+        const price =
+            Number(
+                product.price
+            ) || 0;
+
+        const image =
+            product.image || "";
+
+        const available =
+            product.available !== false;
 
 
-            let newCount =
-                0;
-
-
-            let preparingCount =
-                0;
-
-
-            if (
-                totalOrdersEl
-            ) {
-
-                totalOrdersEl.textContent =
-                    snapshot.size;
-
-            }
-
-
-            if (
-                orderCountText
-            ) {
-
-                orderCountText.textContent =
-                    snapshot.size +
-                    " sipariş";
-
-            }
-
-
-            if (snapshot.empty) {
-
-                if (
-                    newOrdersEl
-                ) {
-
-                    newOrdersEl.textContent =
-                        "0";
-
-                }
-
-
-                if (
-                    preparingOrdersEl
-                ) {
-
-                    preparingOrdersEl.textContent =
-                        "0";
-
-                }
-
-
-                if (
-                    totalRevenueEl
-                ) {
-
-                    totalRevenueEl.textContent =
-                        "0 ₺";
-
-                }
-
-
-                ordersContainer.innerHTML = `
-
-                    <div
-                        style="
-                            text-align:center;
-                            padding:40px;
-                            color:#777;
-                        "
+        const imageHTML =
+            image
+                ? `
+                    <img
+                        src="${escapeAttribute(image)}"
+                        alt="${name}"
+                        onerror="this.style.display='none'; this.parentElement.innerHTML='<div class=\\'no-image\\'>🍽️</div>';"
                     >
+                  `
+                : `
+                    <div class="no-image">
+                        🍽️
+                    </div>
+                  `;
 
-                        <div
-                            style="
-                                font-size:40px;
-                                margin-bottom:10px;
-                            "
-                        >
-                            📋
-                        </div>
 
-                        <h3
-                            style="
-                                color:#bbb;
-                                margin-bottom:6px;
-                            "
-                        >
-                            Henüz sipariş yok
-                        </h3>
+        return `
 
-                        <p>
-                            Müşterilerden gelen
-                            siparişler burada
-                            görünecek.
-                        </p>
+            <article class="product-card">
+
+                <div class="product-image">
+
+                    ${imageHTML}
+
+                </div>
+
+
+                <div class="product-body">
+
+                    <div class="product-category">
+                        ${category}
+                    </div>
+
+                    <div class="product-name">
+                        ${name}
+                    </div>
+
+                    <div class="product-description">
+                        ${description}
+                    </div>
+
+                    <div class="product-price">
+                        ${formatPrice(price)} ₺
+                    </div>
+
+
+                    <span class="
+                        product-status
+                        ${available
+                            ? "status-active"
+                            : "status-passive"}
+                    ">
+
+                        ${available
+                            ? "🟢 Satışta"
+                            : "🔴 Tükendi / Kapalı"}
+
+                    </span>
+
+
+                    <div class="product-actions">
+
+                        <button
+                            class="small-btn edit-btn"
+                            onclick="editProduct('${product.id}')"
+                            type="button">
+                            ✏️ Düzenle
+                        </button>
+
+                        <button
+                            class="small-btn"
+                            onclick="toggleProduct('${product.id}')"
+                            type="button">
+                            ${available
+                                ? "🔴 Kapat"
+                                : "🟢 Aç"}
+                        </button>
+
+                        <button
+                            class="small-btn delete-btn"
+                            onclick="deleteProduct('${product.id}')"
+                            type="button">
+                            🗑️ Sil
+                        </button>
 
                     </div>
 
-                `;
+                </div>
 
-                return;
+            </article>
+
+        `;
+
+    }
+
+
+    /* =====================================================
+       ADD PRODUCT MODAL
+    ===================================================== */
+
+    const productModal =
+        document.getElementById(
+            "productModal"
+        );
+
+    const productForm =
+        document.getElementById(
+            "productForm"
+        );
+
+
+    document
+        .getElementById(
+            "addProductBtn"
+        )
+        .addEventListener(
+            "click",
+            function() {
+
+                openProductModal();
 
             }
-
-
-            snapshot.forEach(
-                function (doc) {
-
-                    const order =
-                        doc.data();
-
-
-                    const firestoreId =
-                        doc.id;
-
-
-                    const status =
-                        order.status ||
-                        "new";
-
-
-                    if (
-                        status === "new"
-                    ) {
-
-                        newCount++;
-
-                    }
-
-
-                    if (
-                        status ===
-                        "preparing"
-                    ) {
-
-                        preparingCount++;
-
-                    }
-
-
-                    const items =
-                        Array.isArray(
-                            order.items
-                        )
-                            ? order.items
-                            : [];
-
-
-                    let orderTotal =
-                        0;
-
-
-                    let itemsHTML =
-                        "";
-
-
-                    items.forEach(
-                        function (item) {
-
-                            const price =
-                                Number(
-                                    item.price
-                                ) || 0;
-
-
-                            const quantity =
-                                Number(
-                                    item.quantity
-                                ) || 1;
-
-
-                            const subTotal =
-                                price *
-                                quantity;
-
-
-                            orderTotal +=
-                                subTotal;
-
-
-                            itemsHTML += `
-
-                                <li
-                                    style="
-                                        margin-bottom:5px;
-                                    "
-                                >
-                                    ${escapeHtml(
-                                        item.name ||
-                                        "Ürün"
-                                    )}
-
-                                    ×
-
-                                    ${quantity}
-
-                                    -
-
-                                    <strong>
-                                        ${formatPrice(
-                                            subTotal
-                                        )}
-                                    </strong>
-                                </li>
-
-                            `;
-
-                        }
-                    );
-
-
-                    totalRevenue +=
-                        orderTotal;
-
-
-                    const card =
-                        document.createElement(
-                            "div"
-                        );
-
-
-                    card.className =
-                        "order-card";
-
-
-                    card.innerHTML = `
-
-                        <div
-                            class="order-card-header"
-                        >
-
-                            <h3>
-                                👤
-                                ${escapeHtml(
-                                    order.customerName ||
-                                    "Müşteri"
-                                )}
-                            </h3>
-
-                            <span
-                                class="
-                                    order-status
-                                    ${getStatusClass(
-                                        status
-                                    )}
-                                "
-                            >
-                                ${getStatusName(
-                                    status
-                                )}
-                            </span>
-
-                        </div>
-
-
-                        <p>
-                            <strong>
-                                📞 Telefon:
-                            </strong>
-
-                            ${escapeHtml(
-                                order.phone ||
-                                "-"
-                            )}
-                        </p>
-
-
-                        <p>
-                            <strong>
-                                📦 Sipariş Türü:
-                            </strong>
-
-                            ${escapeHtml(
-                                order.orderType ||
-                                "-"
-                            )}
-                        </p>
-
-
-                        ${
-                            order.address
-                                ? `
-                                    <p>
-                                        <strong>
-                                            📍 Adres:
-                                        </strong>
-
-                                        ${escapeHtml(
-                                            order.address
-                                        )}
-                                    </p>
-                                `
-                                : ""
-                        }
-
-
-                        ${
-                            order.tableNumber
-                                ? `
-                                    <p>
-                                        <strong>
-                                            🪑 Masa:
-                                        </strong>
-
-                                        ${escapeHtml(
-                                            order.tableNumber
-                                        )}
-                                    </p>
-                                `
-                                : ""
-                        }
-
-
-                        ${
-                            order.note
-                                ? `
-                                    <p>
-                                        <strong>
-                                            📝 Not:
-                                        </strong>
-
-                                        ${escapeHtml(
-                                            order.note
-                                        )}
-                                    </p>
-                                `
-                                : ""
-                        }
-
-
-                        <p>
-                            <strong>
-                                💰 Toplam:
-                            </strong>
-
-                            <span
-                                style="
-                                    color:#4ade80;
-                                    font-size:17px;
-                                    font-weight:bold;
-                                "
-                            >
-                                ${formatPrice(
-                                    orderTotal
-                                )}
-                            </span>
-                        </p>
-
-
-                        <div
-                            class="order-products"
-                        >
-
-                            <strong>
-                                🛒 Ürünler
-                            </strong>
-
-                            <ul>
-                                ${
-                                    itemsHTML ||
-                                    "<li>Ürün bulunamadı.</li>"
-                                }
-                            </ul>
-
-                        </div>
-
-
-                        <div
-                            class="order-actions"
-                        >
-
-                            ${
-                                status === "new"
-                                ? `
-                                    <button
-                                        class="
-                                            order-action-btn
-                                            prepare-btn
-                                        "
-                                        type="button"
-                                        onclick="
-                                            updateOrderStatus(
-                                                '${firestoreId}',
-                                                'preparing'
-                                            )
-                                        "
-                                    >
-                                        👨‍🍳 Hazırlamaya Başla
-                                    </button>
-                                `
-                                : ""
-                            }
-
-
-                            ${
-                                status === "preparing"
-                                ? `
-                                    <button
-                                        class="
-                                            order-action-btn
-                                            ready-btn
-                                        "
-                                        type="button"
-                                        onclick="
-                                            updateOrderStatus(
-                                                '${firestoreId}',
-                                                'ready'
-                                            )
-                                        "
-                                    >
-                                        ✅ Hazır
-                                    </button>
-                                `
-                                : ""
-                            }
-
-
-                            ${
-                                status === "ready"
-                                ? `
-                                    <button
-                                        class="
-                                            order-action-btn
-                                            complete-btn
-                                        "
-                                        type="button"
-                                        onclick="
-                                            updateOrderStatus(
-                                                '${firestoreId}',
-                                                'completed'
-                                            )
-                                        "
-                                    >
-                                        🏁 Tamamlandı
-                                    </button>
-                                `
-                                : ""
-                            }
-
-
-                            <button
-                                class="
-                                    order-action-btn
-                                    delete-order-btn
-                                "
-                                type="button"
-                                onclick="
-                                    deleteOrder(
-                                        '${firestoreId}'
-                                    )
-                                "
-                            >
-                                🗑️ Sil
-                            </button>
-
-                        </div>
-
-                    `;
-
-
-                    ordersContainer.appendChild(
-                        card
-                    );
-
-                }
-            );
-
-
-            if (
-                newOrdersEl
-            ) {
-
-                newOrdersEl.textContent =
-                    newCount;
-
-            }
-
-
-            if (
-                preparingOrdersEl
-            ) {
-
-                preparingOrdersEl.textContent =
-                    preparingCount;
-
-            }
-
-
-            if (
-                totalRevenueEl
-            ) {
-
-                totalRevenueEl.textContent =
-                    formatPrice(
-                        totalRevenue
-                    );
-
-            }
+        );
+
+
+    document
+        .getElementById(
+            "closeModalBtn"
+        )
+        .addEventListener(
+            "click",
+            closeProductModal
+        );
+
+
+    document
+        .getElementById(
+            "cancelProductBtn"
+        )
+        .addEventListener(
+            "click",
+            closeProductModal
+        );
+
+
+    function openProductModal(
+        product = null
+    ) {
+
+        productModal.classList.add(
+            "active"
+        );
+
+
+        if (product) {
+
+            document.getElementById(
+                "modalTitle"
+            ).textContent =
+                "✏️ Ürünü Düzenle";
+
+            document.getElementById(
+                "productId"
+            ).value =
+                product.id;
+
+            document.getElementById(
+                "productName"
+            ).value =
+                product.name || "";
+
+            document.getElementById(
+                "productCategory"
+            ).value =
+                product.category || "";
+
+            document.getElementById(
+                "productPrice"
+            ).value =
+                product.price || "";
+
+            document.getElementById(
+                "productDescription"
+            ).value =
+                product.description || "";
+
+            document.getElementById(
+                "productImage"
+            ).value =
+                product.image || "";
+
+            document.getElementById(
+                "productAvailable"
+            ).value =
+                product.available === false
+                    ? "false"
+                    : "true";
 
         }
 
+        else {
 
-        /* ==========================================
-           SİPARİŞ DURUMU GÜNCELLE
-        =========================================== */
+            productForm.reset();
 
-        async function updateOrderStatus(
-            firestoreId,
-            newStatus
-        ) {
+            document.getElementById(
+                "productId"
+            ).value = "";
 
-            if (!db) return;
+            document.getElementById(
+                "modalTitle"
+            ).textContent =
+                "➕ Yeni Ürün";
+
+        }
+
+    }
 
 
-            if (!firestoreId) {
+    function closeProductModal() {
+
+        productModal.classList.remove(
+            "active"
+        );
+
+        productForm.reset();
+
+    }
+
+
+    /* =====================================================
+       SAVE PRODUCT
+    ===================================================== */
+
+    productForm.addEventListener(
+        "submit",
+        async function(event) {
+
+            event.preventDefault();
+
+
+            const id =
+                document.getElementById(
+                    "productId"
+                ).value;
+
+
+            const name =
+                document.getElementById(
+                    "productName"
+                ).value
+                .trim();
+
+
+            const category =
+                document.getElementById(
+                    "productCategory"
+                ).value
+                .trim();
+
+
+            const price =
+                Number(
+                    document.getElementById(
+                        "productPrice"
+                    ).value
+                );
+
+
+            const description =
+                document.getElementById(
+                    "productDescription"
+                ).value
+                .trim();
+
+
+            const image =
+                document.getElementById(
+                    "productImage"
+                ).value
+                .trim();
+
+
+            const available =
+                document.getElementById(
+                    "productAvailable"
+                ).value === "true";
+
+
+            if (!name) {
 
                 showToast(
-                    "Sipariş ID bulunamadı."
+                    "Ürün adı gerekli.",
+                    "error"
                 );
 
                 return;
 
             }
+
+
+            if (!category) {
+
+                showToast(
+                    "Kategori gerekli.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+
+            if (
+                !Number.isFinite(price) ||
+                price < 0
+            ) {
+
+                showToast(
+                    "Geçerli bir fiyat girin.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+
+            const data = {
+
+                name,
+
+                category,
+
+                price,
+
+                description,
+
+                image,
+
+                available,
+
+                updatedAt:
+                    firebase.firestore.FieldValue.serverTimestamp()
+
+            };
 
 
             try {
 
-                await db
-                    .collection("orders")
-                    .doc(firestoreId)
+                if (id) {
+
+                    await productsCollection
+                        .doc(id)
+                        .update(data);
+
+                    showToast(
+                        "Ürün güncellendi."
+                    );
+
+                }
+
+                else {
+
+                    data.createdAt =
+                        firebase.firestore.FieldValue
+                            .serverTimestamp();
+
+                    await productsCollection
+                        .add(data);
+
+                    showToast(
+                        "Ürün başarıyla eklendi."
+                    );
+
+                }
+
+
+                closeProductModal();
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    "Ürün kaydetme hatası:",
+                    error
+                );
+
+                showToast(
+                    "Ürün kaydedilemedi.",
+                    "error"
+                );
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       EDIT PRODUCT
+    ===================================================== */
+
+    window.editProduct =
+        function(id) {
+
+            const product =
+                products.find(
+                    item =>
+                        item.id === id
+                );
+
+            if (!product) {
+
+                showToast(
+                    "Ürün bulunamadı.",
+                    "error"
+                );
+
+                return;
+
+            }
+
+            openProductModal(
+                product
+            );
+
+        };
+
+
+    /* =====================================================
+       TOGGLE PRODUCT
+    ===================================================== */
+
+    window.toggleProduct =
+        async function(id) {
+
+            const product =
+                products.find(
+                    item =>
+                        item.id === id
+                );
+
+            if (!product) return;
+
+
+            const newStatus =
+                product.available === false;
+
+
+            try {
+
+                await productsCollection
+                    .doc(id)
                     .update({
 
-                        status:
-                            newStatus
+                        available:
+                            newStatus,
+
+                        updatedAt:
+                            firebase.firestore
+                                .FieldValue
+                                .serverTimestamp()
 
                     });
 
 
                 showToast(
-                    "Sipariş durumu güncellendi ✅"
+                    newStatus
+                        ? "Ürün satışa açıldı."
+                        : "Ürün satıştan kaldırıldı."
                 );
 
+            }
 
-            } catch (error) {
+            catch (error) {
 
                 console.error(
-                    "Sipariş durum güncelleme hatası:",
                     error
                 );
 
-
                 showToast(
-                    "Sipariş durumu güncellenemedi ❌"
+                    "Durum değiştirilemedi.",
+                    "error"
                 );
 
             }
 
-        }
+        };
 
 
-        /* ==========================================
-           SİPARİŞ SİL
-        =========================================== */
+    /* =====================================================
+       DELETE PRODUCT
+    ===================================================== */
 
-        async function deleteOrder(
-            firestoreId
-        ) {
+    window.deleteProduct =
+        async function(id) {
 
-            if (!db) return;
-
-
-            if (!firestoreId) {
-
-                showToast(
-                    "Sipariş ID bulunamadı."
+            const product =
+                products.find(
+                    item =>
+                        item.id === id
                 );
 
-                return;
-
-            }
+            if (!product) return;
 
 
             const confirmed =
                 confirm(
-                    "Bu siparişi silmek istediğinize emin misiniz?"
+                    `"${product.name}" ürününü silmek istediğinize emin misiniz?`
                 );
 
 
@@ -2873,83 +2254,619 @@
 
             try {
 
-                await db
-                    .collection("orders")
-                    .doc(firestoreId)
+                await productsCollection
+                    .doc(id)
                     .delete();
 
 
                 showToast(
-                    "Sipariş silindi 🗑️"
-                );
-
-
-            } catch (error) {
-
-                console.error(
-                    "Sipariş silme hatası:",
-                    error
-                );
-
-
-                showToast(
-                    "Sipariş silinemedi ❌"
+                    "Ürün silindi."
                 );
 
             }
 
+            catch (error) {
+
+                console.error(
+                    error
+                );
+
+                showToast(
+                    "Ürün silinemedi.",
+                    "error"
+                );
+
+            }
+
+        };
+
+
+    /* =====================================================
+       PRODUCT STATS
+    ===================================================== */
+
+    function updateProductStats() {
+
+        document.getElementById(
+            "totalProducts"
+        ).textContent =
+            products.length;
+
+    }
+
+
+    /* =====================================================
+       ORDERS
+    ===================================================== */
+
+    function loadOrders() {
+
+        db.collection(
+            "orders"
+        )
+        .orderBy(
+            "createdAt",
+            "desc"
+        )
+        .onSnapshot(
+
+            function(snapshot) {
+
+                renderOrders(
+                    snapshot
+                );
+
+            },
+
+            function(error) {
+
+                console.error(
+                    "Sipariş hatası:",
+                    error
+                );
+
+                showToast(
+                    "Siparişler alınamadı.",
+                    "error"
+                );
+
+            }
+
+        );
+
+    }
+
+
+    function renderOrders(
+        snapshot
+    ) {
+
+        const container =
+            document.getElementById(
+                "ordersContainer"
+            );
+
+
+        let totalRevenue = 0;
+
+        let newCount = 0;
+
+
+        if (
+            snapshot.empty
+        ) {
+
+            container.innerHTML = `
+
+                <div class="empty-state">
+
+                    <div class="emoji">
+                        📋
+                    </div>
+
+                    <h3>
+                        Henüz sipariş yok
+                    </h3>
+
+                    <p style="margin-top:7px;">
+                        Yeni siparişler burada görünecek.
+                    </p>
+
+                </div>
+
+            `;
+
         }
 
 
-        /* ==========================================
-           YENİLE
-        =========================================== */
+        else {
 
-        if (refreshOrders) {
+            const ordersHTML = [];
 
-            refreshOrders.addEventListener(
-                "click",
-                function () {
 
-                    if (auth &&
-                        auth.currentUser
+            snapshot.forEach(
+                function(doc) {
+
+                    const order =
+                        doc.data();
+
+
+                    if (
+                        order.status ===
+                        "new"
                     ) {
 
-                        startOrdersListener();
+                        newCount++;
 
-                        showToast(
-                            "Siparişler yenilendi 🔄"
+                    }
+
+
+                    let orderTotal = 0;
+
+                    let itemsHTML = "";
+
+
+                    if (
+                        Array.isArray(
+                            order.items
+                        )
+                    ) {
+
+                        order.items.forEach(
+                            function(item) {
+
+                                const price =
+                                    Number(
+                                        item.price
+                                    ) || 0;
+
+                                const quantity =
+                                    Number(
+                                        item.quantity
+                                    ) || 1;
+
+                                const subtotal =
+                                    price *
+                                    quantity;
+
+                                orderTotal +=
+                                    subtotal;
+
+
+                                itemsHTML += `
+
+                                    <li>
+                                        ${escapeHTML(
+                                            item.name ||
+                                            "Ürün"
+                                        )}
+
+                                        ×
+                                        ${quantity}
+
+                                        —
+                                        <strong>
+                                            ${formatPrice(
+                                                subtotal
+                                            )} ₺
+                                        </strong>
+                                    </li>
+
+                                `;
+
+                            }
                         );
 
                     }
 
+
+                    totalRevenue +=
+                        orderTotal;
+
+
+                    const status =
+                        order.status ||
+                        "new";
+
+
+                    ordersHTML.push(`
+
+                        <article class="order-card">
+
+                            <div class="order-top">
+
+                                <div class="order-name">
+                                    👤
+                                    ${escapeHTML(
+                                        order.customerName ||
+                                        "Müşteri"
+                                    )}
+                                </div>
+
+                                <span class="order-status">
+                                    ${getStatusText(
+                                        status
+                                    )}
+                                </span>
+
+                            </div>
+
+
+                            <div class="order-info">
+
+                                📞
+                                ${escapeHTML(
+                                    order.phone ||
+                                    "-"
+                                )}
+
+                                <br>
+
+                                📍
+                                ${escapeHTML(
+                                    order.address ||
+                                    order.tableNumber ||
+                                    "-"
+                                )}
+
+                                <br>
+
+                                💰
+                                <strong>
+                                    ${formatPrice(
+                                        orderTotal
+                                    )} ₺
+                                </strong>
+
+                            </div>
+
+
+                            <div class="order-items">
+
+                                <strong>
+                                    🛒 Ürünler
+                                </strong>
+
+                                <ul>
+                                    ${itemsHTML}
+                                </ul>
+
+                            </div>
+
+
+                            <div class="order-controls">
+
+                                <select
+                                    onchange="changeOrderStatus(
+                                        '${doc.id}',
+                                        this.value
+                                    )">
+
+                                    <option
+                                        value="new"
+                                        ${status === "new"
+                                            ? "selected"
+                                            : ""}>
+                                        🆕 Yeni
+                                    </option>
+
+                                    <option
+                                        value="preparing"
+                                        ${status === "preparing"
+                                            ? "selected"
+                                            : ""}>
+                                        👨‍🍳 Hazırlanıyor
+                                    </option>
+
+                                    <option
+                                        value="ready"
+                                        ${status === "ready"
+                                            ? "selected"
+                                            : ""}>
+                                        ✅ Hazır
+                                    </option>
+
+                                    <option
+                                        value="completed"
+                                        ${status === "completed"
+                                            ? "selected"
+                                            : ""}>
+                                        ✔️ Tamamlandı
+                                    </option>
+
+                                </select>
+
+
+                                <button
+                                    class="small-btn delete-btn"
+                                    onclick="deleteOrder('${doc.id}')"
+                                    type="button">
+                                    🗑️ Sil
+                                </button>
+
+                            </div>
+
+                        </article>
+
+                    `);
+
                 }
             );
+
+
+            container.innerHTML =
+                ordersHTML.join("");
 
         }
 
 
-        /* ==========================================
-           GLOBAL
-        =========================================== */
-
-        window.updateOrderStatus =
-            updateOrderStatus;
+        document.getElementById(
+            "totalOrders"
+        ).textContent =
+            snapshot.size;
 
 
-        window.deleteOrder =
-            deleteOrder;
+        document.getElementById(
+            "newOrders"
+        ).textContent =
+            newCount;
 
 
-        /* ==========================================
-           BAŞLANGIÇ
-        =========================================== */
+        document.getElementById(
+            "totalRevenue"
+        ).textContent =
+            formatPrice(
+                totalRevenue
+            ) + " ₺";
 
-        console.log(
-            "✅ Ece Döner Firebase Authentication paneli hazır."
+
+        document.getElementById(
+            "orderCountText"
+        ).textContent =
+            snapshot.size +
+            " sipariş";
+
+    }
+
+
+    /* =====================================================
+       ORDER STATUS
+    ===================================================== */
+
+    window.changeOrderStatus =
+        async function(
+            docId,
+            status
+        ) {
+
+            try {
+
+                await db.collection(
+                    "orders"
+                )
+                .doc(docId)
+                .update({
+
+                    status
+
+                });
+
+
+                showToast(
+                    "Sipariş durumu güncellendi."
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    error
+                );
+
+                showToast(
+                    "Sipariş durumu güncellenemedi.",
+                    "error"
+                );
+
+            }
+
+        };
+
+
+    /* =====================================================
+       DELETE ORDER
+    ===================================================== */
+
+    window.deleteOrder =
+        async function(
+            docId
+        ) {
+
+            if (
+                !confirm(
+                    "Bu siparişi silmek istediğinize emin misiniz?"
+                )
+            ) {
+
+                return;
+
+            }
+
+
+            try {
+
+                await db.collection(
+                    "orders"
+                )
+                .doc(docId)
+                .delete();
+
+
+                showToast(
+                    "Sipariş silindi."
+                );
+
+            }
+
+            catch (error) {
+
+                console.error(
+                    error
+                );
+
+                showToast(
+                    "Sipariş silinemedi.",
+                    "error"
+                );
+
+            }
+
+        };
+
+
+    /* =====================================================
+       REFRESH
+    ===================================================== */
+
+    document
+        .getElementById(
+            "refreshBtn"
+        )
+        .addEventListener(
+            "click",
+            function() {
+
+                location.reload();
+
+            }
         );
 
-    </script>
+
+    /* =====================================================
+       HELPERS
+    ===================================================== */
+
+    function formatPrice(
+        value
+    ) {
+
+        return Number(
+            value || 0
+        ).toLocaleString(
+            "tr-TR",
+            {
+                minimumFractionDigits: 0,
+                maximumFractionDigits: 2
+            }
+        );
+
+    }
+
+
+    function getStatusText(
+        status
+    ) {
+
+        const statuses = {
+
+            new:
+                "🆕 Yeni",
+
+            preparing:
+                "👨‍🍳 Hazırlanıyor",
+
+            ready:
+                "✅ Hazır",
+
+            completed:
+                "✔️ Tamamlandı"
+
+        };
+
+        return statuses[
+            status
+        ] || "Yeni";
+
+    }
+
+
+    function escapeHTML(
+        value
+    ) {
+
+        return String(
+            value
+        )
+        .replace(
+            /&/g,
+            "&amp;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /'/g,
+            "&#039;"
+        );
+
+    }
+
+
+    function escapeAttribute(
+        value
+    ) {
+
+        return String(
+            value
+        )
+        .replace(
+            /"/g,
+            "&quot;"
+        )
+        .replace(
+            /</g,
+            "&lt;"
+        )
+        .replace(
+            />/g,
+            "&gt;"
+        );
+
+    }
+
+
+    /* =====================================================
+       MODAL DIŞINA TIKLAMA
+    ===================================================== */
+
+    productModal.addEventListener(
+        "click",
+        function(event) {
+
+            if (
+                event.target ===
+                productModal
+            ) {
+
+                closeProductModal();
+
+            }
+
+        }
+    );
+
+</script>
 
 </body>
 </html>
+
