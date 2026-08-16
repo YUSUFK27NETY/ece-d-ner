@@ -4,29 +4,43 @@ const admin = require("firebase-admin");
 
 const app = express();
 
-/* ==========================================
+/* =========================================================
    AYARLAR
-========================================== */
+========================================================= */
 
 const PORT = process.env.PORT || 3000;
-
-app.use(cors());
-app.use(express.json({ limit: "1mb" }));
-
-/* ==========================================
-   FIREBASE ADMIN
-========================================== */
 
 const SERVICE_ACCOUNT_PATH =
     "/etc/secrets/firebase-service-account.json";
 
+/* =========================================================
+   MIDDLEWARE
+========================================================= */
+
+app.disable("x-powered-by");
+
+app.use(cors());
+
+app.use(
+    express.json({
+        limit: "1mb"
+    })
+);
+
+/* =========================================================
+   FIREBASE ADMIN
+========================================================= */
+
 try {
-    const serviceAccount = require(SERVICE_ACCOUNT_PATH);
+    const serviceAccount =
+        require(SERVICE_ACCOUNT_PATH);
 
     admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
+        credential:
+            admin.credential.cert(serviceAccount)
     });
 
+    console.log("");
     console.log("=================================");
     console.log(" FIREBASE ADMIN AKTİF");
     console.log("=================================");
@@ -36,7 +50,10 @@ try {
     );
     console.log(" Firestore bağlantısı hazır.");
     console.log("=================================");
+    console.log("");
+
 } catch (error) {
+
     console.error("");
     console.error("=================================");
     console.error(" FIREBASE BAĞLANTI HATASI");
@@ -48,24 +65,75 @@ try {
     process.exit(1);
 }
 
-const db = admin.firestore();
-const ordersCollection = db.collection("orders");
+/* =========================================================
+   FIRESTORE
+========================================================= */
 
-/* ==========================================
-   ANA TEST
-========================================== */
+const db =
+    admin.firestore();
+
+const ordersCollection =
+    db.collection("orders");
+
+/* =========================================================
+   YARDIMCI FONKSİYONLAR
+========================================================= */
+
+function cleanString(value) {
+    return String(value ?? "").trim();
+}
+
+function isValidPhone(phone) {
+    const digits =
+        phone.replace(/\D/g, "");
+
+    return digits.length >= 10;
+}
+
+function createOrderNumber() {
+
+    const id =
+        Date.now();
+
+    return {
+        id,
+        orderNumber:
+            `ECE-${id
+                .toString()
+                .slice(-6)}`
+    };
+}
+
+/* =========================================================
+   ANA / HEALTH TESTİ
+========================================================= */
 
 app.get("/", async (req, res) => {
+
     try {
-        const snapshot = await ordersCollection.limit(1).get();
+
+        const snapshot =
+            await ordersCollection
+                .limit(1)
+                .get();
 
         res.json({
+
             success: true,
-            message: "QR Menü Pro Backend çalışıyor.",
+
+            message:
+                "QR Menü Pro Backend çalışıyor.",
+
             firebase: true,
+
             firestore: true,
-            ordersCollection: "orders",
-            hasOrders: !snapshot.empty
+
+            ordersCollection:
+                "orders",
+
+            hasOrders:
+                !snapshot.empty
+
         });
 
     } catch (error) {
@@ -76,39 +144,53 @@ app.get("/", async (req, res) => {
         );
 
         res.status(500).json({
+
             success: false,
-            message: "Firestore bağlantı hatası.",
-            error: error.message
+
+            message:
+                "Firestore bağlantı hatası."
+
         });
     }
 });
 
-/* ==========================================
+/* =========================================================
    TÜM SİPARİŞLER
-========================================== */
+========================================================= */
 
 app.get("/api/orders", async (req, res) => {
 
     try {
 
-        const snapshot = await ordersCollection
-            .orderBy("createdAt", "desc")
-            .get();
+        const snapshot =
+            await ordersCollection
+                .orderBy(
+                    "createdAt",
+                    "desc"
+                )
+                .get();
 
         const orders = [];
 
         snapshot.forEach(doc => {
 
             orders.push({
-                firestoreId: doc.id,
+
+                firestoreId:
+                    doc.id,
+
                 ...doc.data()
+
             });
 
         });
 
         res.json({
+
             success: true,
+
             orders
+
         });
 
     } catch (error) {
@@ -119,84 +201,172 @@ app.get("/api/orders", async (req, res) => {
         );
 
         res.status(500).json({
+
             success: false,
-            message: "Siparişler alınamadı.",
-            error: error.message
+
+            message:
+                "Siparişler alınamadı."
+
         });
     }
 });
 
-/* ==========================================
+/* =========================================================
    YENİ SİPARİŞ
-========================================== */
+========================================================= */
 
 app.post("/api/orders", async (req, res) => {
 
     try {
 
-        const orderData = req.body;
+        const orderData =
+            req.body;
+
+        /* -----------------------------------------------
+           GENEL VERİ KONTROLÜ
+        ------------------------------------------------ */
 
         if (
             !orderData ||
-            typeof orderData !== "object"
+            typeof orderData !== "object" ||
+            Array.isArray(orderData)
         ) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "Geçersiz sipariş verisi."
+
+                message:
+                    "Geçersiz sipariş verisi."
+
             });
         }
 
+        /* -----------------------------------------------
+           MÜŞTERİ BİLGİLERİ
+        ------------------------------------------------ */
+
         const customerName =
-            String(
-                orderData.customerName || ""
-            ).trim();
+            cleanString(
+                orderData.customerName
+            );
 
         const phone =
-            String(
-                orderData.phone || ""
-            ).trim();
+            cleanString(
+                orderData.phone
+            );
 
         const orderType =
-            String(
+            cleanString(
                 orderData.orderType ||
                 "Paket Sipariş"
-            ).trim();
+            );
 
         const address =
-            String(
-                orderData.address || ""
-            ).trim();
+            cleanString(
+                orderData.address
+            );
 
         const tableNumber =
-            String(
-                orderData.tableNumber || ""
-            ).trim();
+            cleanString(
+                orderData.tableNumber
+            );
 
         const note =
-            String(
-                orderData.note || ""
-            ).trim();
+            cleanString(
+                orderData.note
+            );
 
-        /* --------------------------
-           TEMEL KONTROLLER
-        -------------------------- */
+        /* -----------------------------------------------
+           ZORUNLU ALANLAR
+        ------------------------------------------------ */
 
         if (!customerName) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "Müşteri adı gerekli."
+
+                message:
+                    "Müşteri adı gerekli."
+
             });
         }
 
         if (!phone) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "Telefon numarası gerekli."
+
+                message:
+                    "Telefon numarası gerekli."
+
             });
         }
+
+        if (!isValidPhone(phone)) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Geçerli bir telefon numarası girin."
+
+            });
+        }
+
+        /* -----------------------------------------------
+           SİPARİŞ TİPİNE GÖRE ADRES / MASA
+        ------------------------------------------------ */
+
+        const normalizedOrderType =
+            orderType.toLowerCase();
+
+        const isTableOrder =
+            normalizedOrderType.includes("masa") ||
+            normalizedOrderType.includes("restoran") ||
+            normalizedOrderType.includes("salon");
+
+        const isDeliveryOrder =
+            normalizedOrderType.includes("paket") ||
+            normalizedOrderType.includes("adres") ||
+            normalizedOrderType.includes("teslim");
+
+        if (
+            isDeliveryOrder &&
+            !address
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Paket siparişi için adres gerekli."
+
+            });
+        }
+
+        if (
+            isTableOrder &&
+            !tableNumber
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Masa numarası gerekli."
+
+            });
+        }
+
+        /* -----------------------------------------------
+           SEPET KONTROLÜ
+        ------------------------------------------------ */
 
         if (
             !Array.isArray(orderData.items) ||
@@ -204,74 +374,154 @@ app.post("/api/orders", async (req, res) => {
         ) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "Sipariş sepeti boş."
+
+                message:
+                    "Sipariş sepeti boş."
+
             });
         }
 
-        /* --------------------------
-           ÜRÜNLERİ TEMİZLE
-        -------------------------- */
-
-        const items =
-            orderData.items.map(item => {
-
-                const name =
-                    String(
-                        item.name || "Ürün"
-                    ).trim();
-
-                const price =
-                    Number(item.price) || 0;
-
-                const quantity =
-                    Number(item.quantity) || 1;
-
-                return {
-                    name,
-                    price,
-                    quantity
-                };
-
-            }).filter(item =>
-                item.price >= 0 &&
-                item.quantity > 0
-            );
-
-        if (items.length === 0) {
+        if (
+            orderData.items.length > 100
+        ) {
 
             return res.status(400).json({
+
                 success: false,
-                message: "Geçerli ürün bulunamadı."
+
+                message:
+                    "Siparişte çok fazla ürün var."
+
             });
         }
 
-        /* --------------------------
-           TOPLAM TUTARI SUNUCU HESAPLASIN
-        -------------------------- */
+        /* -----------------------------------------------
+           ÜRÜNLERİ TEMİZLE
+        ------------------------------------------------ */
+
+        const items =
+            orderData.items
+                .map(item => {
+
+                    if (
+                        !item ||
+                        typeof item !== "object"
+                    ) {
+                        return null;
+                    }
+
+                    const name =
+                        cleanString(
+                            item.name ||
+                            "Ürün"
+                        );
+
+                    const price =
+                        Number(item.price);
+
+                    const quantity =
+                        Number(item.quantity);
+
+                    if (
+                        !Number.isFinite(price) ||
+                        !Number.isFinite(quantity)
+                    ) {
+                        return null;
+                    }
+
+                    if (
+                        price < 0 ||
+                        quantity <= 0
+                    ) {
+                        return null;
+                    }
+
+                    if (
+                        quantity > 99
+                    ) {
+                        return null;
+                    }
+
+                    return {
+
+                        name:
+                            name.slice(0, 150),
+
+                        price:
+
+                            Number(
+                                price.toFixed(2)
+                            ),
+
+                        quantity:
+
+                            Math.floor(
+                                quantity
+                            )
+
+                    };
+
+                })
+                .filter(Boolean);
+
+        /* -----------------------------------------------
+           GEÇERLİ ÜRÜN KONTROLÜ
+        ------------------------------------------------ */
+
+        if (
+            items.length === 0
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Geçerli ürün bulunamadı."
+
+            });
+        }
+
+        /* -----------------------------------------------
+           TOPLAM TUTAR
+           SUNUCU TARAFINDAN HESAPLANIR
+        ------------------------------------------------ */
 
         const total =
-            items.reduce(
-                (sum, item) =>
-                    sum +
-                    (item.price * item.quantity),
-                0
+            Number(
+                items
+                    .reduce(
+                        (sum, item) => {
+
+                            return (
+                                sum +
+                                (
+                                    item.price *
+                                    item.quantity
+                                )
+                            );
+
+                        },
+                        0
+                    )
+                    .toFixed(2)
             );
 
-        /* --------------------------
+        /* -----------------------------------------------
            SİPARİŞ NUMARASI
-        -------------------------- */
+        ------------------------------------------------ */
 
-        const id = Date.now();
+        const {
+            id,
+            orderNumber
+        } =
+            createOrderNumber();
 
-        const orderNumber =
-            `ECE-${id
-                .toString()
-                .slice(-6)}`;
-
-        /* --------------------------
-           SİPARİŞ
-        -------------------------- */
+        /* -----------------------------------------------
+           YENİ SİPARİŞ
+        ------------------------------------------------ */
 
         const newOrder = {
 
@@ -279,31 +529,57 @@ app.post("/api/orders", async (req, res) => {
 
             orderNumber,
 
-            customerName,
+            customerName:
+                customerName.slice(
+                    0,
+                    100
+                ),
 
-            phone,
+            phone:
+                phone.slice(
+                    0,
+                    30
+                ),
 
-            orderType,
+            orderType:
+                orderType.slice(
+                    0,
+                    50
+                ),
 
-            address,
+            address:
+                address.slice(
+                    0,
+                    500
+                ),
 
-            tableNumber,
+            tableNumber:
+                tableNumber.slice(
+                    0,
+                    30
+                ),
 
-            note,
+            note:
+                note.slice(
+                    0,
+                    500
+                ),
 
             items,
 
             total,
 
-            status: "new",
+            status:
+                "new",
 
             createdAt:
                 new Date().toISOString()
+
         };
 
-        /* --------------------------
+        /* -----------------------------------------------
            FIRESTORE'A KAYDET
-        -------------------------- */
+        ------------------------------------------------ */
 
         const docRef =
             await ordersCollection.add(
@@ -312,18 +588,38 @@ app.post("/api/orders", async (req, res) => {
 
         console.log("");
         console.log(
-            "Yeni sipariş:",
+            "================================="
+        );
+        console.log(
+            " YENİ SİPARİŞ"
+        );
+        console.log(
+            "================================="
+        );
+        console.log(
+            " Sipariş:",
             orderNumber
         );
         console.log(
-            "Firestore ID:",
+            " Müşteri:",
+            customerName
+        );
+        console.log(
+            " Toplam:",
+            total + "₺"
+        );
+        console.log(
+            " Firestore:",
             docRef.id
         );
         console.log(
-            "Toplam:",
-            total + "₺"
+            "================================="
         );
         console.log("");
+
+        /* -----------------------------------------------
+           BAŞARILI CEVAP
+        ------------------------------------------------ */
 
         res.status(201).json({
 
@@ -333,8 +629,12 @@ app.post("/api/orders", async (req, res) => {
                 "Sipariş başarıyla oluşturuldu.",
 
             order: {
-                firestoreId: docRef.id,
+
+                firestoreId:
+                    docRef.id,
+
                 ...newOrder
+
             }
 
         });
@@ -351,18 +651,15 @@ app.post("/api/orders", async (req, res) => {
             success: false,
 
             message:
-                "Sipariş oluşturulamadı.",
-
-            error:
-                error.message
+                "Sipariş oluşturulamadı."
 
         });
     }
 });
 
-/* ==========================================
+/* =========================================================
    SİPARİŞ DURUMU DEĞİŞTİR
-========================================== */
+========================================================= */
 
 app.patch(
     "/api/orders/:id/status",
@@ -371,16 +668,25 @@ app.patch(
         try {
 
             const orderId =
-                Number(req.params.id);
+                Number(
+                    req.params.id
+                );
 
             const status =
-                req.body.status;
+                cleanString(
+                    req.body?.status
+                );
 
             const validStatuses = [
+
                 "new",
+
                 "preparing",
+
                 "ready",
+
                 "completed"
+
             ];
 
             if (
@@ -388,19 +694,28 @@ app.patch(
             ) {
 
                 return res.status(400).json({
+
                     success: false,
-                    message: "Geçersiz sipariş ID."
+
+                    message:
+                        "Geçersiz sipariş ID."
+
                 });
             }
 
             if (
-                !validStatuses.includes(status)
+                !validStatuses.includes(
+                    status
+                )
             ) {
 
                 return res.status(400).json({
+
                     success: false,
+
                     message:
                         "Geçersiz sipariş durumu."
+
                 });
             }
 
@@ -414,12 +729,17 @@ app.patch(
                     .limit(1)
                     .get();
 
-            if (snapshot.empty) {
+            if (
+                snapshot.empty
+            ) {
 
                 return res.status(404).json({
+
                     success: false,
+
                     message:
                         "Sipariş bulunamadı."
+
                 });
             }
 
@@ -427,13 +747,20 @@ app.patch(
                 snapshot.docs[0];
 
             await doc.ref.update({
+
                 status
+
             });
 
             const updatedOrder = {
-                firestoreId: doc.id,
+
+                firestoreId:
+                    doc.id,
+
                 ...doc.data(),
+
                 status
+
             };
 
             res.json({
@@ -460,19 +787,16 @@ app.patch(
                 success: false,
 
                 message:
-                    "Sipariş durumu güncellenemedi.",
-
-                error:
-                    error.message
+                    "Sipariş durumu güncellenemedi."
 
             });
         }
     }
 );
 
-/* ==========================================
+/* =========================================================
    SİPARİŞ SİL
-========================================== */
+========================================================= */
 
 app.delete(
     "/api/orders/:id",
@@ -481,16 +805,21 @@ app.delete(
         try {
 
             const orderId =
-                Number(req.params.id);
+                Number(
+                    req.params.id
+                );
 
             if (
                 !Number.isFinite(orderId)
             ) {
 
                 return res.status(400).json({
+
                     success: false,
+
                     message:
                         "Geçersiz sipariş ID."
+
                 });
             }
 
@@ -504,12 +833,17 @@ app.delete(
                     .limit(1)
                     .get();
 
-            if (snapshot.empty) {
+            if (
+                snapshot.empty
+            ) {
 
                 return res.status(404).json({
+
                     success: false,
+
                     message:
                         "Sipariş bulunamadı."
+
                 });
             }
 
@@ -517,6 +851,11 @@ app.delete(
                 snapshot.docs[0];
 
             await doc.ref.delete();
+
+            console.log(
+                "Sipariş silindi:",
+                orderId
+            );
 
             res.json({
 
@@ -539,35 +878,75 @@ app.delete(
                 success: false,
 
                 message:
-                    "Sipariş silinemedi.",
-
-                error:
-                    error.message
+                    "Sipariş silinemedi."
 
             });
         }
     }
 );
 
-/* ==========================================
+/* =========================================================
    404
-========================================== */
+========================================================= */
 
-app.use((req, res) => {
+app.use(
+    (req, res) => {
 
-    res.status(404).json({
+        res.status(404).json({
 
-        success: false,
+            success: false,
 
-        message:
-            "Endpoint bulunamadı."
+            message:
+                "Endpoint bulunamadı."
 
-    });
-});
+        });
 
-/* ==========================================
+    }
+);
+
+/* =========================================================
+   GENEL HATA YAKALAYICI
+========================================================= */
+
+app.use(
+    (error, req, res, next) => {
+
+        console.error(
+            "Sunucu hatası:",
+            error
+        );
+
+        if (
+            error instanceof SyntaxError &&
+            error.status === 400 &&
+            error.type ===
+                "entity.parse.failed"
+        ) {
+
+            return res.status(400).json({
+
+                success: false,
+
+                message:
+                    "Geçersiz JSON verisi."
+
+            });
+        }
+
+        res.status(500).json({
+
+            success: false,
+
+            message:
+                "Sunucu hatası."
+
+        });
+    }
+);
+
+/* =========================================================
    SUNUCUYU BAŞLAT
-========================================== */
+========================================================= */
 
 app.listen(
     PORT,
@@ -575,35 +954,34 @@ app.listen(
     () => {
 
         console.log("");
-
         console.log(
             "================================="
         );
-
         console.log(
             " QR MENÜ PRO BACKEND"
         );
-
         console.log(
             "================================="
         );
-
         console.log(
             ` Port: ${PORT}`
         );
-
         console.log(
             " Firebase Firestore: AKTİF"
         );
-
         console.log(
             " Kalıcı sipariş sistemi: AKTİF"
         );
-
+        console.log(
+            " Sipariş doğrulama: AKTİF"
+        );
+        console.log(
+            " Hata yönetimi: AKTİF"
+        );
         console.log(
             "================================="
         );
-
         console.log("");
+
     }
 );
