@@ -1,37 +1,140 @@
 const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
+const rateLimit = require("express-rate-limit");
 
 const app = express();
 
-/* =========================================================
+/* ==========================================
    AYARLAR
-========================================================= */
+========================================== */
 
 const PORT = process.env.PORT || 3000;
+
+const FRONTEND_URL =
+    process.env.FRONTEND_URL || "";
+
+app.set("trust proxy", 1);
+
+/* ==========================================
+   CORS
+========================================== */
+
+app.use(
+    cors({
+        origin: function (origin, callback) {
+
+            // Mobil uygulamalar / Postman / doğrudan istekler
+            if (!origin) {
+                return callback(null, true);
+            }
+
+            // FRONTEND_URL Render'da tanımlı değilse
+            // geçici olarak tüm originlere izin ver.
+            if (!FRONTEND_URL) {
+                return callback(null, true);
+            }
+
+            const allowedOrigins =
+                FRONTEND_URL
+                    .split(",")
+                    .map(url => url.trim())
+                    .filter(Boolean);
+
+            if (
+                allowedOrigins.includes(origin)
+            ) {
+                return callback(null, true);
+            }
+
+            return callback(
+                new Error("CORS engellendi.")
+            );
+        },
+
+        methods: [
+            "GET",
+            "POST",
+            "PATCH",
+            "DELETE",
+            "OPTIONS"
+        ],
+
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization"
+        ]
+    })
+);
+
+/* ==========================================
+   BODY
+========================================== */
+
+app.use(
+    express.json({
+        limit: "100kb"
+    })
+);
+
+/* ==========================================
+   RATE LIMIT
+========================================== */
+
+/*
+   Genel API limiti.
+*/
+
+const generalLimiter =
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 300,
+
+        standardHeaders: true,
+        legacyHeaders: false,
+
+        message: {
+            success: false,
+            message:
+                "Çok fazla istek gönderildi. Lütfen daha sonra tekrar deneyin."
+        }
+    });
+
+app.use("/api/", generalLimiter);
+
+
+/*
+   Sipariş oluşturma için daha sıkı limit.
+
+   Aynı IP'nin kısa sürede
+   binlerce sahte sipariş göndermesini engeller.
+*/
+
+const orderCreateLimiter =
+    rateLimit({
+        windowMs: 10 * 60 * 1000,
+        max: 20,
+
+        standardHeaders: true,
+        legacyHeaders: false,
+
+        message: {
+            success: false,
+            message:
+                "Çok fazla sipariş isteği gönderildi. Lütfen biraz bekleyin."
+        }
+    });
+
+
+/* ==========================================
+   FIREBASE ADMIN
+========================================== */
 
 const SERVICE_ACCOUNT_PATH =
     "/etc/secrets/firebase-service-account.json";
 
-/* =========================================================
-   MIDDLEWARE
-========================================================= */
-
-app.disable("x-powered-by");
-
-app.use(cors());
-
-app.use(
-    express.json({
-        limit: "1mb"
-    })
-);
-
-/* =========================================================
-   FIREBASE ADMIN
-========================================================= */
-
 try {
+
     const serviceAccount =
         require(SERVICE_ACCOUNT_PATH);
 
@@ -40,34 +143,60 @@ try {
             admin.credential.cert(serviceAccount)
     });
 
-    console.log("");
-    console.log("=================================");
-    console.log(" FIREBASE ADMIN AKTİF");
-    console.log("=================================");
+    console.log(
+        "================================="
+    );
+
+    console.log(
+        " FIREBASE ADMIN AKTİF"
+    );
+
+    console.log(
+        "================================="
+    );
+
     console.log(
         " Firebase Project:",
         serviceAccount.project_id
     );
-    console.log(" Firestore bağlantısı hazır.");
-    console.log("=================================");
-    console.log("");
+
+    console.log(
+        " Firestore bağlantısı hazır."
+    );
+
+    console.log(
+        " Firebase Auth doğrulaması hazır."
+    );
+
+    console.log(
+        "================================="
+    );
 
 } catch (error) {
 
-    console.error("");
-    console.error("=================================");
-    console.error(" FIREBASE BAĞLANTI HATASI");
-    console.error("=================================");
-    console.error(error.message);
-    console.error("=================================");
-    console.error("");
+    console.error(
+        "================================="
+    );
+
+    console.error(
+        " FIREBASE BAĞLANTI HATASI"
+    );
+
+    console.error(
+        "================================="
+    );
+
+    console.error(
+        error.message
+    );
+
+    console.error(
+        "================================="
+    );
 
     process.exit(1);
 }
 
-/* =========================================================
-   FIRESTORE
-========================================================= */
 
 const db =
     admin.firestore();
@@ -75,594 +204,679 @@ const db =
 const ordersCollection =
     db.collection("orders");
 
-/* =========================================================
+
+/* ==========================================
+   ADMIN AUTH MIDDLEWARE
+========================================== */
+
+/*
+   Admin panelinden gelen istek:
+
+   Authorization:
+   Bearer FIREBASE_ID_TOKEN
+
+   şeklinde olmalı.
+
+   Firebase token geçerli değilse
+   istek reddedilir.
+*/
+
+async function requireAdmin(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        const authorization =
+            req.headers.authorization || "";
+
+        if (
+            !authorization.startsWith(
+                "Bearer "
+            )
+        ) {
+
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Yetkilendirme gerekli."
+            });
+        }
+
+        const idToken =
+            authorization
+                .substring(7)
+                .trim();
+
+        if (!idToken) {
+
+            return res.status(401).json({
+                success: false,
+                message:
+                    "Geçersiz yetkilendirme."
+            });
+        }
+
+        const decodedToken =
+            await admin
+                .auth()
+                .verifyIdToken(idToken);
+
+        /*
+           Şimdilik Firebase'e giriş yapmış
+           kullanıcıları admin kabul ediyoruz.
+
+           Daha ileri güvenlikte custom claim
+           ile sadece admin rolünü kabul edeceğiz.
+        */
+
+        req.user =
+            decodedToken;
+
+        next();
+
+    } catch (error) {
+
+        console.error(
+            "Admin token doğrulama hatası:",
+            error.message
+        );
+
+        return res.status(401).json({
+            success: false,
+            message:
+                "Oturum geçersiz veya süresi dolmuş."
+        });
+    }
+}
+
+
+/* ==========================================
    YARDIMCI FONKSİYONLAR
-========================================================= */
+========================================== */
 
-function cleanString(value) {
-    return String(value ?? "").trim();
+function cleanString(
+    value,
+    maxLength = 500
+) {
+
+    return String(
+        value ?? ""
+    )
+        .trim()
+        .slice(0, maxLength);
 }
 
-function isValidPhone(phone) {
-    const digits =
-        phone.replace(/\D/g, "");
 
-    return digits.length >= 10;
+function cleanPhone(value) {
+
+    return String(
+        value ?? ""
+    )
+        .replace(/[^\d+]/g, "")
+        .slice(0, 20);
 }
 
-function createOrderNumber() {
 
-    const id =
-        Date.now();
+function cleanPositiveNumber(
+    value
+) {
 
-    return {
-        id,
-        orderNumber:
-            `ECE-${id
-                .toString()
-                .slice(-6)}`
-    };
-}
+    const number =
+        Number(value);
 
-/* =========================================================
-   ANA / HEALTH TESTİ
-========================================================= */
-
-app.get("/", async (req, res) => {
-
-    try {
-
-        const snapshot =
-            await ordersCollection
-                .limit(1)
-                .get();
-
-        res.json({
-
-            success: true,
-
-            message:
-                "QR Menü Pro Backend çalışıyor.",
-
-            firebase: true,
-
-            firestore: true,
-
-            ordersCollection:
-                "orders",
-
-            hasOrders:
-                !snapshot.empty
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "Firestore test hatası:",
-            error
-        );
-
-        res.status(500).json({
-
-            success: false,
-
-            message:
-                "Firestore bağlantı hatası."
-
-        });
+    if (
+        !Number.isFinite(number) ||
+        number < 0
+    ) {
+        return null;
     }
-});
 
-/* =========================================================
+    return number;
+}
+
+
+function cleanQuantity(
+    value
+) {
+
+    const quantity =
+        Number(value);
+
+    if (
+        !Number.isFinite(quantity) ||
+        quantity <= 0 ||
+        quantity > 99
+    ) {
+        return null;
+    }
+
+    return Math.floor(quantity);
+}
+
+
+/* ==========================================
+   ANA TEST
+========================================== */
+
+app.get(
+    "/",
+    async (req, res) => {
+
+        try {
+
+            const snapshot =
+                await ordersCollection
+                    .limit(1)
+                    .get();
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "QR Menü Pro Backend çalışıyor.",
+
+                firebase: true,
+
+                firestore: true,
+
+                firebaseAuth: true,
+
+                ordersCollection:
+                    "orders",
+
+                hasOrders:
+                    !snapshot.empty
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Firestore test hatası:",
+                error.message
+            );
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Firestore bağlantı hatası."
+
+            });
+        }
+    }
+);
+
+
+/* ==========================================
    TÜM SİPARİŞLER
-========================================================= */
-
-app.get("/api/orders", async (req, res) => {
-
-    try {
-
-        const snapshot =
-            await ordersCollection
-                .orderBy(
-                    "createdAt",
-                    "desc"
-                )
-                .get();
-
-        const orders = [];
-
-        snapshot.forEach(doc => {
-
-            orders.push({
-
-                firestoreId:
-                    doc.id,
-
-                ...doc.data()
-
-            });
-
-        });
-
-        res.json({
-
-            success: true,
-
-            orders
-
-        });
-
-    } catch (error) {
-
-        console.error(
-            "Siparişler alınamadı:",
-            error
-        );
-
-        res.status(500).json({
-
-            success: false,
-
-            message:
-                "Siparişler alınamadı."
-
-        });
-    }
-});
-
-/* =========================================================
-   YENİ SİPARİŞ
-========================================================= */
-
-app.post("/api/orders", async (req, res) => {
-
-    try {
-
-        const orderData =
-            req.body;
-
-        /* -----------------------------------------------
-           GENEL VERİ KONTROLÜ
-        ------------------------------------------------ */
-
-        if (
-            !orderData ||
-            typeof orderData !== "object" ||
-            Array.isArray(orderData)
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Geçersiz sipariş verisi."
-
-            });
-        }
-
-        /* -----------------------------------------------
-           MÜŞTERİ BİLGİLERİ
-        ------------------------------------------------ */
-
-        const customerName =
-            cleanString(
-                orderData.customerName
-            );
-
-        const phone =
-            cleanString(
-                orderData.phone
-            );
-
-        const orderType =
-            cleanString(
-                orderData.orderType ||
-                "Paket Sipariş"
-            );
-
-        const address =
-            cleanString(
-                orderData.address
-            );
-
-        const tableNumber =
-            cleanString(
-                orderData.tableNumber
-            );
-
-        const note =
-            cleanString(
-                orderData.note
-            );
-
-        /* -----------------------------------------------
-           ZORUNLU ALANLAR
-        ------------------------------------------------ */
-
-        if (!customerName) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Müşteri adı gerekli."
-
-            });
-        }
-
-        if (!phone) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Telefon numarası gerekli."
-
-            });
-        }
-
-        if (!isValidPhone(phone)) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Geçerli bir telefon numarası girin."
-
-            });
-        }
-
-        /* -----------------------------------------------
-           SİPARİŞ TİPİNE GÖRE ADRES / MASA
-        ------------------------------------------------ */
-
-        const normalizedOrderType =
-            orderType.toLowerCase();
-
-        const isTableOrder =
-            normalizedOrderType.includes("masa") ||
-            normalizedOrderType.includes("restoran") ||
-            normalizedOrderType.includes("salon");
-
-        const isDeliveryOrder =
-            normalizedOrderType.includes("paket") ||
-            normalizedOrderType.includes("adres") ||
-            normalizedOrderType.includes("teslim");
-
-        if (
-            isDeliveryOrder &&
-            !address
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Paket siparişi için adres gerekli."
-
-            });
-        }
-
-        if (
-            isTableOrder &&
-            !tableNumber
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Masa numarası gerekli."
-
-            });
-        }
-
-        /* -----------------------------------------------
-           SEPET KONTROLÜ
-        ------------------------------------------------ */
-
-        if (
-            !Array.isArray(orderData.items) ||
-            orderData.items.length === 0
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Sipariş sepeti boş."
-
-            });
-        }
-
-        if (
-            orderData.items.length > 100
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Siparişte çok fazla ürün var."
-
-            });
-        }
-
-        /* -----------------------------------------------
-           ÜRÜNLERİ TEMİZLE
-        ------------------------------------------------ */
-
-        const items =
-            orderData.items
-                .map(item => {
-
-                    if (
-                        !item ||
-                        typeof item !== "object"
-                    ) {
-                        return null;
-                    }
-
-                    const name =
-                        cleanString(
-                            item.name ||
-                            "Ürün"
-                        );
-
-                    const price =
-                        Number(item.price);
-
-                    const quantity =
-                        Number(item.quantity);
-
-                    if (
-                        !Number.isFinite(price) ||
-                        !Number.isFinite(quantity)
-                    ) {
-                        return null;
-                    }
-
-                    if (
-                        price < 0 ||
-                        quantity <= 0
-                    ) {
-                        return null;
-                    }
-
-                    if (
-                        quantity > 99
-                    ) {
-                        return null;
-                    }
-
-                    return {
-
-                        name:
-                            name.slice(0, 150),
-
-                        price:
-
-                            Number(
-                                price.toFixed(2)
-                            ),
-
-                        quantity:
-
-                            Math.floor(
-                                quantity
-                            )
-
-                    };
-
-                })
-                .filter(Boolean);
-
-        /* -----------------------------------------------
-           GEÇERLİ ÜRÜN KONTROLÜ
-        ------------------------------------------------ */
-
-        if (
-            items.length === 0
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Geçerli ürün bulunamadı."
-
-            });
-        }
-
-        /* -----------------------------------------------
-           TOPLAM TUTAR
-           SUNUCU TARAFINDAN HESAPLANIR
-        ------------------------------------------------ */
-
-        const total =
-            Number(
-                items
-                    .reduce(
-                        (sum, item) => {
-
-                            return (
-                                sum +
-                                (
-                                    item.price *
-                                    item.quantity
-                                )
-                            );
-
-                        },
-                        0
+   SADECE ADMIN
+========================================== */
+
+app.get(
+    "/api/orders",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const snapshot =
+                await ordersCollection
+                    .orderBy(
+                        "createdAt",
+                        "desc"
                     )
-                    .toFixed(2)
+                    .get();
+
+            const orders = [];
+
+            snapshot.forEach(
+                doc => {
+
+                    orders.push({
+
+                        firestoreId:
+                            doc.id,
+
+                        ...doc.data()
+
+                    });
+
+                }
             );
 
-        /* -----------------------------------------------
-           SİPARİŞ NUMARASI
-        ------------------------------------------------ */
+            res.json({
 
-        const {
-            id,
-            orderNumber
-        } =
-            createOrderNumber();
+                success: true,
 
-        /* -----------------------------------------------
-           YENİ SİPARİŞ
-        ------------------------------------------------ */
+                orders
 
-        const newOrder = {
+            });
 
-            id,
+        } catch (error) {
 
-            orderNumber,
-
-            customerName:
-                customerName.slice(
-                    0,
-                    100
-                ),
-
-            phone:
-                phone.slice(
-                    0,
-                    30
-                ),
-
-            orderType:
-                orderType.slice(
-                    0,
-                    50
-                ),
-
-            address:
-                address.slice(
-                    0,
-                    500
-                ),
-
-            tableNumber:
-                tableNumber.slice(
-                    0,
-                    30
-                ),
-
-            note:
-                note.slice(
-                    0,
-                    500
-                ),
-
-            items,
-
-            total,
-
-            status:
-                "new",
-
-            createdAt:
-                new Date().toISOString()
-
-        };
-
-        /* -----------------------------------------------
-           FIRESTORE'A KAYDET
-        ------------------------------------------------ */
-
-        const docRef =
-            await ordersCollection.add(
-                newOrder
+            console.error(
+                "Siparişler alınamadı:",
+                error.message
             );
 
-        console.log("");
-        console.log(
-            "================================="
-        );
-        console.log(
-            " YENİ SİPARİŞ"
-        );
-        console.log(
-            "================================="
-        );
-        console.log(
-            " Sipariş:",
-            orderNumber
-        );
-        console.log(
-            " Müşteri:",
-            customerName
-        );
-        console.log(
-            " Toplam:",
-            total + "₺"
-        );
-        console.log(
-            " Firestore:",
-            docRef.id
-        );
-        console.log(
-            "================================="
-        );
-        console.log("");
+            res.status(500).json({
 
-        /* -----------------------------------------------
-           BAŞARILI CEVAP
-        ------------------------------------------------ */
+                success: false,
 
-        res.status(201).json({
+                message:
+                    "Siparişler alınamadı."
 
-            success: true,
+            });
+        }
+    }
+);
 
-            message:
-                "Sipariş başarıyla oluşturuldu.",
 
-            order: {
+/* ==========================================
+   YENİ SİPARİŞ
+   MÜŞTERİ TARAFI
+========================================== */
 
-                firestoreId:
-                    docRef.id,
+app.post(
+    "/api/orders",
+    orderCreateLimiter,
+    async (req, res) => {
 
-                ...newOrder
+        try {
 
+            const orderData =
+                req.body;
+
+            if (
+                !orderData ||
+                typeof orderData !== "object" ||
+                Array.isArray(orderData)
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçersiz sipariş verisi."
+
+                });
             }
 
-        });
 
-    } catch (error) {
+            /* --------------------------
+               MÜŞTERİ BİLGİLERİ
+            -------------------------- */
 
-        console.error(
-            "Sipariş oluşturma hatası:",
-            error
-        );
+            const customerName =
+                cleanString(
+                    orderData.customerName,
+                    100
+                );
 
-        res.status(500).json({
+            const phone =
+                cleanPhone(
+                    orderData.phone
+                );
 
-            success: false,
+            const orderType =
+                cleanString(
+                    orderData.orderType ||
+                    "Paket Sipariş",
+                    50
+                );
 
-            message:
-                "Sipariş oluşturulamadı."
+            const address =
+                cleanString(
+                    orderData.address,
+                    500
+                );
 
-        });
+            const tableNumber =
+                cleanString(
+                    orderData.tableNumber,
+                    30
+                );
+
+            const note =
+                cleanString(
+                    orderData.note,
+                    500
+                );
+
+
+            /* --------------------------
+               TEMEL KONTROLLER
+            -------------------------- */
+
+            if (!customerName) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Müşteri adı gerekli."
+
+                });
+            }
+
+
+            if (!phone) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Telefon numarası gerekli."
+
+                });
+            }
+
+
+            /*
+               Paket siparişte adres zorunlu.
+            */
+
+            if (
+                orderType
+                    .toLowerCase()
+                    .includes("paket") &&
+                !address
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Adres gerekli."
+
+                });
+            }
+
+
+            if (
+                !Array.isArray(
+                    orderData.items
+                ) ||
+                orderData.items.length === 0
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Sipariş sepeti boş."
+
+                });
+            }
+
+
+            /*
+               Maksimum ürün sayısı.
+            */
+
+            if (
+                orderData.items.length > 50
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Siparişte çok fazla ürün var."
+
+                });
+            }
+
+
+            /* --------------------------
+               ÜRÜNLERİ TEMİZLE
+            -------------------------- */
+
+            const items =
+                orderData.items
+                    .map(item => {
+
+                        if (
+                            !item ||
+                            typeof item !== "object"
+                        ) {
+                            return null;
+                        }
+
+                        const name =
+                            cleanString(
+                                item.name ||
+                                "Ürün",
+                                150
+                            );
+
+                        const price =
+                            cleanPositiveNumber(
+                                item.price
+                            );
+
+                        const quantity =
+                            cleanQuantity(
+                                item.quantity
+                            );
+
+                        if (
+                            !name ||
+                            price === null ||
+                            quantity === null
+                        ) {
+                            return null;
+                        }
+
+                        return {
+
+                            name,
+
+                            price,
+
+                            quantity
+
+                        };
+
+                    })
+                    .filter(Boolean);
+
+
+            if (
+                items.length === 0
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçerli ürün bulunamadı."
+
+                });
+            }
+
+
+            /* --------------------------
+               TOPLAM SUNUCUDA HESAPLANIR
+            -------------------------- */
+
+            const total =
+                items.reduce(
+                    (
+                        sum,
+                        item
+                    ) => {
+
+                        return (
+                            sum +
+                            (
+                                item.price *
+                                item.quantity
+                            )
+                        );
+
+                    },
+                    0
+                );
+
+
+            /*
+               Aşırı büyük toplamları engelle.
+            */
+
+            if (
+                total <= 0 ||
+                total > 100000
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçersiz sipariş toplamı."
+
+                });
+            }
+
+
+            /* --------------------------
+               SİPARİŞ NUMARASI
+            -------------------------- */
+
+            const id =
+                Date.now();
+
+            const orderNumber =
+                `ECE-${id
+                    .toString()
+                    .slice(-6)}`;
+
+
+            /* --------------------------
+               YENİ SİPARİŞ
+            -------------------------- */
+
+            const newOrder = {
+
+                id,
+
+                orderNumber,
+
+                customerName,
+
+                phone,
+
+                orderType,
+
+                address,
+
+                tableNumber,
+
+                note,
+
+                items,
+
+                total,
+
+                status:
+                    "new",
+
+                createdAt:
+                    new Date()
+                        .toISOString()
+
+            };
+
+
+            /* --------------------------
+               FIRESTORE
+            -------------------------- */
+
+            const docRef =
+                await ordersCollection
+                    .add(newOrder);
+
+
+            console.log("");
+
+            console.log(
+                "Yeni sipariş:",
+                orderNumber
+            );
+
+            console.log(
+                "Firestore ID:",
+                docRef.id
+            );
+
+            console.log(
+                "Toplam:",
+                total + "₺"
+            );
+
+            console.log("");
+
+
+            res.status(201).json({
+
+                success: true,
+
+                message:
+                    "Sipariş başarıyla oluşturuldu.",
+
+                order: {
+
+                    firestoreId:
+                        docRef.id,
+
+                    ...newOrder
+
+                }
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Sipariş oluşturma hatası:",
+                error.message
+            );
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Sipariş oluşturulamadı."
+
+            });
+        }
     }
-});
+);
 
-/* =========================================================
+
+/* ==========================================
    SİPARİŞ DURUMU DEĞİŞTİR
-========================================================= */
+   SADECE ADMIN
+========================================== */
 
 app.patch(
     "/api/orders/:id/status",
+    requireAdmin,
     async (req, res) => {
 
         try {
@@ -674,7 +888,8 @@ app.patch(
 
             const status =
                 cleanString(
-                    req.body?.status
+                    req.body?.status,
+                    30
                 );
 
             const validStatuses = [
@@ -689,8 +904,11 @@ app.patch(
 
             ];
 
+
             if (
-                !Number.isFinite(orderId)
+                !Number.isSafeInteger(
+                    orderId
+                )
             ) {
 
                 return res.status(400).json({
@@ -702,6 +920,7 @@ app.patch(
 
                 });
             }
+
 
             if (
                 !validStatuses.includes(
@@ -719,6 +938,7 @@ app.patch(
                 });
             }
 
+
             const snapshot =
                 await ordersCollection
                     .where(
@@ -728,6 +948,7 @@ app.patch(
                     )
                     .limit(1)
                     .get();
+
 
             if (
                 snapshot.empty
@@ -743,14 +964,17 @@ app.patch(
                 });
             }
 
+
             const doc =
                 snapshot.docs[0];
+
 
             await doc.ref.update({
 
                 status
 
             });
+
 
             const updatedOrder = {
 
@@ -762,6 +986,7 @@ app.patch(
                 status
 
             };
+
 
             res.json({
 
@@ -779,7 +1004,7 @@ app.patch(
 
             console.error(
                 "Durum güncelleme hatası:",
-                error
+                error.message
             );
 
             res.status(500).json({
@@ -794,12 +1019,15 @@ app.patch(
     }
 );
 
-/* =========================================================
+
+/* ==========================================
    SİPARİŞ SİL
-========================================================= */
+   SADECE ADMIN
+========================================== */
 
 app.delete(
     "/api/orders/:id",
+    requireAdmin,
     async (req, res) => {
 
         try {
@@ -809,8 +1037,11 @@ app.delete(
                     req.params.id
                 );
 
+
             if (
-                !Number.isFinite(orderId)
+                !Number.isSafeInteger(
+                    orderId
+                )
             ) {
 
                 return res.status(400).json({
@@ -823,6 +1054,7 @@ app.delete(
                 });
             }
 
+
             const snapshot =
                 await ordersCollection
                     .where(
@@ -832,6 +1064,7 @@ app.delete(
                     )
                     .limit(1)
                     .get();
+
 
             if (
                 snapshot.empty
@@ -847,15 +1080,13 @@ app.delete(
                 });
             }
 
+
             const doc =
                 snapshot.docs[0];
 
+
             await doc.ref.delete();
 
-            console.log(
-                "Sipariş silindi:",
-                orderId
-            );
 
             res.json({
 
@@ -870,7 +1101,7 @@ app.delete(
 
             console.error(
                 "Sipariş silme hatası:",
-                error
+                error.message
             );
 
             res.status(500).json({
@@ -885,9 +1116,10 @@ app.delete(
     }
 );
 
-/* =========================================================
+
+/* ==========================================
    404
-========================================================= */
+========================================== */
 
 app.use(
     (req, res) => {
@@ -904,49 +1136,35 @@ app.use(
     }
 );
 
-/* =========================================================
-   GENEL HATA YAKALAYICI
-========================================================= */
+
+/* ==========================================
+   GENEL HATA
+========================================== */
 
 app.use(
     (error, req, res, next) => {
 
         console.error(
             "Sunucu hatası:",
-            error
+            error.message
         );
-
-        if (
-            error instanceof SyntaxError &&
-            error.status === 400 &&
-            error.type ===
-                "entity.parse.failed"
-        ) {
-
-            return res.status(400).json({
-
-                success: false,
-
-                message:
-                    "Geçersiz JSON verisi."
-
-            });
-        }
 
         res.status(500).json({
 
             success: false,
 
             message:
-                "Sunucu hatası."
+                "Sunucu hatası oluştu."
 
         });
+
     }
 );
 
-/* =========================================================
-   SUNUCUYU BAŞLAT
-========================================================= */
+
+/* ==========================================
+   SUNUCU
+========================================== */
 
 app.listen(
     PORT,
@@ -954,33 +1172,47 @@ app.listen(
     () => {
 
         console.log("");
+
         console.log(
             "================================="
         );
+
         console.log(
             " QR MENÜ PRO BACKEND"
         );
+
         console.log(
             "================================="
         );
+
         console.log(
             ` Port: ${PORT}`
         );
+
         console.log(
             " Firebase Firestore: AKTİF"
         );
+
+        console.log(
+            " Firebase Auth: AKTİF"
+        );
+
+        console.log(
+            " Admin API koruması: AKTİF"
+        );
+
+        console.log(
+            " Rate Limit: AKTİF"
+        );
+
         console.log(
             " Kalıcı sipariş sistemi: AKTİF"
         );
-        console.log(
-            " Sipariş doğrulama: AKTİF"
-        );
-        console.log(
-            " Hata yönetimi: AKTİF"
-        );
+
         console.log(
             "================================="
         );
+
         console.log("");
 
     }
