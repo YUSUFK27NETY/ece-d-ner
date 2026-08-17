@@ -1290,3 +1290,712 @@ button:disabled {
     }
 }
 
+
+/* =========================================================
+   EKSİK STİLLER (admin.html gerçek yapısıyla eşleştirme)
+   ========================================================= */
+
+/* ---------------------------------------------------------
+   GİRİŞ EKRANI (LOGIN)
+   --------------------------------------------------------- */
+
+#login-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    padding: 20px;
+
+    background: #0f0f0f;
+}
+
+.login-box {
+    width: 100%;
+    max-width: 400px;
+
+    padding: 32px 26px;
+
+    background: #181818;
+
+    border: 1px solid #292929;
+
+    border-radius: 20px;
+
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.5);
+
+    text-align: center;
+}
+
+.login-logo {
+    width: 64px;
+    height: 64px;
+
+    margin: 0 auto 16px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 32px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 215, 0, 0.1);
+
+    border: 2px solid #ffd700;
+}
+
+.login-box h1 {
+    margin-bottom: 10px;
+
+    color: #ffd700;
+
+    font-size: 24px;
+}
+
+.login-box > p {
+    margin-bottom: 22px;
+
+    color: #999;
+
+    font-size: 14px;
+
+    line-height: 1.5;
+}
+
+.login-box .form-group {
+    text-align: left;
+}
+
+.login-btn {
+    width: 100%;
+
+    margin-top: 6px;
+
+    padding: 14px 18px;
+
+    border-radius: 12px;
+
+    background: #ffd700;
+
+    color: #111;
+
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.login-btn:hover {
+    background: #fff;
+}
+
+.login-error {
+    margin-top: 14px;
+
+    min-height: 18px;
+
+    color: #f87171;
+
+    font-size: 13px;
+}
+
+
+/* ---------------------------------------------------------
+   HEADER SAĞ TARAF
+   --------------------------------------------------------- */
+
+.business-logo {
+    width: 46px;
+    height: 46px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 24px;
+
+    border-radius: 50%;
+
+    background: rgba(255, 215, 0, 0.1);
+
+    border: 2px solid #ffd700;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+
+    gap: 16px;
+}
+
+.business-status {
+    display: flex;
+    align-items: center;
+
+    gap: 8px;
+
+    color: #999;
+
+    font-size: 13px;
+}
+
+.status-dot {
+    width: 9px;
+    height: 9px;
+
+    border-radius: 50%;
+
+    background: #555;
+}
+
+.status-dot.online {
+    background: #35d47b;
+
+    box-shadow: 0 0 8px rgba(53, 212, 123, 0.7);
+}
+
+.logout-btn {
+    padding: 10px 16px;
+
+    border-radius: 10px;
+
+    background: #292929;
+
+    color: #fff;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.logout-btn:hover {
+    background: #b42323;
+}
+
+
+/* ---------------------------------------------------------
+   DASHBOARD HEADER (h2 + yenile butonu)
+   --------------------------------------------------------- */
+
+.dashboard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    flex-wrap: wrap;
+}
+
+.dashboard-header h2 {
+    color: #fff;
+    font-size: 26px;
+    margin-bottom: 6px;
+}
+
+.refresh-btn {
+    padding: 12px 18px;
+
+    border-radius: 11px;
+
+    background: #292929;
+
+    color: #fff;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+.refresh-btn:hover {
+    background: #3a3a3a;
+}
+
+
+/* ---------------------------------------------------------
+   STAT CARD (gerçek yapı: stat-icon + stat-info)
+   --------------------------------------------------------- */
+
+.stat-card {
+    display: flex;
+    align-items: center;
+
+    gap: 14px;
+}
+
+.stat-icon {
+    width: 48px;
+    height: 48px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 24px;
+
+    border-radius: 12px;
+
+    background: rgba(255, 215, 0, 0.1);
+}
+
+.stat-info {
+    display: flex;
+    flex-direction: column;
+
+    gap: 4px;
+}
+
+.stat-info span {
+    color: #888;
+
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.stat-info strong {
+    color: #ffd700;
+
+    font-size: 22px;
+}
+
+
+/* ---------------------------------------------------------
+   SEKME İÇERİĞİ
+   --------------------------------------------------------- */
+
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+
+/* ---------------------------------------------------------
+   BÖLÜM BAŞLIĞI
+   --------------------------------------------------------- */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    margin-bottom: 18px;
+
+    flex-wrap: wrap;
+}
+
+
+/* ---------------------------------------------------------
+   SİPARİŞ KARTI (admin.js gerçek class isimleri)
+   --------------------------------------------------------- */
+
+.order-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 10px;
+}
+
+.order-header strong {
+    display: block;
+
+    color: #fff;
+
+    font-size: 15px;
+
+    margin-bottom: 3px;
+}
+
+.order-header span {
+    color: #999;
+
+    font-size: 13px;
+}
+
+.order-status {
+    flex-shrink: 0;
+
+    padding: 6px 10px;
+
+    border-radius: 999px;
+
+    background: rgba(255, 215, 0, 0.12);
+
+    color: #ffd700;
+
+    font-size: 12px;
+    font-weight: 700;
+
+    white-space: nowrap;
+}
+
+.order-meta,
+.order-address,
+.order-note {
+    margin-bottom: 8px;
+
+    color: #999;
+
+    font-size: 13px;
+
+    line-height: 1.5;
+}
+
+.order-items {
+    margin: 10px 0;
+
+    padding-top: 10px;
+
+    border-top: 1px solid #2b2b2b;
+}
+
+.order-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    padding: 5px 0;
+
+    color: #ccc;
+
+    font-size: 13px;
+}
+
+.order-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 10px;
+
+    margin-top: 12px;
+
+    padding-top: 12px;
+
+    border-top: 1px solid #2b2b2b;
+}
+
+.order-footer strong {
+    color: #ffd700;
+
+    font-size: 17px;
+}
+
+.order-footer span {
+    color: #777;
+
+    font-size: 12px;
+}
+
+
+/* ---------------------------------------------------------
+   ÜRÜN KARTI (admin.js gerçek class isimleri)
+   --------------------------------------------------------- */
+
+.admin-product-card {
+    overflow: hidden;
+
+    background: #202020;
+
+    border: 1px solid #303030;
+
+    border-radius: 16px;
+}
+
+.admin-product-image {
+    width: 100%;
+    height: 180px;
+
+    background: #171717;
+}
+
+.admin-product-image img {
+    width: 100%;
+    height: 100%;
+
+    object-fit: cover;
+}
+
+.product-image-placeholder {
+    width: 100%;
+    height: 100%;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 40px;
+
+    color: #444;
+}
+
+.admin-product-info {
+    padding: 15px;
+}
+
+.admin-product-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 8px;
+
+    margin-bottom: 10px;
+}
+
+.product-category {
+    padding: 4px 10px;
+
+    border-radius: 999px;
+
+    background: #292929;
+
+    color: #ccc;
+
+    font-size: 11px;
+    font-weight: 700;
+
+    text-transform: uppercase;
+}
+
+.product-availability {
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.product-availability.available {
+    color: #4ade80;
+}
+
+.product-availability.unavailable {
+    color: #f87171;
+}
+
+.admin-product-info h3 {
+    margin-bottom: 6px;
+
+    color: #fff;
+
+    font-size: 16px;
+}
+
+.admin-product-info p {
+    margin-bottom: 10px;
+
+    color: #999;
+
+    font-size: 13px;
+
+    line-height: 1.5;
+
+    min-height: 18px;
+}
+
+.admin-product-price {
+    display: block;
+
+    margin-bottom: 12px;
+
+    color: #ffd700;
+
+    font-size: 18px;
+}
+
+.admin-product-actions {
+    display: flex;
+
+    gap: 8px;
+}
+
+.edit-product-btn,
+.delete-product-btn {
+    flex: 1;
+
+    padding: 10px 12px;
+
+    border-radius: 10px;
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.edit-product-btn {
+    background: #292929;
+    color: #fff;
+}
+
+.edit-product-btn:hover {
+    background: #3a3a3a;
+}
+
+.delete-product-btn {
+    background: rgba(239, 68, 68, 0.12);
+    color: #f87171;
+}
+
+.delete-product-btn:hover {
+    background: rgba(239, 68, 68, 0.22);
+}
+
+
+/* ---------------------------------------------------------
+   ÜRÜN MODALI BAŞLIĞI
+   --------------------------------------------------------- */
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 12px;
+
+    margin-bottom: 20px;
+}
+
+.modal-header h2 {
+    margin: 0;
+
+    padding: 0;
+
+    color: #ffd700;
+
+    font-size: 21px;
+}
+
+.close-btn {
+    width: 36px;
+    height: 36px;
+
+    flex-shrink: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #292929;
+
+    color: #fff;
+
+    font-size: 20px;
+}
+
+.close-btn:hover {
+    background: #e53935;
+}
+
+
+/* ---------------------------------------------------------
+   FOTOĞRAF SEÇİCİ
+   --------------------------------------------------------- */
+
+.image-picker {
+    padding: 14px;
+
+    border: 1px dashed #333;
+
+    border-radius: 12px;
+
+    background: #1c1c1c;
+}
+
+.image-picker input[type="file"] {
+    width: 100%;
+
+    padding: 10px;
+
+    color: #ccc;
+
+    font-size: 13px;
+
+    background: #222;
+
+    border: 1px solid #333;
+
+    border-radius: 10px;
+}
+
+.image-preview {
+    display: none;
+
+    margin-top: 12px;
+}
+
+.image-preview img {
+    width: 100%;
+    max-height: 200px;
+
+    object-fit: cover;
+
+    border-radius: 10px;
+
+    border: 1px solid #333;
+}
+
+.image-info {
+    margin-top: 10px;
+
+    color: #888;
+
+    font-size: 12px;
+
+    line-height: 1.7;
+}
+
+
+/* ---------------------------------------------------------
+   MODAL BUTONLARI (Vazgeç / Kaydet)
+   --------------------------------------------------------- */
+
+.modal-actions {
+    display: flex;
+
+    gap: 10px;
+
+    margin-top: 8px;
+}
+
+.cancel-product,
+.save-product {
+    flex: 1;
+
+    padding: 13px 18px;
+
+    border-radius: 11px;
+
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.cancel-product {
+    background: #292929;
+    color: #fff;
+}
+
+.cancel-product:hover {
+    background: #3a3a3a;
+}
+
+.save-product {
+    background: #ffd700;
+    color: #111;
+}
+
+.save-product:hover {
+    background: #fff;
+}
