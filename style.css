@@ -1137,3 +1137,36 @@ button:active {
     }
 
 }
+/* =========================================
+   RESTORAN AÇIK / KAPALI BUTONLARI
+========================================= */
+
+.home-buttons button:disabled,
+#finishOrder:disabled,
+.send-order-btn:disabled {
+    opacity: 0.55 !important;
+    cursor: not-allowed !important;
+    pointer-events: none;
+    transform: none !important;
+}
+
+.home-buttons button:disabled:hover,
+#finishOrder:disabled:hover,
+.send-order-btn:disabled:hover {
+    background: #ffd700;
+    transform: none;
+}
+
+/* =========================================
+   AÇIK / KAPALI DURUM YAZISI
+========================================= */
+
+.status .open {
+    color: #22c55e;
+    font-weight: bold;
+}
+
+.status .closed {
+    color: #ef4444;
+    font-weight: bold;
+}
