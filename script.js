@@ -2,6 +2,7 @@
 // ECE DÖNER QR MENÜ PRO
 // MÜŞTERİ SAYFASI - TEMİZ SÜRÜM
 // Firebase Ürünleri + Sepet + Sipariş
+// MANUEL RESTORAN AÇIK / KAPALI SİSTEMİ
 // ==========================================
 
 "use strict";
@@ -11,7 +12,7 @@
 // ==========================================
 
 const firebaseConfig = {
-    apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+    apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNy-dBf3C4c83e1",
     authDomain: "ece-2e44c.firebaseapp.com",
     projectId: "ece-2e44c",
     storageBucket: "ece-2e44c.firebasestorage.app",
@@ -63,6 +64,10 @@ let currentCategory = "all";
 let isSendingOrder = false;
 
 let productsUnsubscribe = null;
+
+// 🏪 RESTORAN AÇIK / KAPALI
+let restaurantIsOpen = true;
+let restaurantSettingsUnsubscribe = null;
 
 let cartItems = null;
 let cartCount = null;
@@ -450,6 +455,207 @@ function handleImageError(img) {
 
 
 // ==========================================
+// 🏪 RESTORAN AÇIK / KAPALI SİSTEMİ
+// ==========================================
+
+function updateRestaurantStatusUI() {
+
+    const statusElement =
+        document.getElementById("restaurantStatus");
+
+    if (statusElement) {
+
+        statusElement.textContent =
+            restaurantIsOpen
+                ? "🟢 RESTORAN AÇIK"
+                : "🔴 RESTORAN KAPALI";
+
+        statusElement.classList.toggle(
+            "open",
+            restaurantIsOpen
+        );
+
+        statusElement.classList.toggle(
+            "closed",
+            !restaurantIsOpen
+        );
+
+        statusElement.setAttribute(
+            "aria-label",
+            restaurantIsOpen
+                ? "Restoran açık"
+                : "Restoran kapalı"
+        );
+    }
+
+
+    // --------------------------------------
+    // SEPETE EKLE BUTONLARI
+    // --------------------------------------
+
+    document
+        .querySelectorAll(".addCart")
+        .forEach(button => {
+
+            button.disabled =
+                !restaurantIsOpen;
+
+            button.style.opacity =
+                restaurantIsOpen
+                    ? "1"
+                    : "0.5";
+
+            button.style.cursor =
+                restaurantIsOpen
+                    ? "pointer"
+                    : "not-allowed";
+
+            button.textContent =
+                restaurantIsOpen
+                    ? "Sepete Ekle"
+                    : "Restoran Kapalı";
+        });
+
+
+    // --------------------------------------
+    // SİPARİŞ TAMAMLA BUTONU
+    // --------------------------------------
+
+    if (finishOrderBtn) {
+
+        finishOrderBtn.disabled =
+            !restaurantIsOpen ||
+            cart.length === 0;
+
+        finishOrderBtn.style.opacity =
+            (
+                !restaurantIsOpen ||
+                cart.length === 0
+            )
+                ? "0.55"
+                : "1";
+
+        finishOrderBtn.style.cursor =
+            (
+                restaurantIsOpen &&
+                cart.length > 0
+            )
+                ? "pointer"
+                : "not-allowed";
+    }
+}
+
+
+function showRestaurantClosedToast() {
+
+    showToast(
+        "Restoran şu anda kapalı 🔴"
+    );
+}
+
+
+function loadRestaurantStatus() {
+
+    if (!db) {
+
+        console.error(
+            "❌ Restoran durumu için Firebase bağlantısı yok."
+        );
+
+        restaurantIsOpen = false;
+
+        updateRestaurantStatusUI();
+
+        return;
+    }
+
+    console.log(
+        "🏪 Restoran açık/kapalı durumu dinleniyor..."
+    );
+
+    if (restaurantSettingsUnsubscribe) {
+
+        restaurantSettingsUnsubscribe();
+
+        restaurantSettingsUnsubscribe = null;
+    }
+
+
+    restaurantSettingsUnsubscribe =
+        db.collection("settings")
+            .doc("restaurant")
+            .onSnapshot(
+
+                snapshot => {
+
+                    // ----------------------------------
+                    // AYAR DOKÜMANI YOKSA
+                    // ----------------------------------
+
+                    if (!snapshot.exists) {
+
+                        console.warn(
+                            "⚠️ settings/restaurant dokümanı bulunamadı."
+                        );
+
+                        console.warn(
+                            "⚠️ Restoran varsayılan olarak AÇIK kabul ediliyor."
+                        );
+
+                        restaurantIsOpen = true;
+
+                        updateRestaurantStatusUI();
+
+                        return;
+                    }
+
+
+                    const data =
+                        snapshot.data();
+
+
+                    // ----------------------------------
+                    // FIREBASE DURUMU
+                    // ----------------------------------
+
+                    restaurantIsOpen =
+                        data.isOpen === true;
+
+
+                    console.log(
+                        restaurantIsOpen
+                            ? "🟢 RESTORAN AÇIK"
+                            : "🔴 RESTORAN KAPALI"
+                    );
+
+
+                    updateRestaurantStatusUI();
+                },
+
+                error => {
+
+                    console.error(
+                        "❌ Restoran durumu alınamadı:",
+                        error
+                    );
+
+
+                    // Firebase'den durum okunamazsa
+                    // güvenlik amacıyla kapalı kabul ediyoruz.
+
+                    restaurantIsOpen = false;
+
+                    updateRestaurantStatusUI();
+
+                    showToast(
+                        "Restoran durumu alınamadı."
+                    );
+                }
+            );
+}
+
+
+// ==========================================
 // ÜRÜN KARTI
 // ==========================================
 
@@ -504,6 +710,7 @@ function createProductCard(
     card.dataset.productId =
         documentId;
 
+
     // --------------------------------------
     // İNDİRİM
     // --------------------------------------
@@ -521,6 +728,7 @@ function createProductCard(
             </span>
         `;
     }
+
 
     // --------------------------------------
     // FOTOĞRAF
@@ -568,6 +776,7 @@ function createProductCard(
             </div>
         `;
     }
+
 
     // --------------------------------------
     // KART
@@ -653,12 +862,14 @@ function loadProductsFromFirebase() {
         "🔥 Firebase ürünleri dinleniyor..."
     );
 
+
     if (productsUnsubscribe) {
 
         productsUnsubscribe();
 
         productsUnsubscribe = null;
     }
+
 
     productsUnsubscribe =
         db.collection("products")
@@ -671,6 +882,7 @@ function loadProductsFromFirebase() {
                     );
 
                     menuGrid.innerHTML = "";
+
 
                     if (snapshot.empty) {
 
@@ -701,15 +913,20 @@ function loadProductsFromFirebase() {
 
                         `;
 
+                        updateRestaurantStatusUI();
+
                         return;
                     }
 
+
                     let visibleCount = 0;
+
 
                     snapshot.forEach(doc => {
 
                         const product =
                             doc.data();
+
 
                         // ----------------------------------
                         // AKTİF ÜRÜN KONTROLÜ
@@ -724,6 +941,7 @@ function loadProductsFromFirebase() {
                             return;
                         }
 
+
                         const card =
                             createProductCard(
                                 product,
@@ -734,6 +952,7 @@ function loadProductsFromFirebase() {
 
                         visibleCount++;
                     });
+
 
                     if (visibleCount === 0) {
 
@@ -760,14 +979,21 @@ function loadProductsFromFirebase() {
                         `;
                     }
 
+
                     setupFavorites();
 
                     filterProducts();
+
+                    // 🏪 Firebase ürünleri yeniden çizildiğinde
+                    // açık/kapalı durumunu tekrar uygula.
+                    updateRestaurantStatusUI();
+
 
                     console.log(
                         "✅ Ürünler müşteri sayfasına aktarıldı."
                     );
                 },
+
 
                 error => {
 
@@ -860,11 +1086,21 @@ function getCartCount() {
 
 function addToCart(name, price) {
 
+    // 🏪 RESTORAN KAPALIYSA SEPETE EKLEME
+    if (!restaurantIsOpen) {
+
+        showRestaurantClosedToast();
+
+        return;
+    }
+
+
     const existing =
         cart.find(
             item =>
                 item.name === name
         );
+
 
     if (existing) {
 
@@ -885,6 +1121,7 @@ function addToCart(name, price) {
         });
     }
 
+
     updateCart();
 
     showToast(
@@ -902,7 +1139,9 @@ function changeQty(index, delta) {
         return;
     }
 
+
     cart[index].quantity += delta;
+
 
     if (
         cart[index].quantity <= 0
@@ -910,6 +1149,7 @@ function changeQty(index, delta) {
 
         cart.splice(index, 1);
     }
+
 
     updateCart();
 }
@@ -924,12 +1164,15 @@ function removeFromCart(index) {
         return;
     }
 
+
     const name =
         cart[index].name;
+
 
     cart.splice(index, 1);
 
     updateCart();
+
 
     showToast(
         `${name} sepetten çıkarıldı`
@@ -946,6 +1189,7 @@ function updateCart() {
     if (cartItems) {
 
         cartItems.innerHTML = "";
+
 
         if (!cart.length) {
 
@@ -972,6 +1216,7 @@ function updateCart() {
 
                     const li =
                         document.createElement("li");
+
 
                     li.innerHTML = `
 
@@ -1030,11 +1275,13 @@ function updateCart() {
                         </div>
                     `;
 
+
                     cartItems.appendChild(li);
                 }
             );
         }
     }
+
 
     if (cartCount) {
 
@@ -1042,22 +1289,29 @@ function updateCart() {
             getCartCount();
     }
 
+
     if (totalPrice) {
 
         totalPrice.textContent =
             `Toplam: ${formatPrice(getCartTotal())}`;
     }
 
+
     if (finishOrderBtn) {
 
         finishOrderBtn.disabled =
-            cart.length === 0;
+            cart.length === 0 ||
+            !restaurantIsOpen;
 
         finishOrderBtn.style.opacity =
-            cart.length === 0
+            (
+                cart.length === 0 ||
+                !restaurantIsOpen
+            )
                 ? "0.55"
                 : "1";
     }
+
 
     updateOrderSummary();
 }
@@ -1071,12 +1325,14 @@ function setupCartEvents() {
 
     if (!cartItems) return;
 
+
     cartItems.addEventListener(
         "click",
         event => {
 
             const qty =
                 event.target.closest(".qty-btn");
+
 
             if (qty) {
 
@@ -1088,8 +1344,10 @@ function setupCartEvents() {
                 return;
             }
 
+
             const del =
                 event.target.closest(".delete-btn");
+
 
             if (del) {
 
@@ -1110,6 +1368,7 @@ function setupAddCartButtons() {
 
     if (!menuGrid) return;
 
+
     menuGrid.addEventListener(
         "click",
         event => {
@@ -1117,13 +1376,26 @@ function setupAddCartButtons() {
             const button =
                 event.target.closest(".addCart");
 
+
             if (!button) return;
+
+
+            // 🏪 KAPALIYSA ENGELLE
+            if (!restaurantIsOpen) {
+
+                showRestaurantClosedToast();
+
+                return;
+            }
+
 
             const name =
                 button.dataset.name;
 
+
             const price =
                 Number(button.dataset.price);
+
 
             if (
                 !name ||
@@ -1136,6 +1408,7 @@ function setupAddCartButtons() {
 
                 return;
             }
+
 
             addToCart(
                 name,
@@ -1159,12 +1432,14 @@ function filterProducts() {
                 .toLocaleLowerCase("tr-TR")
             : "";
 
+
     document
         .querySelectorAll(".menu-grid .card")
         .forEach(card => {
 
             const category =
                 card.dataset.category || "";
+
 
             const name =
                 card.querySelector("h3")
@@ -1173,6 +1448,7 @@ function filterProducts() {
                     .toLocaleLowerCase("tr-TR")
                     || "";
 
+
             const description =
                 card.querySelector("p")
                     ?.textContent
@@ -1180,14 +1456,17 @@ function filterProducts() {
                     .toLocaleLowerCase("tr-TR")
                     || "";
 
+
             const categoryMatch =
                 currentCategory === "all" ||
                 category === currentCategory;
+
 
             const searchMatch =
                 !searchTerm ||
                 name.includes(searchTerm) ||
                 description.includes(searchTerm);
+
 
             card.style.display =
                 categoryMatch && searchMatch
@@ -1204,6 +1483,7 @@ function setupCategories() {
             ".categories [data-category]"
         );
 
+
     buttons.forEach(button => {
 
         button.addEventListener(
@@ -1213,10 +1493,13 @@ function setupCategories() {
                 const category =
                     button.dataset.category;
 
+
                 if (!category) return;
+
 
                 currentCategory =
                     category;
+
 
                 buttons.forEach(btn => {
 
@@ -1226,9 +1509,11 @@ function setupCategories() {
 
                 });
 
+
                 button.classList.add(
                     "active"
                 );
+
 
                 filterProducts();
             }
@@ -1240,6 +1525,7 @@ function setupCategories() {
 function setupSearch() {
 
     if (!searchInput) return;
+
 
     searchInput.addEventListener(
         "input",
@@ -1257,7 +1543,9 @@ function setOrderType(type) {
     const select =
         document.getElementById("orderType");
 
+
     if (!select) return;
+
 
     const exists =
         Array.from(select.options)
@@ -1265,6 +1553,7 @@ function setOrderType(type) {
                 option =>
                     option.value === type
             );
+
 
     if (exists) {
 
@@ -1275,6 +1564,15 @@ function setOrderType(type) {
 
 function openOrderModal(orderType = null) {
 
+    // 🏪 RESTORAN KAPALIYSA SİPARİŞ MODALINI AÇMA
+    if (!restaurantIsOpen) {
+
+        showRestaurantClosedToast();
+
+        return;
+    }
+
+
     if (!cart.length) {
 
         showToast(
@@ -1284,16 +1582,21 @@ function openOrderModal(orderType = null) {
         return;
     }
 
+
     if (!orderModal) return;
+
 
     if (orderType) {
 
         setOrderType(orderType);
     }
 
+
     updateOrderSummary();
 
+
     orderModal.classList.add("show");
+
 
     document.body.style.overflow =
         "hidden";
@@ -1304,7 +1607,9 @@ function closeModal() {
 
     if (!orderModal) return;
 
+
     orderModal.classList.remove("show");
+
 
     document.body.style.overflow = "";
 }
@@ -1318,7 +1623,9 @@ function updateOrderSummary() {
 
     if (!orderSummaryItems) return;
 
+
     orderSummaryItems.innerHTML = "";
+
 
     if (!cart.length) {
 
@@ -1341,12 +1648,15 @@ function updateOrderSummary() {
             const row =
                 document.createElement("div");
 
+
             row.className =
                 "summary-item";
+
 
             const itemTotal =
                 Number(item.price) *
                 Number(item.quantity);
+
 
             row.innerHTML = `
 
@@ -1361,9 +1671,11 @@ function updateOrderSummary() {
 
             `;
 
+
             orderSummaryItems.appendChild(row);
         });
     }
+
 
     if (orderSummaryTotal) {
 
@@ -1382,6 +1694,7 @@ function setupModal() {
     const menuBtn =
         document.getElementById("menuBtn");
 
+
     if (menuBtn) {
 
         menuBtn.addEventListener(
@@ -1390,6 +1703,7 @@ function setupModal() {
 
                 const menu =
                     document.getElementById("menu");
+
 
                 if (menu) {
 
@@ -1406,6 +1720,7 @@ function setupModal() {
     const packageBtn =
         document.getElementById("packageBtn");
 
+
     if (packageBtn) {
 
         packageBtn.addEventListener(
@@ -1420,6 +1735,7 @@ function setupModal() {
 
     const restaurantBtn =
         document.getElementById("restaurantBtn");
+
 
     if (restaurantBtn) {
 
@@ -1502,6 +1818,7 @@ function isValidTurkishPhone(phone) {
     const normalized =
         normalizePhone(phone);
 
+
     return (
         /^05\d{9}$/.test(normalized) ||
         /^5\d{9}$/.test(normalized)
@@ -1525,20 +1842,25 @@ function createWhatsAppMessage(
     let message =
         "🍽️ *ECE DÖNER SİPARİŞİ*";
 
+
     message +=
         "\n\n━━━━━━━━━━━━━━";
+
 
     message +=
         "\n👤 *Müşteri:* " +
         customerName;
 
+
     message +=
         "\n📱 *Telefon:* " +
         customerPhone;
 
+
     message +=
         "\n📦 *Sipariş Türü:* " +
         orderType;
+
 
     if (tableNumber) {
 
@@ -1547,6 +1869,7 @@ function createWhatsAppMessage(
             tableNumber;
     }
 
+
     if (address) {
 
         message +=
@@ -1554,9 +1877,11 @@ function createWhatsAppMessage(
             address;
     }
 
+
     message +=
         "\n\n🛒 *SİPARİŞLER*" +
         "\n━━━━━━━━━━━━━━";
+
 
     cart.forEach(item => {
 
@@ -1564,14 +1889,17 @@ function createWhatsAppMessage(
             Number(item.price) *
             Number(item.quantity);
 
+
         message +=
             `\n• ${item.name} × ${item.quantity} = ${formatPrice(itemTotal)}`;
     });
+
 
     message +=
         "\n\n💰 *TOPLAM: " +
         formatPrice(getCartTotal()) +
         "*";
+
 
     if (note) {
 
@@ -1580,9 +1908,11 @@ function createWhatsAppMessage(
             note;
     }
 
+
     message +=
         "\n\n━━━━━━━━━━━━━━" +
         "\nQR Menü Pro";
+
 
     return message;
 }
@@ -1599,6 +1929,7 @@ function openWhatsApp(message) {
         WHATSAPP_NUMBER +
         "&text=" +
         encodeURIComponent(message);
+
 
     window.open(
         url,
@@ -1630,7 +1961,9 @@ async function sendOrderToBackend(orderData) {
             }
         );
 
+
     let result = null;
+
 
     try {
 
@@ -1644,6 +1977,7 @@ async function sendOrderToBackend(orderData) {
         );
     }
 
+
     if (
         !response.ok ||
         !result?.success
@@ -1654,6 +1988,7 @@ async function sendOrderToBackend(orderData) {
             "Sipariş sunucuya gönderilemedi."
         );
     }
+
 
     return result;
 }
@@ -1667,13 +2002,28 @@ function setupOrderForm() {
 
     if (!orderForm) return;
 
+
     orderForm.addEventListener(
         "submit",
         async event => {
 
             event.preventDefault();
 
+
             if (isSendingOrder) return;
+
+
+            // 🏪 SON KONTROL
+            // Admin müşteri modalı açıkken restoranı
+            // kapatırsa bile sipariş gönderilemez.
+
+            if (!restaurantIsOpen) {
+
+                showRestaurantClosedToast();
+
+                return;
+            }
+
 
             if (!cart.length) {
 
@@ -1686,11 +2036,13 @@ function setupOrderForm() {
                 return;
             }
 
+
             const customerName =
                 document
                     .getElementById("customerName")
                     ?.value
                     .trim() || "";
+
 
             const customerPhone =
                 document
@@ -1698,11 +2050,13 @@ function setupOrderForm() {
                     ?.value
                     .trim() || "";
 
+
             const orderType =
                 document
                     .getElementById("orderType")
                     ?.value ||
                 "Paket Sipariş";
+
 
             const tableNumber =
                 document
@@ -1710,11 +2064,13 @@ function setupOrderForm() {
                     ?.value
                     .trim() || "";
 
+
             const address =
                 document
                     .getElementById("orderAddress")
                     ?.value
                     .trim() || "";
+
 
             const note =
                 document
@@ -1872,9 +2228,12 @@ function setupOrderForm() {
 
                 cart = [];
 
+
                 updateCart();
 
+
                 orderForm.reset();
+
 
                 closeModal();
 
@@ -1886,6 +2245,7 @@ function setupOrderForm() {
                     error
                 );
 
+
                 showToast(
                     "Sipariş gönderilemedi. Tekrar deneyin. ❌"
                 );
@@ -1894,6 +2254,7 @@ function setupOrderForm() {
             } finally {
 
                 isSendingOrder = false;
+
 
                 if (submitButton) {
 
@@ -1939,25 +2300,39 @@ function initializeApp() {
 
     loadProductsFromFirebase();
 
+    // 🏪 RESTORAN DURUMUNU DİNLE
+    loadRestaurantStatus();
+
+
     console.log(
         "================================"
     );
+
 
     console.log(
         "✅ ECE DÖNER QR MENÜ PRO HAZIR"
     );
 
+
     console.log(
         "🔥 Firebase ürün sistemi aktif"
     );
+
 
     console.log(
         "🛒 Sepet sistemi aktif"
     );
 
+
     console.log(
         "📦 Sipariş sistemi aktif"
     );
+
+
+    console.log(
+        "🏪 Manuel restoran açık/kapalı sistemi aktif"
+    );
+
 
     console.log(
         "================================"
@@ -2002,4 +2377,3 @@ window.closeModal =
 
 window.handleImageError =
     handleImageError;
-
