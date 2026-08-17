@@ -24,13 +24,12 @@ app.use(
     cors({
         origin: function (origin, callback) {
 
-            // Mobil uygulamalar / Postman / doğrudan istekler
+            // Mobil uygulama / Postman / doğrudan istek
             if (!origin) {
                 return callback(null, true);
             }
 
-            // FRONTEND_URL Render'da tanımlı değilse
-            // geçici olarak tüm originlere izin ver.
+            // FRONTEND_URL tanımlı değilse mevcut sistem bozulmasın
             if (!FRONTEND_URL) {
                 return callback(null, true);
             }
@@ -41,9 +40,7 @@ app.use(
                     .map(url => url.trim())
                     .filter(Boolean);
 
-            if (
-                allowedOrigins.includes(origin)
-            ) {
+            if (allowedOrigins.includes(origin)) {
                 return callback(null, true);
             }
 
@@ -81,10 +78,6 @@ app.use(
    RATE LIMIT
 ========================================== */
 
-/*
-   Genel API limiti.
-*/
-
 const generalLimiter =
     rateLimit({
         windowMs: 15 * 60 * 1000,
@@ -100,15 +93,15 @@ const generalLimiter =
         }
     });
 
-app.use("/api/", generalLimiter);
+app.use(
+    "/api/",
+    generalLimiter
+);
 
 
-/*
-   Sipariş oluşturma için daha sıkı limit.
-
-   Aynı IP'nin kısa sürede
-   binlerce sahte sipariş göndermesini engeller.
-*/
+/* ==========================================
+   SİPARİŞ RATE LIMIT
+========================================== */
 
 const orderCreateLimiter =
     rateLimit({
@@ -198,28 +191,34 @@ try {
 }
 
 
+/* ==========================================
+   FIRESTORE
+========================================== */
+
 const db =
     admin.firestore();
 
 const ordersCollection =
     db.collection("orders");
 
+/*
+   Manuel restoran durumu:
+
+   settings
+      └── restaurant
+            └── isOpen: true / false
+*/
+
+const settingsCollection =
+    db.collection("settings");
+
+const restaurantSettingsRef =
+    settingsCollection.doc("restaurant");
+
 
 /* ==========================================
    ADMIN AUTH MIDDLEWARE
 ========================================== */
-
-/*
-   Admin panelinden gelen istek:
-
-   Authorization:
-   Bearer FIREBASE_ID_TOKEN
-
-   şeklinde olmalı.
-
-   Firebase token geçerli değilse
-   istek reddedilir.
-*/
 
 async function requireAdmin(
     req,
@@ -239,9 +238,12 @@ async function requireAdmin(
         ) {
 
             return res.status(401).json({
+
                 success: false,
+
                 message:
                     "Yetkilendirme gerekli."
+
             });
         }
 
@@ -253,9 +255,12 @@ async function requireAdmin(
         if (!idToken) {
 
             return res.status(401).json({
+
                 success: false,
+
                 message:
                     "Geçersiz yetkilendirme."
+
             });
         }
 
@@ -265,11 +270,9 @@ async function requireAdmin(
                 .verifyIdToken(idToken);
 
         /*
-           Şimdilik Firebase'e giriş yapmış
-           kullanıcıları admin kabul ediyoruz.
-
-           Daha ileri güvenlikte custom claim
-           ile sadece admin rolünü kabul edeceğiz.
+           Mevcut sistemde Firebase'e
+           giriş yapmış kullanıcı admin
+           olarak kabul ediliyor.
         */
 
         req.user =
@@ -285,9 +288,12 @@ async function requireAdmin(
         );
 
         return res.status(401).json({
+
             success: false,
+
             message:
                 "Oturum geçersiz veya süresi dolmuş."
+
         });
     }
 }
@@ -358,6 +364,191 @@ function cleanQuantity(
 
 
 /* ==========================================
+   RESTORAN DURUMU
+========================================== */
+
+/*
+   Firestore'dan restoran durumunu okur.
+
+   İlk kez çalışıyorsa:
+   restoran otomatik olarak AÇIK başlar.
+
+   Daha sonra sadece admin değiştirir.
+*/
+
+async function getRestaurantStatus() {
+
+    const snapshot =
+        await restaurantSettingsRef.get();
+
+    if (!snapshot.exists) {
+
+        await restaurantSettingsRef.set({
+
+            isOpen: true,
+
+            updatedAt:
+                new Date().toISOString()
+
+        });
+
+        return true;
+    }
+
+    return (
+        snapshot.data().isOpen === true
+    );
+}
+
+
+/* ==========================================
+   RESTORAN DURUMU - MÜŞTERİ
+========================================== */
+
+app.get(
+    "/api/restaurant/status",
+    async (req, res) => {
+
+        try {
+
+            const isOpen =
+                await getRestaurantStatus();
+
+            res.json({
+
+                success: true,
+
+                isOpen,
+
+                status:
+                    isOpen
+                        ? "open"
+                        : "closed",
+
+                message:
+                    isOpen
+                        ? "Restoran şu anda açık."
+                        : "Restoran şu anda kapalı."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Restoran durumu alınamadı:",
+                error.message
+            );
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Restoran durumu alınamadı."
+
+            });
+        }
+    }
+);
+
+
+/* ==========================================
+   RESTORAN DURUMU - ADMIN
+   AÇ / KAPAT
+========================================== */
+
+app.patch(
+    "/api/admin/restaurant/status",
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const isOpen =
+                req.body?.isOpen;
+
+            /*
+               Sadece true / false kabul edilir.
+            */
+
+            if (
+                typeof isOpen !== "boolean"
+            ) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "isOpen değeri true veya false olmalıdır."
+
+                });
+            }
+
+
+            await restaurantSettingsRef.set({
+
+                isOpen,
+
+                updatedAt:
+                    new Date().toISOString(),
+
+                updatedBy:
+                    req.user?.uid || null
+
+            }, {
+                merge: true
+            });
+
+
+            console.log(
+                `RESTORAN DURUMU: ${
+                    isOpen
+                        ? "AÇIK"
+                        : "KAPALI"
+                }`
+            );
+
+
+            res.json({
+
+                success: true,
+
+                isOpen,
+
+                status:
+                    isOpen
+                        ? "open"
+                        : "closed",
+
+                message:
+                    isOpen
+                        ? "Restoran açıldı."
+                        : "Restoran kapatıldı."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Restoran durumu güncellenemedi:",
+                error.message
+            );
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Restoran durumu güncellenemedi."
+
+            });
+        }
+    }
+);
+
+
+/* ==========================================
    ANA TEST
 ========================================== */
 
@@ -372,6 +563,9 @@ app.get(
                     .limit(1)
                     .get();
 
+            const isOpen =
+                await getRestaurantStatus();
+
             res.json({
 
                 success: true,
@@ -385,6 +579,14 @@ app.get(
 
                 firebaseAuth: true,
 
+                restaurantStatus:
+                    isOpen
+                        ? "open"
+                        : "closed",
+
+                restaurantOpen:
+                    isOpen,
+
                 ordersCollection:
                     "orders",
 
@@ -396,7 +598,7 @@ app.get(
         } catch (error) {
 
             console.error(
-                "Firestore test hatası:",
+                "Ana test hatası:",
                 error.message
             );
 
@@ -405,7 +607,7 @@ app.get(
                 success: false,
 
                 message:
-                    "Firestore bağlantı hatası."
+                    "Backend test hatası."
 
             });
         }
@@ -490,8 +692,35 @@ app.post(
 
         try {
 
+            /*
+               ==================================
+               KRİTİK KONTROL
+               ==================================
+
+               Restoran kapalıysa frontend
+               kandırılsa bile backend sipariş
+               kabul etmez.
+            */
+
+            const isOpen =
+                await getRestaurantStatus();
+
+            if (!isOpen) {
+
+                return res.status(403).json({
+
+                    success: false,
+
+                    message:
+                        "Restoran şu anda kapalı. Sipariş alınamıyor."
+
+                });
+            }
+
+
             const orderData =
                 req.body;
+
 
             if (
                 !orderData ||
@@ -829,6 +1058,7 @@ app.post(
             );
 
             console.log("");
+
 
 
             res.status(201).json({
@@ -1206,6 +1436,10 @@ app.listen(
         );
 
         console.log(
+            " Manuel restoran kontrolü: AKTİF"
+        );
+
+        console.log(
             " Kalıcı sipariş sistemi: AKTİF"
         );
 
@@ -1217,3 +1451,4 @@ app.listen(
 
     }
 );
+
