@@ -1,9 +1,8 @@
 // =====================================================
 // ECE DÖNER QR MENÜ PRO
-// ADMIN PANEL
-// Firebase Auth + Firestore
-// Ürün Yönetimi + Siparişler + Restoran Açık/Kapalı
-// settings/restaurant/isOpen
+// MÜŞTERİ SAYFASI (index.html)
+// Firebase Firestore ile ürünleri okur, sepet yönetir,
+// WhatsApp üzerinden sipariş gönderir.
 // =====================================================
 
 "use strict";
@@ -23,7 +22,6 @@ const firebaseConfig = {
 };
 
 let db = null;
-let auth = null;
 
 try {
 
@@ -32,40 +30,35 @@ try {
     }
 
     db = firebase.firestore();
-    auth = firebase.auth();
 
-    console.log("✅ Admin Firebase bağlantısı hazır.");
+    console.log("✅ Müşteri Firebase bağlantısı hazır.");
 
 } catch (error) {
 
-    console.error(
-        "❌ Firebase başlatılamadı:",
-        error
-    );
+    console.error("❌ Firebase başlatılamadı:", error);
 }
+
+
+// =====================================================
+// WHATSAPP NUMARASI
+// =====================================================
+
+const WHATSAPP_NUMBER = "905315006996";
 
 
 // =====================================================
 // GLOBAL
 // =====================================================
 
+const $ = id => document.getElementById(id);
+
+let allProducts = [];
+let currentCategory = "all";
+let currentSearch = "";
 let restaurantIsOpen = true;
 
-let restaurantStatusUnsubscribe = null;
-let productsUnsubscribe = null;
-let ordersUnsubscribe = null;
-
-let editingProductId = null;
-
-let selectedImageData = "";
-
-
-// =====================================================
-// DOM
-// =====================================================
-
-const $ = id =>
-    document.getElementById(id);
+// cart: { id: { id, name, price, quantity, note } }
+let cart = {};
 
 
 // =====================================================
@@ -82,25 +75,11 @@ function showToast(message) {
 
     toast.classList.add("show");
 
-    clearTimeout(window.adminToastTimer);
+    clearTimeout(window.customerToastTimer);
 
-    window.adminToastTimer =
-        setTimeout(() => {
-
-            toast.classList.remove("show");
-
-        }, 2200);
-}
-
-
-// =====================================================
-// FORMAT FİYAT
-// =====================================================
-
-function formatPrice(value) {
-
-    return Number(value || 0)
-        .toLocaleString("tr-TR") + " ₺";
+    window.customerToastTimer = setTimeout(() => {
+        toast.classList.remove("show");
+    }, 2000);
 }
 
 
@@ -120,533 +99,165 @@ function escapeHtml(value) {
 
 
 // =====================================================
-// LOGIN
+// FİYAT FORMATI
 // =====================================================
 
-function setupLogin() {
+function formatPrice(value) {
 
-    const form =
-        $("loginForm");
-
-    if (!form) return;
-
-    form.addEventListener(
-        "submit",
-        async event => {
-
-            event.preventDefault();
-
-            const email =
-                $("loginEmail")
-                    ?.value
-                    .trim();
-
-            const password =
-                $("loginPassword")
-                    ?.value || "";
-
-            const errorElement =
-                $("loginError");
-
-            if (errorElement) {
-                errorElement.textContent = "";
-            }
-
-            try {
-
-                await auth.signInWithEmailAndPassword(
-                    email,
-                    password
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "❌ Giriş hatası:",
-                    error
-                );
-
-                let message =
-                    "Giriş yapılamadı.";
-
-                if (
-                    error.code ===
-                    "auth/invalid-credential"
-                ) {
-
-                    message =
-                        "E-posta veya şifre hatalı.";
-
-                } else if (
-                    error.code ===
-                    "auth/user-not-found"
-                ) {
-
-                    message =
-                        "Bu kullanıcı bulunamadı.";
-
-                } else if (
-                    error.code ===
-                    "auth/wrong-password"
-                ) {
-
-                    message =
-                        "Şifre hatalı.";
-
-                } else if (
-                    error.code ===
-                    "auth/invalid-email"
-                ) {
-
-                    message =
-                        "Geçerli bir e-posta girin.";
-                }
-
-                if (errorElement) {
-                    errorElement.textContent =
-                        message;
-                }
-            }
-        }
-    );
+    return Number(value || 0).toLocaleString("tr-TR") + "₺";
 }
 
 
 // =====================================================
-// AUTH DURUMU
+// RESTORAN DURUMUNU DİNLE
 // =====================================================
 
-function setupAuth() {
-
-    auth.onAuthStateChanged(
-        user => {
-
-            const loginOverlay =
-                $("login-overlay");
-
-            const adminApp =
-                $("admin-app");
-
-            if (user) {
-
-                console.log(
-                    "✅ Admin giriş yaptı:",
-                    user.email
-                );
-
-                if (loginOverlay) {
-                    loginOverlay.style.display =
-                        "none";
-                }
-
-                if (adminApp) {
-                    adminApp.style.display =
-                        "block";
-                }
-
-                startAdminSystem();
-
-            } else {
-
-                console.log(
-                    "🔐 Admin giriş bekleniyor."
-                );
-
-                if (loginOverlay) {
-                    loginOverlay.style.display =
-                        "flex";
-                }
-
-                if (adminApp) {
-                    adminApp.style.display =
-                        "none";
-                }
-            }
-        }
-    );
-}
-
-
-// =====================================================
-// LOGOUT
-// =====================================================
-
-function setupLogout() {
-
-    const button =
-        $("logoutBtn");
-
-    if (!button) return;
-
-    button.addEventListener(
-        "click",
-        async () => {
-
-            try {
-
-                await auth.signOut();
-
-            } catch (error) {
-
-                console.error(
-                    "❌ Çıkış hatası:",
-                    error
-                );
-
-                showToast(
-                    "Çıkış yapılamadı."
-                );
-            }
-        }
-    );
-}
-
-
-// =====================================================
-// RESTORAN DURUMUNU FIRESTORE'DAN DİNLE
-// =====================================================
-
-function loadRestaurantStatus() {
+function listenRestaurantStatus() {
 
     if (!db) return;
 
-    if (restaurantStatusUnsubscribe) {
+    db.collection("settings")
+        .doc("restaurant")
+        .onSnapshot(
 
-        restaurantStatusUnsubscribe();
+            snapshot => {
 
-        restaurantStatusUnsubscribe = null;
-    }
+                const data = snapshot.exists ? snapshot.data() : {};
 
-    console.log(
-        "🏪 settings/restaurant dinleniyor..."
-    );
+                restaurantIsOpen =
+                    typeof data.isOpen === "boolean"
+                        ? data.isOpen
+                        : true;
 
-    restaurantStatusUnsubscribe =
-        db.collection("settings")
-            .doc("restaurant")
-            .onSnapshot(
+                updateRestaurantStatusUI();
+            },
 
-                snapshot => {
-
-                    if (!snapshot.exists) {
-
-                        console.warn(
-                            "⚠️ settings/restaurant yok."
-                        );
-
-                        restaurantIsOpen = true;
-
-                        updateRestaurantStatusUI();
-
-                        // İlk açılışta dokümanı oluştur.
-                        saveRestaurantStatus(
-                            true,
-                            false
-                        );
-
-                        return;
-                    }
-
-                    const data =
-                        snapshot.data() || {};
-
-                    if (
-                        typeof data.isOpen ===
-                        "boolean"
-                    ) {
-
-                        restaurantIsOpen =
-                            data.isOpen;
-
-                    } else {
-
-                        console.warn(
-                            "⚠️ isOpen alanı bulunamadı."
-                        );
-
-                        restaurantIsOpen = true;
-                    }
-
-                    updateRestaurantStatusUI();
-
-                    console.log(
-                        "🏪 Restoran durumu:",
-                        restaurantIsOpen
-                            ? "AÇIK"
-                            : "KAPALI"
-                    );
-                },
-
-                error => {
-
-                    console.error(
-                        "❌ Restoran durumu okunamadı:",
-                        error
-                    );
-
-                    showToast(
-                        "Restoran durumu okunamadı."
-                    );
-                }
-            );
+            error => {
+                console.error("❌ Restoran durumu okunamadı:", error);
+            }
+        );
 }
 
-
-// =====================================================
-// RESTORAN DURUMU UI
-// =====================================================
 
 function updateRestaurantStatusUI() {
 
-    const icon =
-        $("restaurantControlIcon");
+    const statusEl = document.querySelector(".hero .status .open");
 
-    const text =
-        $("restaurantStatusText");
+    const finishOrderBtn = $("finishOrder");
 
-    const button =
-        $("restaurantStatusBtn");
+    if (statusEl) {
 
-    if (!icon || !text || !button) {
-        return;
-    }
+        if (restaurantIsOpen) {
 
+            statusEl.textContent = "🟢 Şu Anda Açık";
+            statusEl.classList.remove("closed");
 
-    // =================================================
-    // AÇIK
-    // =================================================
+        } else {
 
-    if (restaurantIsOpen) {
-
-        icon.textContent =
-            "🟢";
-
-        text.textContent =
-            "🟢 Restoran Açık — Siparişler Aktif";
-
-        text.classList.add("open");
-        text.classList.remove("closed");
-
-        button.textContent =
-            "🔴 Restoranı Kapat";
-
-        button.classList.add("open");
-        button.classList.remove("closed");
-
-    }
-
-    // =================================================
-    // KAPALI
-    // =================================================
-
-    else {
-
-        icon.textContent =
-            "🔴";
-
-        text.textContent =
-            "🔴 Restoran Kapalı — Siparişler Devre Dışı";
-
-        text.classList.remove("open");
-        text.classList.add("closed");
-
-        button.textContent =
-            "🟢 Restoranı Aç";
-
-        button.classList.remove("open");
-        button.classList.add("closed");
-    }
-}
-
-
-// =====================================================
-// RESTORAN DURUMUNU FIRESTORE'A YAZ
-// =====================================================
-
-async function saveRestaurantStatus(
-    newStatus,
-    showMessage = true
-) {
-
-    if (!db) {
-
-        showToast(
-            "Firebase bağlantısı yok."
-        );
-
-        return;
-    }
-
-    try {
-
-        await db
-            .collection("settings")
-            .doc("restaurant")
-            .set(
-                {
-                    isOpen:
-                        Boolean(newStatus),
-
-                    updatedAt:
-                        firebase.firestore.FieldValue
-                            .serverTimestamp()
-                },
-                {
-                    merge: true
-                }
-            );
-
-        restaurantIsOpen =
-            Boolean(newStatus);
-
-        updateRestaurantStatusUI();
-
-        if (showMessage) {
-
-            showToast(
-                restaurantIsOpen
-                    ? "Restoran açıldı 🟢"
-                    : "Restoran kapatıldı 🔴"
-            );
+            statusEl.textContent = "🔴 Şu Anda Kapalı";
+            statusEl.classList.add("closed");
         }
+    }
 
-        console.log(
-            "🔥 Firestore isOpen güncellendi:",
-            restaurantIsOpen
-        );
-
-    } catch (error) {
-
-        console.error(
-            "❌ Restoran durumu kaydedilemedi:",
-            error
-        );
-
-        showToast(
-            "Restoran durumu kaydedilemedi ❌"
-        );
+    if (finishOrderBtn) {
+        finishOrderBtn.disabled = !restaurantIsOpen;
     }
 }
 
 
 // =====================================================
-// RESTORAN BUTONU
+// ÜRÜNLERİ DİNLE
 // =====================================================
 
-function setupRestaurantToggle() {
-
-    const button =
-        $("restaurantStatusBtn");
-
-    if (!button) return;
-
-    button.addEventListener(
-        "click",
-        async () => {
-
-            const newStatus =
-                !restaurantIsOpen;
-
-            button.disabled = true;
-
-            await saveRestaurantStatus(
-                newStatus,
-                true
-            );
-
-            button.disabled = false;
-        }
-    );
-}
-
-
-// =====================================================
-// ÜRÜNLERİ YÜKLE
-// =====================================================
-
-function loadProducts() {
+function listenProducts() {
 
     if (!db) return;
 
-    const container =
-        $("productsContainer");
+    const grid = $("menuGrid");
 
-    if (!container) return;
+    if (!grid) return;
 
-    if (productsUnsubscribe) {
+    grid.innerHTML = `
+        <div class="menu-loading">
+            Menü yükleniyor...
+        </div>
+    `;
 
-        productsUnsubscribe();
+    db.collection("products")
+        .orderBy("name")
+        .onSnapshot(
 
-        productsUnsubscribe = null;
+            snapshot => {
+
+                allProducts = [];
+
+                snapshot.forEach(doc => {
+
+                    allProducts.push({
+                        id: doc.id,
+                        ...doc.data()
+                    });
+                });
+
+                renderProducts();
+            },
+
+            error => {
+
+                console.error("❌ Ürünler yüklenemedi:", error);
+
+                grid.innerHTML = `
+                    <div class="menu-empty">
+                        Menü şu anda yüklenemedi.
+                    </div>
+                `;
+            }
+        );
+}
+
+
+// =====================================================
+// ÜRÜNLERİ FİLTRELE VE ÇİZ
+// =====================================================
+
+function renderProducts() {
+
+    const grid = $("menuGrid");
+
+    if (!grid) return;
+
+    const search = currentSearch.trim().toLowerCase();
+
+    const filtered = allProducts.filter(product => {
+
+        const matchesCategory =
+            currentCategory === "all" ||
+            product.category === currentCategory;
+
+        const matchesSearch =
+            !search ||
+            (product.name || "").toLowerCase().includes(search) ||
+            (product.description || "").toLowerCase().includes(search);
+
+        return matchesCategory && matchesSearch;
+    });
+
+    grid.innerHTML = "";
+
+    if (!filtered.length) {
+
+        grid.innerHTML = `
+            <div class="menu-empty">
+                Aradığın kriterlere uygun ürün bulunamadı.
+            </div>
+        `;
+
+        return;
     }
 
-    productsUnsubscribe =
-        db.collection("products")
-            .orderBy("name")
-            .onSnapshot(
-
-                snapshot => {
-
-                    container.innerHTML = "";
-
-                    let count = 0;
-
-                    snapshot.forEach(doc => {
-
-                        const product =
-                            doc.data();
-
-                        container.appendChild(
-                            createProductAdminCard(
-                                product,
-                                doc.id
-                            )
-                        );
-
-                        count++;
-                    });
-
-                    $("totalProducts")
-                        .textContent = count;
-
-                    if (!count) {
-
-                        container.innerHTML = `
-                            <div class="empty-state">
-
-                                <div class="emoji">
-                                    🍽️
-                                </div>
-
-                                <h3>
-                                    Henüz ürün yok
-                                </h3>
-
-                                <p>
-                                    Yeni ürün eklemek için
-                                    yukarıdaki butonu kullanın.
-                                </p>
-
-                            </div>
-                        `;
-                    }
-                },
-
-                error => {
-
-                    console.error(
-                        "❌ Ürünler yüklenemedi:",
-                        error
-                    );
-
-                    container.innerHTML = `
-                        <div class="empty-state">
-                            <div class="emoji">⚠️</div>
-                            <h3>Ürünler yüklenemedi</h3>
-                        </div>
-                    `;
-                }
-            );
+    filtered.forEach(product => {
+        grid.appendChild(createProductCard(product));
+    });
 }
 
 
@@ -654,28 +265,9 @@ function loadProducts() {
 // ÜRÜN KARTI
 // =====================================================
 
-function createProductAdminCard(
-    product,
-    id
-) {
+function createProductCard(product) {
 
-    const name =
-        product.name ||
-        "İsimsiz Ürün";
-
-    const category =
-        product.category ||
-        "all";
-
-    const price =
-        Number(product.price || 0);
-
-    const description =
-        product.description || "";
-
-    const available =
-        product.available !== false &&
-        product.active !== false;
+    const available = product.available !== false;
 
     const image =
         product.imageData ||
@@ -683,93 +275,50 @@ function createProductAdminCard(
         product.imageUrl ||
         "";
 
-    const card =
-        document.createElement("div");
+    const price = Number(product.price || 0);
 
-    card.className =
-        "admin-product-card";
+    const card = document.createElement("div");
 
-    card.dataset.id =
-        id;
+    card.className = "menu-card";
+
+    card.dataset.id = product.id;
 
     card.innerHTML = `
 
-        <div class="admin-product-image">
-
+        <div class="menu-card-image">
             ${
                 image
-                    ? `
-                        <img
-                            src="${escapeHtml(image)}"
-                            alt="${escapeHtml(name)}"
-                        >
-                    `
-                    : `
-                        <div class="product-image-placeholder">
-                            🍽️
-                        </div>
-                    `
+                    ? `<img src="${escapeHtml(image)}" alt="${escapeHtml(product.name)}" loading="lazy">`
+                    : `<div class="menu-card-placeholder">🍽️</div>`
             }
-
+            ${
+                !available
+                    ? `<span class="menu-card-badge">Tükendi</span>`
+                    : ""
+            }
         </div>
 
+        <div class="menu-card-info">
 
-        <div class="admin-product-info">
+            <h3>${escapeHtml(product.name || "")}</h3>
 
-            <div class="admin-product-top">
+            ${
+                product.description
+                    ? `<p>${escapeHtml(product.description)}</p>`
+                    : ""
+            }
 
-                <span class="product-category">
-                    ${escapeHtml(category)}
-                </span>
+            <div class="menu-card-bottom">
 
-                <span
-                    class="
-                        product-availability
-                        ${available ? "available" : "unavailable"}
-                    "
-                >
-                    ${
-                        available
-                            ? "🟢 Satışta"
-                            : "🔴 Kapalı"
-                    }
-                </span>
-
-            </div>
-
-
-            <h3>
-                ${escapeHtml(name)}
-            </h3>
-
-
-            <p>
-                ${escapeHtml(description)}
-            </p>
-
-
-            <strong class="admin-product-price">
-                ${formatPrice(price)}
-            </strong>
-
-
-            <div class="admin-product-actions">
+                <strong>${formatPrice(price)}</strong>
 
                 <button
                     type="button"
-                    class="edit-product-btn"
-                    data-edit="${escapeHtml(id)}"
+                    class="add-to-cart-btn"
+                    data-id="${escapeHtml(product.id)}"
+                    ${available ? "" : "disabled"}
                 >
-                    ✏️ Düzenle
-                </button>
-
-
-                <button
-                    type="button"
-                    class="delete-product-btn"
-                    data-delete="${escapeHtml(id)}"
-                >
-                    🗑️ Sil
+                    ${available ? "➕ Sepete Ekle" : "Tükendi"}
                 </button>
 
             </div>
@@ -782,1140 +331,551 @@ function createProductAdminCard(
 
 
 // =====================================================
-// ÜRÜN MODAL
+// KATEGORİ FİLTRESİ
 // =====================================================
 
-function openProductModal(
-    productId = null
-) {
+function setupCategoryFilter() {
 
-    const modal =
-        $("productModal");
+    const buttons = document.querySelectorAll(".categories button");
 
-    const form =
-        $("productForm");
+    buttons.forEach(button => {
 
-    if (!modal || !form) return;
+        button.addEventListener("click", () => {
 
-    editingProductId =
-        productId;
+            buttons.forEach(btn => btn.classList.remove("active"));
 
-    selectedImageData = "";
+            button.classList.add("active");
 
-    form.reset();
+            currentCategory = button.dataset.category || "all";
 
-    $("productId").value =
-        productId || "";
+            renderProducts();
+        });
+    });
+}
 
 
-    if (productId) {
+// =====================================================
+// ARAMA
+// =====================================================
 
-        $("modalTitle").textContent =
-            "✏️ Ürün Düzenle";
+function setupSearch() {
 
-        loadProductIntoForm(
-            productId
-        );
+    const input = $("search");
+
+    if (!input) return;
+
+    input.addEventListener("input", event => {
+
+        currentSearch = event.target.value || "";
+
+        renderProducts();
+    });
+}
+
+
+// =====================================================
+// ANA BUTONLAR
+// =====================================================
+
+function setupHomeButtons() {
+
+    const restaurantBtn = $("restaurantBtn");
+    const packageBtn = $("packageBtn");
+    const menuBtn = $("menuBtn");
+    const menuSection = $("menu");
+
+    const scrollToMenu = () => {
+        if (menuSection) {
+            menuSection.scrollIntoView({ behavior: "smooth" });
+        }
+    };
+
+    if (restaurantBtn) {
+
+        restaurantBtn.addEventListener("click", () => {
+
+            const orderTypeSelect = $("orderType");
+
+            if (orderTypeSelect) {
+                orderTypeSelect.value = "Restoranda Sipariş";
+            }
+
+            scrollToMenu();
+        });
+    }
+
+    if (packageBtn) {
+
+        packageBtn.addEventListener("click", () => {
+
+            const orderTypeSelect = $("orderType");
+
+            if (orderTypeSelect) {
+                orderTypeSelect.value = "Paket Sipariş";
+            }
+
+            scrollToMenu();
+        });
+    }
+
+    if (menuBtn) {
+        menuBtn.addEventListener("click", scrollToMenu);
+    }
+}
+
+
+// =====================================================
+// SEPET İŞLEMLERİ
+// =====================================================
+
+function addToCart(productId) {
+
+    const product = allProducts.find(item => item.id === productId);
+
+    if (!product) return;
+
+    if (product.available === false) {
+
+        showToast("Bu ürün şu anda satışta değil.");
+
+        return;
+    }
+
+    if (cart[productId]) {
+
+        cart[productId].quantity += 1;
 
     } else {
 
-        $("modalTitle").textContent =
-            "➕ Yeni Ürün";
-
-        clearImagePreview();
+        cart[productId] = {
+            id: productId,
+            name: product.name || "",
+            price: Number(product.price || 0),
+            quantity: 1
+        };
     }
 
+    renderCart();
 
-    modal.classList.add("show");
+    showToast("Ürün Sepete Eklendi ✅");
+}
 
-    document.body.style.overflow =
-        "hidden";
+
+function changeQuantity(productId, delta) {
+
+    const item = cart[productId];
+
+    if (!item) return;
+
+    item.quantity += delta;
+
+    if (item.quantity <= 0) {
+        delete cart[productId];
+    }
+
+    renderCart();
+}
+
+
+function removeFromCart(productId) {
+
+    delete cart[productId];
+
+    renderCart();
+}
+
+
+function getCartTotal() {
+
+    return Object.values(cart).reduce(
+        (sum, item) => sum + (item.price * item.quantity),
+        0
+    );
+}
+
+
+function getCartCount() {
+
+    return Object.values(cart).reduce(
+        (sum, item) => sum + item.quantity,
+        0
+    );
+}
+
+
+function renderCart() {
+
+    const cartCountEl = $("cartCount");
+    const cartItemsEl = $("cartItems");
+    const totalPriceEl = $("totalPrice");
+
+    const items = Object.values(cart);
+
+    if (cartCountEl) {
+        cartCountEl.textContent = getCartCount();
+    }
+
+    if (totalPriceEl) {
+        totalPriceEl.textContent = "Toplam: " + formatPrice(getCartTotal());
+    }
+
+    if (!cartItemsEl) return;
+
+    cartItemsEl.innerHTML = "";
+
+    if (!items.length) {
+
+        cartItemsEl.innerHTML = `
+            <li class="cart-empty">
+                Sepetiniz boş.
+            </li>
+        `;
+
+        return;
+    }
+
+    items.forEach(item => {
+
+        const li = document.createElement("li");
+
+        li.className = "cart-item";
+
+        li.innerHTML = `
+
+            <span class="cart-item-name">
+                ${escapeHtml(item.name)}
+            </span>
+
+            <div class="cart-item-controls">
+
+                <button
+                    type="button"
+                    class="qty-btn"
+                    data-id="${escapeHtml(item.id)}"
+                    data-delta="-1"
+                >
+                    −
+                </button>
+
+                <span class="cart-item-qty">
+                    ${item.quantity}
+                </span>
+
+                <button
+                    type="button"
+                    class="qty-btn"
+                    data-id="${escapeHtml(item.id)}"
+                    data-delta="1"
+                >
+                    +
+                </button>
+
+            </div>
+
+            <strong class="cart-item-price">
+                ${formatPrice(item.price * item.quantity)}
+            </strong>
+
+            <button
+                type="button"
+                class="remove-item-btn"
+                data-id="${escapeHtml(item.id)}"
+                aria-label="Ürünü sepetten çıkar"
+            >
+                🗑️
+            </button>
+        `;
+
+        cartItemsEl.appendChild(li);
+    });
+}
+
+
+function setupCartEvents() {
+
+    const grid = $("menuGrid");
+
+    if (grid) {
+
+        grid.addEventListener("click", event => {
+
+            const addButton = event.target.closest(".add-to-cart-btn");
+
+            if (addButton && !addButton.disabled) {
+                addToCart(addButton.dataset.id);
+            }
+        });
+    }
+
+    const cartItemsEl = $("cartItems");
+
+    if (cartItemsEl) {
+
+        cartItemsEl.addEventListener("click", event => {
+
+            const qtyButton = event.target.closest(".qty-btn");
+
+            if (qtyButton) {
+
+                changeQuantity(
+                    qtyButton.dataset.id,
+                    Number(qtyButton.dataset.delta)
+                );
+
+                return;
+            }
+
+            const removeButton = event.target.closest(".remove-item-btn");
+
+            if (removeButton) {
+                removeFromCart(removeButton.dataset.id);
+            }
+        });
+    }
 }
 
 
 // =====================================================
-// ÜRÜNÜ FORMA GETİR
+// SİPARİŞ MODALI
 // =====================================================
 
-async function loadProductIntoForm(
-    productId
-) {
+function openOrderModal() {
 
-    try {
+    if (!getCartCount()) {
 
-        const doc =
-            await db
-                .collection("products")
-                .doc(productId)
-                .get();
+        showToast("Sepetiniz boş.");
 
-        if (!doc.exists) {
+        return;
+    }
 
-            showToast(
-                "Ürün bulunamadı."
-            );
+    if (!restaurantIsOpen) {
 
-            return;
-        }
+        showToast("Restoran şu anda kapalı.");
 
-        const product =
-            doc.data();
+        return;
+    }
 
+    renderOrderSummary();
 
-        $("productName").value =
-            product.name || "";
+    const modal = $("orderModal");
 
+    if (modal) {
 
-        $("productCategory").value =
-            product.category || "";
+        modal.classList.add("show");
 
-
-        $("productPrice").value =
-            product.price ?? "";
-
-
-        $("productDescription").value =
-            product.description || "";
-
-
-        $("productAvailable").value =
-            (
-                product.available !== false &&
-                product.active !== false
-            )
-                ? "true"
-                : "false";
-
-
-        selectedImageData =
-            product.imageData ||
-            product.image ||
-            product.imageUrl ||
-            "";
-
-
-        if (selectedImageData) {
-
-            showImagePreview(
-                selectedImageData
-            );
-
-        } else {
-
-            clearImagePreview();
-        }
-
-    } catch (error) {
-
-        console.error(
-            "❌ Ürün formu yüklenemedi:",
-            error
-        );
-
-        showToast(
-            "Ürün bilgileri alınamadı."
-        );
+        document.body.style.overflow = "hidden";
     }
 }
 
 
-// =====================================================
-// MODAL KAPAT
-// =====================================================
+function closeOrderModal() {
 
-function closeProductModal() {
-
-    const modal =
-        $("productModal");
+    const modal = $("orderModal");
 
     if (!modal) return;
 
     modal.classList.remove("show");
 
     document.body.style.overflow = "";
-
-    editingProductId = null;
-
-    selectedImageData = "";
 }
 
 
-// =====================================================
-// ÜRÜN KAYDET
-// =====================================================
+function renderOrderSummary() {
 
-async function saveProduct() {
+    const summaryEl = $("orderSummaryItems");
+    const totalEl = $("orderSummaryTotal");
 
-    const name =
-        $("productName")
-            ?.value
-            .trim();
+    if (!summaryEl || !totalEl) return;
 
-    const category =
-        $("productCategory")
-            ?.value;
+    const items = Object.values(cart);
 
-    const price =
-        Number(
-            $("productPrice")
-                ?.value
-        );
+    summaryEl.innerHTML = items.map(item => `
+        <div class="order-summary-item">
+            <span>${escapeHtml(item.name)} × ${item.quantity}</span>
+            <strong>${formatPrice(item.price * item.quantity)}</strong>
+        </div>
+    `).join("");
 
-    const description =
-        $("productDescription")
-            ?.value
-            .trim() || "";
-
-    const available =
-        $("productAvailable")
-            ?.value === "true";
-
-
-    if (!name) {
-
-        showToast(
-            "Ürün adı gerekli."
-        );
-
-        return;
-    }
-
-
-    if (!category) {
-
-        showToast(
-            "Kategori seçin."
-        );
-
-        return;
-    }
-
-
-    if (
-        !Number.isFinite(price) ||
-        price < 0
-    ) {
-
-        showToast(
-            "Geçerli bir fiyat girin."
-        );
-
-        return;
-    }
-
-
-    const data = {
-
-        name,
-
-        category,
-
-        price,
-
-        description,
-
-        available,
-
-        active:
-            available,
-
-        imageData:
-            selectedImageData || "",
-
-        updatedAt:
-            firebase.firestore.FieldValue
-                .serverTimestamp()
-    };
-
-
-    try {
-
-        if (editingProductId) {
-
-            await db
-                .collection("products")
-                .doc(editingProductId)
-                .update(data);
-
-            showToast(
-                "Ürün güncellendi ✅"
-            );
-
-        } else {
-
-            data.createdAt =
-                firebase.firestore.FieldValue
-                    .serverTimestamp();
-
-            await db
-                .collection("products")
-                .add(data);
-
-            showToast(
-                "Ürün eklendi ✅"
-            );
-        }
-
-        closeProductModal();
-
-    } catch (error) {
-
-        console.error(
-            "❌ Ürün kaydedilemedi:",
-            error
-        );
-
-        showToast(
-            "Ürün kaydedilemedi ❌"
-        );
-    }
+    totalEl.textContent = "Toplam: " + formatPrice(getCartTotal());
 }
 
 
-// =====================================================
-// ÜRÜN SİL
-// =====================================================
+function setupOrderModalEvents() {
 
-async function deleteProduct(
-    productId
-) {
+    const finishOrderBtn = $("finishOrder");
 
-    const confirmed =
-        window.confirm(
-            "Bu ürünü silmek istediğinize emin misiniz?"
-        );
-
-    if (!confirmed) return;
-
-    try {
-
-        await db
-            .collection("products")
-            .doc(productId)
-            .delete();
-
-        showToast(
-            "Ürün silindi 🗑️"
-        );
-
-    } catch (error) {
-
-        console.error(
-            "❌ Ürün silinemedi:",
-            error
-        );
-
-        showToast(
-            "Ürün silinemedi ❌"
-        );
-    }
-}
-
-
-// =====================================================
-// ÜRÜN EVENTLERİ
-// =====================================================
-
-function setupProductEvents() {
-
-    const addButton =
-        $("addProductBtn");
-
-    if (addButton) {
-
-        addButton.addEventListener(
-            "click",
-            () => openProductModal()
-        );
+    if (finishOrderBtn) {
+        finishOrderBtn.addEventListener("click", openOrderModal);
     }
 
+    const closeBtn = $("closeOrderModal");
 
-    const closeButton =
-        $("closeModalBtn");
-
-    if (closeButton) {
-
-        closeButton.addEventListener(
-            "click",
-            closeProductModal
-        );
+    if (closeBtn) {
+        closeBtn.addEventListener("click", closeOrderModal);
     }
 
-
-    const cancelButton =
-        $("cancelProductBtn");
-
-    if (cancelButton) {
-
-        cancelButton.addEventListener(
-            "click",
-            closeProductModal
-        );
-    }
-
-
-    const form =
-        $("productForm");
-
-    if (form) {
-
-        form.addEventListener(
-            "submit",
-            async event => {
-
-                event.preventDefault();
-
-                const saveButton =
-                    $("saveProductBtn");
-
-                if (saveButton) {
-
-                    saveButton.disabled = true;
-
-                    saveButton.textContent =
-                        "⏳ Kaydediliyor...";
-                }
-
-                await saveProduct();
-
-                if (saveButton) {
-
-                    saveButton.disabled = false;
-
-                    saveButton.textContent =
-                        "💾 Kaydet";
-                }
-            }
-        );
-    }
-
-
-    const productsContainer =
-        $("productsContainer");
-
-    if (productsContainer) {
-
-        productsContainer.addEventListener(
-            "click",
-            event => {
-
-                const editButton =
-                    event.target.closest(
-                        "[data-edit]"
-                    );
-
-                if (editButton) {
-
-                    openProductModal(
-                        editButton.dataset.edit
-                    );
-
-                    return;
-                }
-
-
-                const deleteButton =
-                    event.target.closest(
-                        "[data-delete]"
-                    );
-
-                if (deleteButton) {
-
-                    deleteProduct(
-                        deleteButton.dataset.delete
-                    );
-                }
-            }
-        );
-    }
-
-
-    const modal =
-        $("productModal");
+    const modal = $("orderModal");
 
     if (modal) {
 
-        modal.addEventListener(
-            "click",
-            event => {
+        modal.addEventListener("click", event => {
 
-                if (
-                    event.target === modal
-                ) {
-
-                    closeProductModal();
-                }
+            if (event.target === modal) {
+                closeOrderModal();
             }
-        );
+        });
     }
 }
 
 
 // =====================================================
-// FOTOĞRAF SIKIŞTIRMA
+// SİPARİŞİ GÖNDER
 // =====================================================
 
-function compressImage(
-    file
-) {
+function buildWhatsAppMessage(orderData) {
 
-    return new Promise(
-        (resolve, reject) => {
+    const lines = [];
 
-            const reader =
-                new FileReader();
+    lines.push(`*ECE DÖNER — Yeni Sipariş*`);
+    lines.push(``);
+    lines.push(`👤 Ad Soyad: ${orderData.customerName}`);
+    lines.push(`📱 Telefon: ${orderData.phone}`);
+    lines.push(`📦 Sipariş Türü: ${orderData.orderType}`);
 
-            reader.onload =
-                event => {
-
-                    const img =
-                        new Image();
-
-                    img.onload =
-                        () => {
-
-                            const maxWidth =
-                                1000;
-
-                            let width =
-                                img.width;
-
-                            let height =
-                                img.height;
-
-
-                            if (
-                                width >
-                                maxWidth
-                            ) {
-
-                                height =
-                                    Math.round(
-                                        height *
-                                        maxWidth /
-                                        width
-                                    );
-
-                                width =
-                                    maxWidth;
-                            }
-
-
-                            const canvas =
-                                document
-                                    .createElement(
-                                        "canvas"
-                                    );
-
-                            canvas.width =
-                                width;
-
-                            canvas.height =
-                                height;
-
-
-                            const ctx =
-                                canvas
-                                    .getContext(
-                                        "2d"
-                                    );
-
-                            ctx.drawImage(
-                                img,
-                                0,
-                                0,
-                                width,
-                                height
-                            );
-
-
-                            resolve(
-                                canvas.toDataURL(
-                                    "image/jpeg",
-                                    0.78
-                                )
-                            );
-                        };
-
-
-                    img.onerror =
-                        reject;
-
-                    img.src =
-                        event.target.result;
-                };
-
-
-            reader.onerror =
-                reject;
-
-            reader.readAsDataURL(file);
-        }
-    );
-}
-
-
-// =====================================================
-// FOTOĞRAF SEÇ
-// =====================================================
-
-function setupImagePicker() {
-
-    const input =
-        $("productImageFile");
-
-    if (!input) return;
-
-    input.addEventListener(
-        "change",
-        async event => {
-
-            const file =
-                event.target.files?.[0];
-
-            if (!file) return;
-
-
-            if (
-                !file.type.startsWith(
-                    "image/"
-                )
-            ) {
-
-                showToast(
-                    "Lütfen bir fotoğraf seçin."
-                );
-
-                return;
-            }
-
-
-            try {
-
-                showToast(
-                    "Fotoğraf hazırlanıyor..."
-                );
-
-                selectedImageData =
-                    await compressImage(
-                        file
-                    );
-
-                showImagePreview(
-                    selectedImageData
-                );
-
-                showToast(
-                    "Fotoğraf hazır 📷"
-                );
-
-            } catch (error) {
-
-                console.error(
-                    "❌ Fotoğraf işlenemedi:",
-                    error
-                );
-
-                showToast(
-                    "Fotoğraf işlenemedi."
-                );
-            }
-        }
-    );
-}
-
-
-// =====================================================
-// FOTOĞRAF ÖNİZLEME
-// =====================================================
-
-function showImagePreview(
-    imageData
-) {
-
-    const preview =
-        $("imagePreview");
-
-    const img =
-        $("imagePreviewImg");
-
-    if (!preview || !img) return;
-
-    img.src =
-        imageData;
-
-    preview.style.display =
-        "block";
-}
-
-
-function clearImagePreview() {
-
-    const preview =
-        $("imagePreview");
-
-    const img =
-        $("imagePreviewImg");
-
-    if (img) {
-        img.src = "";
+    if (orderData.tableNumber) {
+        lines.push(`🪑 Masa No: ${orderData.tableNumber}`);
     }
 
-    if (preview) {
-        preview.style.display =
-            "none";
-    }
-}
-
-
-// =====================================================
-// SİPARİŞLER
-// =====================================================
-
-function loadOrders() {
-
-    if (!db) return;
-
-    const container =
-        $("ordersContainer");
-
-    if (!container) return;
-
-    if (ordersUnsubscribe) {
-
-        ordersUnsubscribe();
-
-        ordersUnsubscribe = null;
+    if (orderData.address) {
+        lines.push(`📍 Adres: ${orderData.address}`);
     }
 
-
-    ordersUnsubscribe =
-        db.collection("orders")
-            .orderBy(
-                "createdAt",
-                "desc"
-            )
-            .onSnapshot(
-
-                snapshot => {
-
-                    container.innerHTML = "";
-
-                    let total =
-                        snapshot.size;
-
-                    let newCount = 0;
-
-                    let revenue = 0;
-
-
-                    snapshot.forEach(doc => {
-
-                        const order =
-                            doc.data();
-
-
-                        if (
-                            order.status ===
-                            "new"
-                        ) {
-
-                            newCount++;
-                        }
-
-
-                        revenue +=
-                            Number(
-                                order.total ||
-                                0
-                            );
-
-
-                        container.appendChild(
-                            createOrderCard(
-                                order,
-                                doc.id
-                            )
-                        );
-                    });
-
-
-                    $("totalOrders")
-                        .textContent =
-                        total;
-
-
-                    $("newOrders")
-                        .textContent =
-                        newCount;
-
-
-                    $("totalRevenue")
-                        .textContent =
-                        formatPrice(
-                            revenue
-                        );
-
-
-                    $("orderCountText")
-                        .textContent =
-                        `${total} sipariş`;
-
-
-                    if (!total) {
-
-                        container.innerHTML = `
-                            <div class="empty-state">
-
-                                <div class="emoji">
-                                    📋
-                                </div>
-
-                                <h3>
-                                    Henüz sipariş yok
-                                </h3>
-
-                                <p>
-                                    Yeni siparişler burada
-                                    görünecek.
-                                </p>
-
-                            </div>
-                        `;
-                    }
-                },
-
-                error => {
-
-                    console.error(
-                        "❌ Siparişler yüklenemedi:",
-                        error
-                    );
-                }
-            );
-}
-
-
-// =====================================================
-// SİPARİŞ KARTI
-// =====================================================
-
-function createOrderCard(
-    order,
-    id
-) {
-
-    const card =
-        document.createElement("div");
-
-    card.className =
-        "order-card";
-
-
-    const items =
-        Array.isArray(order.items)
-            ? order.items
-            : [];
-
-
-    const itemsHTML =
-        items.map(item => {
-
-            return `
-                <div class="order-item">
-
-                    <span>
-                        ${escapeHtml(item.name)}
-                        × ${Number(item.quantity || 0)}
-                    </span>
-
-                    <strong>
-                        ${formatPrice(
-                            Number(item.price || 0) *
-                            Number(item.quantity || 0)
-                        )}
-                    </strong>
-
-                </div>
-            `;
-
-        }).join("");
-
-
-    const date =
-        order.createdAt?.toDate
-            ? order.createdAt
-                .toDate()
-                .toLocaleString(
-                    "tr-TR"
-                )
-            : order.createdAt
-                ? new Date(
-                    order.createdAt
-                ).toLocaleString(
-                    "tr-TR"
-                )
-                : "";
-
-
-    card.innerHTML = `
-
-        <div class="order-header">
-
-            <div>
-
-                <strong>
-                    👤 ${escapeHtml(
-                        order.customerName ||
-                        "Müşteri"
-                    )}
-                </strong>
-
-                <span>
-                    📱 ${escapeHtml(
-                        order.phone || ""
-                    )}
-                </span>
-
-            </div>
-
-            <span class="order-status">
-                ${
-                    order.status === "new"
-                        ? "🆕 Yeni"
-                        : escapeHtml(
-                            order.status || ""
-                        )
-                }
-            </span>
-
-        </div>
-
-
-        <div class="order-meta">
-
-            📦 ${escapeHtml(
-                order.orderType ||
-                "Sipariş"
-            )}
-
-            ${
-                order.tableNumber
-                    ? ` · 🪑 Masa ${escapeHtml(
-                        order.tableNumber
-                    )}`
-                    : ""
-            }
-
-        </div>
-
-
-        ${
-            order.address
-                ? `
-                    <div class="order-address">
-                        📍 ${escapeHtml(
-                            order.address
-                        )}
-                    </div>
-                `
-                : ""
-        }
-
-
-        <div class="order-items">
-
-            ${itemsHTML}
-
-        </div>
-
-
-        ${
-            order.note
-                ? `
-                    <div class="order-note">
-                        📝 ${escapeHtml(
-                            order.note
-                        )}
-                    </div>
-                `
-                : ""
-        }
-
-
-        <div class="order-footer">
-
-            <strong>
-                ${formatPrice(
-                    Number(order.total || 0)
-                )}
-            </strong>
-
-            <span>
-                ${escapeHtml(date)}
-            </span>
-
-        </div>
-    `;
-
-    return card;
-}
-
-
-// =====================================================
-// TABLAR
-// =====================================================
-
-function setupTabs() {
-
-    const buttons =
-        document.querySelectorAll(
-            ".tab-btn"
-        );
-
-    const contents =
-        document.querySelectorAll(
-            ".tab-content"
-        );
-
-
-    buttons.forEach(button => {
-
-        button.addEventListener(
-            "click",
-            () => {
-
-                const target =
-                    button.dataset.tab;
-
-                buttons.forEach(btn => {
-
-                    btn.classList.remove(
-                        "active"
-                    );
-                });
-
-
-                contents.forEach(content => {
-
-                    content.classList.remove(
-                        "active"
-                    );
-                });
-
-
-                button.classList.add(
-                    "active"
-                );
-
-
-                const targetElement =
-                    $(target);
-
-                if (targetElement) {
-
-                    targetElement.classList.add(
-                        "active"
-                    );
-                }
-            }
-        );
+    lines.push(``);
+    lines.push(`🛒 Sipariş Detayı:`);
+
+    orderData.items.forEach(item => {
+        lines.push(`• ${item.name} × ${item.quantity} — ${formatPrice(item.price * item.quantity)}`);
     });
+
+    lines.push(``);
+    lines.push(`💰 Toplam: ${formatPrice(orderData.total)}`);
+
+    if (orderData.note) {
+        lines.push(``);
+        lines.push(`📝 Not: ${orderData.note}`);
+    }
+
+    return lines.join("\n");
 }
 
 
-// =====================================================
-// YENİLE
-// =====================================================
+async function submitOrder(event) {
 
-function setupRefresh() {
+    event.preventDefault();
 
-    const button =
-        $("refreshBtn");
+    if (!getCartCount()) {
 
-    if (!button) return;
+        showToast("Sepetiniz boş.");
 
-    button.addEventListener(
-        "click",
-        () => {
+        return;
+    }
 
-            showToast(
-                "Panel yenileniyor..."
-            );
+    const customerName = $("customerName")?.value.trim() || "";
+    const phone = $("customerPhone")?.value.trim() || "";
+    const orderType = $("orderType")?.value || "Paket Sipariş";
+    const tableNumber = $("tableNumber")?.value.trim() || "";
+    const address = $("orderAddress")?.value.trim() || "";
+    const note = $("orderNote")?.value.trim() || "";
 
-            loadRestaurantStatus();
-            loadProducts();
-            loadOrders();
+    if (!customerName || !phone) {
+
+        showToast("Ad soyad ve telefon zorunlu.");
+
+        return;
+    }
+
+    const items = Object.values(cart).map(item => ({
+        id: item.id,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity
+    }));
+
+    const total = getCartTotal();
+
+    const orderData = {
+        customerName,
+        phone,
+        orderType,
+        tableNumber,
+        address,
+        note,
+        items,
+        total
+    };
+
+    const submitBtn = document.querySelector(".send-order-btn");
+
+    if (submitBtn) {
+
+        submitBtn.disabled = true;
+
+        submitBtn.textContent = "⏳ Gönderiliyor...";
+    }
+
+    try {
+
+        if (db) {
+
+            await db.collection("orders").add({
+                ...orderData,
+                status: "new",
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            });
         }
-    );
+
+        const message = buildWhatsAppMessage(orderData);
+
+        const whatsappUrl =
+            `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+
+        window.open(whatsappUrl, "_blank");
+
+        cart = {};
+
+        renderCart();
+
+        closeOrderModal();
+
+        $("orderForm")?.reset();
+
+        showToast("Siparişiniz alındı ✅");
+
+    } catch (error) {
+
+        console.error("❌ Sipariş gönderilemedi:", error);
+
+        showToast("Sipariş gönderilemedi, tekrar deneyin.");
+
+    } finally {
+
+        if (submitBtn) {
+
+            submitBtn.disabled = false;
+
+            submitBtn.textContent = "📲 WhatsApp'tan Sipariş Ver";
+        }
+    }
 }
 
 
-// =====================================================
-// ADMIN SİSTEMİNİ BAŞLAT
-// =====================================================
+function setupOrderForm() {
 
-function startAdminSystem() {
+    const form = $("orderForm");
 
-    loadRestaurantStatus();
+    if (!form) return;
 
-    loadProducts();
-
-    loadOrders();
-
-    updateRestaurantStatusUI();
-
-    console.log(
-        "===================================="
-    );
-
-    console.log(
-        "✅ ECE DÖNER ADMIN PANEL AKTİF"
-    );
-
-    console.log(
-        "🏪 settings/restaurant/isOpen aktif"
-    );
-
-    console.log(
-        "🍽️ Ürün sistemi aktif"
-    );
-
-    console.log(
-        "📦 Sipariş sistemi aktif"
-    );
-
-    console.log(
-        "===================================="
-    );
-}
-
-
-// =====================================================
-// INITIALIZE
-// =====================================================
-
-function initializeAdmin() {
-
-    console.log(
-        "🚀 Ece Döner Admin başlatılıyor..."
-    );
-
-    setupLogin();
-
-    setupAuth();
-
-    setupLogout();
-
-    setupRestaurantToggle();
-
-    setupProductEvents();
-
-    setupImagePicker();
-
-    setupTabs();
-
-    setupRefresh();
+    form.addEventListener("submit", submitOrder);
 }
 
 
@@ -1923,17 +883,35 @@ function initializeAdmin() {
 // BAŞLAT
 // =====================================================
 
-if (
-    document.readyState ===
-    "loading"
-) {
+function initializeCustomerApp() {
 
-    document.addEventListener(
-        "DOMContentLoaded",
-        initializeAdmin
-    );
+    console.log("🚀 Ece Döner müşteri sayfası başlatılıyor...");
+
+    listenRestaurantStatus();
+
+    listenProducts();
+
+    setupCategoryFilter();
+
+    setupSearch();
+
+    setupHomeButtons();
+
+    setupCartEvents();
+
+    setupOrderModalEvents();
+
+    setupOrderForm();
+
+    renderCart();
+}
+
+
+if (document.readyState === "loading") {
+
+    document.addEventListener("DOMContentLoaded", initializeCustomerApp);
 
 } else {
 
-    initializeAdmin();
+    initializeCustomerApp();
 }
