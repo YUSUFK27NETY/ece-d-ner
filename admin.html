@@ -397,6 +397,145 @@
 
 
         /* =========================
+           RESTORAN DURUMU
+        ========================== */
+
+        .restaurant-control {
+            background: #1c1c1c;
+
+            border: 1px solid #303030;
+
+            border-radius: 15px;
+
+            padding: 20px;
+
+            margin-bottom: 22px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 18px;
+
+            flex-wrap: wrap;
+        }
+
+        .restaurant-control-info {
+            display: flex;
+
+            align-items: center;
+
+            gap: 14px;
+        }
+
+        .restaurant-control-icon {
+            width: 52px;
+            height: 52px;
+
+            border-radius: 13px;
+
+            background: #272727;
+
+            display: flex;
+
+            align-items: center;
+            justify-content: center;
+
+            font-size: 25px;
+
+            flex-shrink: 0;
+        }
+
+        .restaurant-control-info h2 {
+            font-size: 18px;
+
+            margin-bottom: 5px;
+        }
+
+        .restaurant-control-info p {
+            color: #888;
+
+            font-size: 13px;
+
+            line-height: 1.4;
+        }
+
+        .restaurant-status-badge {
+            display: inline-flex;
+
+            align-items: center;
+
+            gap: 7px;
+
+            margin-top: 8px;
+
+            padding: 6px 10px;
+
+            border-radius: 7px;
+
+            font-size: 12px;
+
+            font-weight: 800;
+        }
+
+        .restaurant-status-badge.open {
+            background: rgba(76, 175, 80, .15);
+
+            color: #69e06f;
+
+            border: 1px solid rgba(76, 175, 80, .35);
+        }
+
+        .restaurant-status-badge.closed {
+            background: rgba(255, 82, 82, .15);
+
+            color: #ff7777;
+
+            border: 1px solid rgba(255, 82, 82, .35);
+        }
+
+        .restaurant-toggle-btn {
+            min-width: 220px;
+
+            border: none;
+
+            padding: 14px 18px;
+
+            border-radius: 10px;
+
+            font-size: 14px;
+
+            font-weight: 900;
+
+            transition:
+                .2s ease;
+
+        }
+
+        .restaurant-toggle-btn.open {
+            background: #b91c1c;
+
+            color: #fff;
+        }
+
+        .restaurant-toggle-btn.open:hover {
+            background: #dc2626;
+        }
+
+        .restaurant-toggle-btn.closed {
+            background: #16a34a;
+
+            color: #fff;
+        }
+
+        .restaurant-toggle-btn.closed:hover {
+            background: #22c55e;
+        }
+
+
+        /* =========================
            STATS
         ========================== */
 
@@ -1094,6 +1233,21 @@
                 align-items: stretch;
             }
 
+            .restaurant-control {
+                padding: 15px;
+
+                align-items: stretch;
+            }
+
+            .restaurant-control-info {
+                align-items: flex-start;
+            }
+
+            .restaurant-toggle-btn {
+                width: 100%;
+                min-width: 0;
+            }
+
             .stats-grid {
                 grid-template-columns:
                     1fr 1fr;
@@ -1317,6 +1471,55 @@
                 type="button"
             >
                 🔄 Yenile
+            </button>
+
+        </section>
+
+
+        <!-- =================================================
+             RESTORAN AÇIK / KAPALI KONTROLÜ
+        ================================================== -->
+
+        <section class="restaurant-control">
+
+            <div class="restaurant-control-info">
+
+                <div
+                    id="restaurantControlIcon"
+                    class="restaurant-control-icon"
+                >
+                    🟢
+                </div>
+
+                <div>
+
+                    <h2>
+                        Restoran Durumu
+                    </h2>
+
+                    <p>
+                        Sipariş kabulünü buradan manuel olarak
+                        açıp kapatabilirsiniz.
+                    </p>
+
+                    <span
+                        id="restaurantStatusText"
+                        class="restaurant-status-badge open"
+                    >
+                        🟢 Restoran Açık — Siparişler Aktif
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <button
+                id="restaurantStatusBtn"
+                class="restaurant-toggle-btn open"
+                type="button"
+            >
+                🔴 Restoranı Kapat
             </button>
 
         </section>
@@ -1814,6 +2017,15 @@
 
 <div id="toast"></div>
 
+
+<!-- =====================================================
+     MEVCUT JAVASCRIPT
+     
+     NOT:
+     Aşağıdaki mevcut script kısmını şimdilik değiştirmiyoruz.
+     Bir sonraki adımda restaurantStatusBtn için JS
+     kodunu ayrıca düzenleyeceğiz.
+===================================================== -->
 
 <script>
 
@@ -2451,12 +2663,6 @@ function compressImage(file) {
                                 );
 
 
-                            /*
-                               Firestore doküman sınırına
-                               yaklaşmamak için gerektiğinde
-                               kaliteyi düşürüyoruz.
-                            */
-
                             while (
                                 result.length >
                                 650000 &&
@@ -2593,11 +2799,6 @@ function loadProducts() {
                         error
                     );
 
-
-                    /*
-                       createdAt olmayan eski
-                       ürünler varsa fallback.
-                    */
 
                     loadProductsFallback();
 
@@ -3263,13 +3464,6 @@ productForm.addEventListener(
         };
 
 
-        /*
-           Fotoğraf seçilmişse yeni imageData.
-           
-           Fotoğraf seçilmemişse düzenleme sırasında
-           eski fotoğraf korunur.
-        */
-
         if (currentImageData) {
 
             data.imageData =
@@ -3614,11 +3808,6 @@ function loadOrders() {
                     );
 
 
-                    /*
-                       Index / createdAt problemi
-                       olursa fallback.
-                    */
-
                     loadOrdersFallback();
 
                 }
@@ -3835,11 +4024,6 @@ function renderOrdersFromDocs(
                 let itemsHTML =
                     "";
 
-
-                /*
-                   Eğer order.total yoksa
-                   ürünlerden hesapla.
-                */
 
                 if (
                     Array.isArray(
@@ -4463,3 +4647,4 @@ function escapeAttribute(value) {
 </body>
 
 </html>
+
