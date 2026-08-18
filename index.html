@@ -2,512 +2,534 @@
 <html lang="tr">
 
 <head>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-    <!-- =========================
-         FIREBASE
-    ========================== -->
+<meta charset="UTF-8">
 
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+<meta
+name="viewport"
+content="width=device-width, initial-scale=1.0"
+>
 
+<meta
+name="theme-color"
+content="#111111"
+>
 
-    <!-- =========================
-         META
-    ========================== -->
+<title>Ece Döner | QR Menü Pro</title>
 
-    <meta charset="UTF-8">
-
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-
-    <meta
-        name="theme-color"
-        content="#111111"
-    >
+<link
+<link rel="stylesheet" href="style.css">
 
 
-    <!-- =========================
-         BAŞLIK
-    ========================== -->
-
-    <title>Ece Döner | QR Menü Pro</title>
-
-
-    <!-- =========================
-         CSS
-    ========================== -->
-
-    <link
-        rel="stylesheet"
-        href="style.css"
-    >
-
-
-    <!-- =========================
-         FAVICON
-    ========================== -->
-
-    <link
-        rel="icon"
-        href="logo.png"
-        type="image/png"
-    >
-
+>
 </head>
-
+<link rel="icon" href="logo.png" type="image/png">
 
 <body>
 
-    <!-- =========================
-         ÜST MENÜ
-    ========================== -->
+<!-- =========================
+        ÜST MENÜ
+   ========================== -->
 
-    <header class="topbar">
+<header class="topbar">
 
-        <div class="brand">
+<div class="brand">
 
-            <img
-                src="logo.png"
-                alt="Ece Döner Logo"
-            >
+<img
+src="logo.png"
+alt="Ece Döner Logo"
+>
 
-            <h2>ECE DÖNER</h2>
+<h2>ECE DÖNER</h2>
 
-        </div>
+</div>
 
+<div class="cart">
 
-        <div
-            class="cart"
-            aria-label="Sepet"
-        >
+🛒
 
-            🛒
+<span id="cartCount">0</span>
 
-            <span id="cartCount">0</span>
+</div>
 
-        </div>
+</header>
 
-    </header>
 
+<!-- =========================
+        HERO
+   ========================== -->
 
-    <!-- =========================
-         HERO
-    ========================== -->
+<section class="hero">
 
-    <section class="hero">
+<div class="overlay"></div>
 
-        <div class="overlay"></div>
+<div class="hero-content">
 
-        <div class="hero-content">
+<img
+src="logo.png"
+alt="Ece Döner"
+class="logo"
+>
 
-            <img
-                src="logo.png"
-                alt="Ece Döner"
-                class="logo"
-            >
+<h1>ECE DÖNER</h1>
 
-            <h1>ECE DÖNER</h1>
+<p>Kalitenin Gerçek Lezzeti</p>
 
-            <p>Kalitenin Gerçek Lezzeti</p>
+<div class="status">
 
+<span class="open">
+🟢 Şu Anda Açık
+</span>
 
-            <div class="status">
+<span class="rating">
+⭐ 4.8
+</span>
 
-                <span class="open">
-                    🟢 Şu Anda Açık
-                </span>
+</div>
 
-                <span class="rating">
-                    ⭐ 4.8
-                </span>
+</div>
 
-            </div>
+</section>
 
-        </div>
 
-    </section>
+<!-- =========================
+        ANA BUTONLAR
+   ========================== -->
 
+<section class="home-buttons">
 
-    <!-- =========================
-         ANA BUTONLAR
-    ========================== -->
+<button
+id="restaurantBtn"
+type="button"
+>
+🍽️ Restoranda Sipariş
+</button>
 
-    <section class="home-buttons">
+<button
+id="packageBtn"
+type="button"
+>
+🛵 Paket Sipariş
+</button>
 
-        <button
-            id="restaurantBtn"
-            type="button"
-        >
-            🍽️ Restoranda Sipariş
-        </button>
+<button
+id="menuBtn"
+type="button"
+>
+📖 Menüyü İncele
+</button>
 
+</section>
 
-        <button
-            id="packageBtn"
-            type="button"
-        >
-            🛵 Paket Sipariş
-        </button>
 
+<!-- =========================
+        KATEGORİLER
+   ========================== -->
 
-        <button
-            id="menuBtn"
-            type="button"
-        >
-            📖 Menüyü İncele
-        </button>
+<section class="categories-section">
 
-    </section>
+<h2>Menü</h2>
 
+<div class="categories">
 
-    <!-- =========================
-         KATEGORİLER
-    ========================== -->
+<button
+class="active"
+data-category="all"
+type="button"
+>
+Tümü
+</button>
 
-    <section class="categories-section">
+<button
+data-category="doner"
+type="button"
+>
+Döner
+</button>
 
-        <h2>Menü</h2>
+<button
+data-category="menu"
+type="button"
+>
+Menüler
+</button>
 
+<button
+data-category="drink"
+type="button"
+>
+İçecekler
+</button>
 
-        <div class="categories">
+<button
+data-category="dessert"
+type="button"
+>
+Tatlılar
+</button>
 
-            <button
-                class="active"
-                data-category="all"
-                type="button"
-            >
-                Tümü
-            </button>
+</div>
 
+</section>
 
-            <button
-                data-category="doner"
-                type="button"
-            >
-                Döner
-            </button>
 
+<!-- =========================
+        ARAMA
+   ========================== -->
 
-            <button
-                data-category="menu"
-                type="button"
-            >
-                Menüler
-            </button>
+<section class="search-area">
 
+<input
+type="text"
+id="search"
+placeholder="🔍 Ürün Ara..."
+autocomplete="off"
+>
 
-            <button
-                data-category="drink"
-                type="button"
-            >
-                İçecekler
-            </button>
+</section>
 
 
-            <button
-                data-category="dessert"
-                type="button"
-            >
-                Tatlılar
-            </button>
+<!-- =========================
+        MENÜ
+   ========================== -->
 
-        </div>
+<section
+class="menu-section"
+id="menu"
+>
 
-    </section>
+<h2>🍽️ Popüler Lezzetler</h2>
 
+<div class="menu-grid">
 
-    <!-- =========================
-         ARAMA
-    ========================== -->
 
-    <section class="search-area">
+<!-- =====================
+                ÜRÜN 1
+           ====================== -->
 
-        <input
-            type="text"
-            id="search"
-            placeholder="🔍 Ürün Ara..."
-            autocomplete="off"
-            aria-label="Ürün ara"
-        >
+<div
+class="card"
+data-category="doner"
+>
 
-    </section>
+<span class="badge">
+%20 İNDİRİM
+</span>
 
+<button
+class="favorite"
+type="button"
+aria-label="Favorilere ekle"
+>
+🤍
+</button>
 
-    <!-- =========================
-         MENÜ
-         Ürünler Firebase'den
-         JavaScript tarafından
-         otomatik oluşturulur.
-    ========================== -->
+<img
+src="adana.jpg"
+alt="Adana Kebap"
+>
 
-    <section
-        class="menu-section"
-        id="menu"
-    >
+<div class="card-body">
 
-        <h2>🍽️ Popüler Lezzetler</h2>
+<h3>Adana Kebap</h3>
 
+<p>
+Bol porsiyon, közlenmiş biber
+ve lavaş ile servis edilir.
+</p>
 
-        <div
-            class="menu-grid"
-            id="menuGrid"
-        >
+<div class="card-footer">
 
-            <!-- Firebase ürünleri buraya gelecek -->
+<span class="price">
+390₺
+</span>
 
-        </div>
+<button
+class="addCart"
+type="button"
+data-name="Adana Kebap"
+data-price="390"
+>
+Sepete Ekle
+</button>
 
-    </section>
+</div>
 
+</div>
 
-    <!-- =========================
-         SEPET
-    ========================== -->
+</div>
 
-    <section class="cart-box">
 
-        <h2>🛒 Sepetim</h2>
+<!-- =====================
+                ÜRÜN 2
+           ====================== -->
 
+<div
+class="card"
+data-category="menu"
+>
 
-        <ul id="cartItems"></ul>
+<button
+class="favorite"
+type="button"
+aria-label="Favorilere ekle"
+>
+🤍
+</button>
 
+<img
+src="iskender.jpg"
+alt="İskender"
+>
 
-        <h3 id="totalPrice">
-            Toplam: 0₺
-        </h3>
+<div class="card-body">
 
+<h3>İskender</h3>
 
-        <button
-            id="finishOrder"
-            type="button"
-        >
-            Siparişi Tamamla
-        </button>
+<p>
+Tereyağlı sos ve yoğurt eşliğinde
+özel İskender.
+</p>
 
-    </section>
+<div class="card-footer">
 
+<span class="price">
+420₺
+</span>
 
-    <!-- =========================
-         TOAST
-    ========================== -->
+<button
+class="addCart"
+type="button"
+data-name="İskender"
+data-price="420"
+>
+Sepete Ekle
+</button>
 
-    <div
-        id="toast"
-        role="status"
-        aria-live="polite"
-    >
-        Ürün Sepete Eklendi ✅
-    </div>
+</div>
 
+</div>
 
-    <!-- =========================
-         SİPARİŞ MODALI
-    ========================== -->
+</div>
 
-    <div
-        id="orderModal"
-        class="order-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="orderModalTitle"
-    >
+</div>
 
-        <div class="order-modal-content">
+</section>
 
 
-            <!-- =====================
-                 KAPAT
-            ====================== -->
+<!-- =========================
+        SEPET
+   ========================== -->
 
-            <button
-                type="button"
-                id="closeOrderModal"
-                class="close-order-modal"
-                aria-label="Sipariş penceresini kapat"
-            >
-                ×
-            </button>
+<section class="cart-box">
 
+<h2>🛒 Sepetim</h2>
 
-            <!-- =====================
-                 BAŞLIK
-            ====================== -->
+<ul id="cartItems"></ul>
 
-            <h2 id="orderModalTitle">
-                🛒 Siparişini Tamamla
-            </h2>
+<h3 id="totalPrice">
+Toplam: 0₺
+</h3>
 
+<button
+id="finishOrder"
+type="button"
+>
+Siparişi Tamamla
+</button>
 
-            <p class="order-subtitle">
-                Bilgilerini gir, siparişini hemen gönder.
-            </p>
+</section>
 
 
-            <!-- =====================
-                 SİPARİŞ ÖZETİ
-            ====================== -->
+<!-- =========================
+        TOAST
+   ========================== -->
 
-            <div class="order-summary">
+<div
+id="toast"
+role="status"
+aria-live="polite"
+>
+Ürün Sepete Eklendi ✅
+</div>
 
-                <h3>
-                    📋 Sipariş Özeti
-                </h3>
 
+<!-- =========================
+        TEK SİPARİŞ MODALI
+   ========================== -->
 
-                <div id="orderSummaryItems"></div>
+<div
+id="orderModal"
+class="order-modal"
+>
 
+<div class="order-modal-content">
 
-                <div
-                    id="orderSummaryTotal"
-                    class="order-summary-total"
-                >
-                    Toplam: 0₺
-                </div>
 
-            </div>
+<!-- KAPAT -->
 
+<button
+type="button"
+id="closeOrderModal"
+class="close-order-modal"
+aria-label="Kapat"
+>
+×
+</button>
 
-            <!-- =====================
-                 SİPARİŞ FORMU
-            ====================== -->
 
-            <form id="orderForm">
+<!-- BAŞLIK -->
 
+<h2>
+🛒 Siparişini Tamamla
+</h2>
 
-                <!-- AD SOYAD -->
+<p class="order-subtitle">
+Bilgilerini gir, siparişini hemen gönder.
+</p>
 
-                <label for="customerName">
-                    👤 Ad Soyad
-                </label>
 
+<!-- =====================
+                SİPARİŞ ÖZETİ
+           ====================== -->
 
-                <input
-                    type="text"
-                    id="customerName"
-                    name="customerName"
-                    placeholder="Adınız ve soyadınız"
-                    autocomplete="name"
-                    minlength="2"
-                    required
-                >
+<div class="order-summary">
 
+<h3>
+📋 Sipariş Özeti
+</h3>
 
-                <!-- TELEFON -->
+<div id="orderSummaryItems"></div>
 
-                <label for="customerPhone">
-                    📱 Telefon
-                </label>
+<div
+id="orderSummaryTotal"
+class="order-summary-total"
+>
+Toplam: 0₺
+</div>
 
+</div>
 
-                <input
-                    type="tel"
-                    id="customerPhone"
-                    name="customerPhone"
-                    placeholder="05XX XXX XX XX"
-                    autocomplete="tel"
-                    inputmode="tel"
-                    required
-                >
 
+<!-- =====================
+                SİPARİŞ FORMU
+           ====================== -->
 
-                <!-- SİPARİŞ TÜRÜ -->
+<form id="orderForm">
 
-                <label for="orderType">
-                    📦 Sipariş Türü
-                </label>
 
+<!-- AD SOYAD -->
 
-                <select
-                    id="orderType"
-                    name="orderType"
-                >
+<label for="customerName">
+👤 Ad Soyad
+</label>
 
-                    <option value="Paket Sipariş">
-                        🛵 Paket Sipariş
-                    </option>
+<input
+type="text"
+id="customerName"
+placeholder="Adınız ve soyadınız"
+required
+>
 
 
-                    <option value="Restoranda Sipariş">
-                        🍽️ Restoranda Sipariş
-                    </option>
+<!-- TELEFON -->
 
-                </select>
+<label for="customerPhone">
+📱 Telefon
+</label>
 
+<input
+type="tel"
+id="customerPhone"
+placeholder="05XX XXX XX XX"
+required
+>
 
-                <!-- MASA NO -->
 
-                <label for="tableNumber">
-                    🪑 Masa No
-                </label>
+<!-- SİPARİŞ TÜRÜ -->
 
+<label for="orderType">
+📦 Sipariş Türü
+</label>
 
-                <input
-                    type="text"
-                    id="tableNumber"
-                    name="tableNumber"
-                    placeholder="Masa numarası"
-                    inputmode="numeric"
-                >
+<select id="orderType">
 
+<option value="Paket Sipariş">
+🛵 Paket Sipariş
+</option>
 
-                <!-- ADRES -->
+<option value="Restoranda Sipariş">
+🍽️ Restoranda Sipariş
+</option>
 
-                <label for="orderAddress">
-                    📍 Adres
-                </label>
+</select>
 
 
-                <textarea
-                    id="orderAddress"
-                    name="orderAddress"
-                    placeholder="Teslimat adresiniz"
-                    rows="3"
-                    autocomplete="street-address"
-                ></textarea>
+<!-- MASA NO -->
 
+<label for="tableNumber">
+🪑 Masa No
+</label>
 
-                <!-- SİPARİŞ NOTU -->
+<input
+type="text"
+id="tableNumber"
+placeholder="Masa numarası (varsa)"
+>
 
-                <label for="orderNote">
-                    📝 Sipariş Notu
-                </label>
 
+<!-- ADRES -->
 
-                <textarea
-                    id="orderNote"
-                    name="orderNote"
-                    placeholder="Örn: Soğansız olsun..."
-                    rows="3"
-                ></textarea>
+<label for="orderAddress">
+📍 Adres
+</label>
 
+<textarea
+id="orderAddress"
+placeholder="Teslimat adresiniz"
+rows="3"
+></textarea>
 
-                <!-- =====================
-                     GÖNDER
-                ====================== -->
 
-                <button
-                    type="submit"
-                    class="send-order-btn"
-                >
-                    📲 WhatsApp'tan Sipariş Ver
-                </button>
+<!-- SİPARİŞ NOTU -->
 
-            </form>
+<label for="orderNote">
+📝 Sipariş Notu
+</label>
 
-        </div>
+<textarea
+id="orderNote"
+placeholder="Örn: Soğansız olsun..."
+rows="3"
+></textarea>
 
-    </div>
 
+<!-- GÖNDER -->
 
-    <!-- =========================
-         JAVASCRIPT
-    ========================== -->
+<button
+type="submit"
+class="send-order-btn"
+>
+📲 WhatsApp'tan Sipariş Ver
+</button>
 
-    <script src="script.js"></script>
+</form>
+
+</div>
+
+</div>
+
+
+<!-- =========================
+        JAVASCRIPT
+   ========================== -->
+
+<script src="script.js"></script>
 
 </body>
+<link rel="icon" href="logo.png" type="image/png">
+
 
 </html>
-
