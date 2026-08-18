@@ -2,8 +2,19 @@
 <html lang="tr">
 
 <head>
+
+    <!-- =========================
+         FIREBASE
+    ========================== -->
+
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+
+    <!-- =========================
+         META
+    ========================== -->
 
 <meta charset="UTF-8">
 
@@ -17,15 +28,38 @@ name="theme-color"
 content="#111111"
 >
 
+
+    <!-- =========================
+         BAŞLIK
+    ========================== -->
+
 <title>Ece Döner | QR Menü Pro</title>
 
+
+    <!-- =========================
+         CSS
+    ========================== -->
+
 <link
-<link rel="stylesheet" href="style.css">
+        <link rel="stylesheet" href="style.css">
+        rel="stylesheet"
+        href="style.css"
+    >
 
 
+    <!-- =========================
+         FAVICON
+    ========================== -->
+
+    <link
+        rel="icon"
+        href="logo.png"
+        type="image/png"
 >
+
 </head>
 <link rel="icon" href="logo.png" type="image/png">
+
 
 <body>
 
@@ -46,7 +80,12 @@ alt="Ece Döner Logo"
 
 </div>
 
-<div class="cart">
+        <div class="cart">
+
+        <div
+            class="cart"
+            aria-label="Sepet"
+        >
 
 🛒
 
@@ -76,6 +115,7 @@ class="logo"
 <h1>ECE DÖNER</h1>
 
 <p>Kalitenin Gerçek Lezzeti</p>
+
 
 <div class="status">
 
@@ -107,12 +147,14 @@ type="button"
 🍽️ Restoranda Sipariş
 </button>
 
+
 <button
 id="packageBtn"
 type="button"
 >
 🛵 Paket Sipariş
 </button>
+
 
 <button
 id="menuBtn"
@@ -132,6 +174,7 @@ type="button"
 
 <h2>Menü</h2>
 
+
 <div class="categories">
 
 <button
@@ -142,12 +185,14 @@ type="button"
 Tümü
 </button>
 
+
 <button
 data-category="doner"
 type="button"
 >
 Döner
 </button>
+
 
 <button
 data-category="menu"
@@ -156,12 +201,14 @@ type="button"
 Menüler
 </button>
 
+
 <button
 data-category="drink"
 type="button"
 >
 İçecekler
 </button>
+
 
 <button
 data-category="dessert"
@@ -186,6 +233,7 @@ type="text"
 id="search"
 placeholder="🔍 Ürün Ara..."
 autocomplete="off"
+            aria-label="Ürün ara"
 >
 
 </section>
@@ -193,6 +241,9 @@ autocomplete="off"
 
 <!-- =========================
         MENÜ
+         Ürünler Firebase'den
+         JavaScript tarafından
+         otomatik oluşturulur.
    ========================== -->
 
 <section
@@ -202,117 +253,122 @@ id="menu"
 
 <h2>🍽️ Popüler Lezzetler</h2>
 
-<div class="menu-grid">
+        <div class="menu-grid">
 
 
-<!-- =====================
-                ÜRÜN 1
-           ====================== -->
+            <!-- =====================
+                 ÜRÜN 1
+            ====================== -->
 
-<div
-class="card"
-data-category="doner"
->
+            <div
+                class="card"
+                data-category="doner"
+            >
 
-<span class="badge">
-%20 İNDİRİM
-</span>
+                <span class="badge">
+                    %20 İNDİRİM
+                </span>
 
-<button
-class="favorite"
-type="button"
-aria-label="Favorilere ekle"
->
-🤍
-</button>
+                <button
+                    class="favorite"
+                    type="button"
+                    aria-label="Favorilere ekle"
+                >
+                    🤍
+                </button>
 
-<img
-src="adana.jpg"
-alt="Adana Kebap"
->
+                <img
+                    src="adana.jpg"
+                    alt="Adana Kebap"
+                >
 
-<div class="card-body">
+                <div class="card-body">
 
-<h3>Adana Kebap</h3>
+                    <h3>Adana Kebap</h3>
 
-<p>
-Bol porsiyon, közlenmiş biber
-ve lavaş ile servis edilir.
-</p>
+                    <p>
+                        Bol porsiyon, közlenmiş biber
+                        ve lavaş ile servis edilir.
+                    </p>
 
-<div class="card-footer">
+                    <div class="card-footer">
 
-<span class="price">
-390₺
-</span>
+                        <span class="price">
+                            390₺
+                        </span>
 
-<button
-class="addCart"
-type="button"
-data-name="Adana Kebap"
-data-price="390"
->
-Sepete Ekle
-</button>
+                        <button
+                            class="addCart"
+                            type="button"
+                            data-name="Adana Kebap"
+                            data-price="390"
+                        >
+                            Sepete Ekle
+                        </button>
 
-</div>
+                    </div>
 
-</div>
+                </div>
 
-</div>
+            </div>
 
 
-<!-- =====================
-                ÜRÜN 2
-           ====================== -->
+            <!-- =====================
+                 ÜRÜN 2
+            ====================== -->
 
-<div
-class="card"
-data-category="menu"
->
+            <div
+                class="card"
+                data-category="menu"
+            >
 
-<button
-class="favorite"
-type="button"
-aria-label="Favorilere ekle"
->
-🤍
-</button>
+                <button
+                    class="favorite"
+                    type="button"
+                    aria-label="Favorilere ekle"
+                >
+                    🤍
+                </button>
 
-<img
-src="iskender.jpg"
-alt="İskender"
->
+                <img
+                    src="iskender.jpg"
+                    alt="İskender"
+                >
 
-<div class="card-body">
+                <div class="card-body">
 
-<h3>İskender</h3>
+                    <h3>İskender</h3>
 
-<p>
-Tereyağlı sos ve yoğurt eşliğinde
-özel İskender.
-</p>
+                    <p>
+                        Tereyağlı sos ve yoğurt eşliğinde
+                        özel İskender.
+                    </p>
 
-<div class="card-footer">
+                    <div class="card-footer">
 
-<span class="price">
-420₺
-</span>
+                        <span class="price">
+                            420₺
+                        </span>
 
-<button
-class="addCart"
-type="button"
-data-name="İskender"
-data-price="420"
->
-Sepete Ekle
-</button>
+                        <button
+                            class="addCart"
+                            type="button"
+                            data-name="İskender"
+                            data-price="420"
+                        >
+                            Sepete Ekle
+                        </button>
 
-</div>
+                    </div>
+        <div
+            class="menu-grid"
+            id="menuGrid"
+        >
 
-</div>
+                </div>
 
-</div>
+            </div>
+            <!-- Firebase ürünleri buraya gelecek -->
 
 </div>
 
@@ -327,11 +383,14 @@ Sepete Ekle
 
 <h2>🛒 Sepetim</h2>
 
+
 <ul id="cartItems"></ul>
+
 
 <h3 id="totalPrice">
 Toplam: 0₺
 </h3>
+
 
 <button
 id="finishOrder"
@@ -357,34 +416,47 @@ aria-live="polite"
 
 
 <!-- =========================
-        TEK SİPARİŞ MODALI
+         TEK SİPARİŞ MODALI
+         SİPARİŞ MODALI
    ========================== -->
 
 <div
 id="orderModal"
 class="order-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="orderModalTitle"
 >
 
 <div class="order-modal-content">
 
 
-<!-- KAPAT -->
+            <!-- KAPAT -->
+            <!-- =====================
+                 KAPAT
+            ====================== -->
 
 <button
 type="button"
 id="closeOrderModal"
 class="close-order-modal"
-aria-label="Kapat"
+                aria-label="Kapat"
+                aria-label="Sipariş penceresini kapat"
 >
 ×
 </button>
 
 
-<!-- BAŞLIK -->
+            <!-- BAŞLIK -->
+            <!-- =====================
+                 BAŞLIK
+            ====================== -->
 
-<h2>
+            <h2>
+            <h2 id="orderModalTitle">
 🛒 Siparişini Tamamla
 </h2>
+
 
 <p class="order-subtitle">
 Bilgilerini gir, siparişini hemen gönder.
@@ -401,7 +473,9 @@ Bilgilerini gir, siparişini hemen gönder.
 📋 Sipariş Özeti
 </h3>
 
+
 <div id="orderSummaryItems"></div>
+
 
 <div
 id="orderSummaryTotal"
@@ -426,10 +500,14 @@ Toplam: 0₺
 👤 Ad Soyad
 </label>
 
+
 <input
 type="text"
 id="customerName"
+                    name="customerName"
 placeholder="Adınız ve soyadınız"
+                    autocomplete="name"
+                    minlength="2"
 required
 >
 
@@ -440,10 +518,14 @@ required
 📱 Telefon
 </label>
 
+
 <input
 type="tel"
 id="customerPhone"
+                    name="customerPhone"
 placeholder="05XX XXX XX XX"
+                    autocomplete="tel"
+                    inputmode="tel"
 required
 >
 
@@ -454,11 +536,17 @@ required
 📦 Sipariş Türü
 </label>
 
-<select id="orderType">
+                <select id="orderType">
+
+                <select
+                    id="orderType"
+                    name="orderType"
+                >
 
 <option value="Paket Sipariş">
 🛵 Paket Sipariş
 </option>
+
 
 <option value="Restoranda Sipariş">
 🍽️ Restoranda Sipariş
@@ -473,10 +561,14 @@ required
 🪑 Masa No
 </label>
 
+
 <input
 type="text"
 id="tableNumber"
-placeholder="Masa numarası (varsa)"
+                    placeholder="Masa numarası (varsa)"
+                    name="tableNumber"
+                    placeholder="Masa numarası"
+                    inputmode="numeric"
 >
 
 
@@ -486,10 +578,13 @@ placeholder="Masa numarası (varsa)"
 📍 Adres
 </label>
 
+
 <textarea
 id="orderAddress"
+                    name="orderAddress"
 placeholder="Teslimat adresiniz"
 rows="3"
+                    autocomplete="street-address"
 ></textarea>
 
 
@@ -499,14 +594,19 @@ rows="3"
 📝 Sipariş Notu
 </label>
 
+
 <textarea
 id="orderNote"
+                    name="orderNote"
 placeholder="Örn: Soğansız olsun..."
 rows="3"
 ></textarea>
 
 
-<!-- GÖNDER -->
+                <!-- GÖNDER -->
+                <!-- =====================
+                     GÖNDER
+                ====================== -->
 
 <button
 type="submit"
@@ -529,7 +629,6 @@ class="send-order-btn"
 <script src="script.js"></script>
 
 </body>
-<link rel="icon" href="logo.png" type="image/png">
 
 
 </html>
