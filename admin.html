@@ -1143,7 +1143,131 @@ min-width: 30%;
 }
 
 }
+/* =========================================
+   RESTORAN AÇ / KAPAT
+========================================= */
 
+.restaurant-control-box {
+    background: #1c1c1c;
+    border: 1px solid #303030;
+    border-radius: 15px;
+
+    padding: 20px;
+    margin-bottom: 22px;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 18px;
+    flex-wrap: wrap;
+}
+
+.restaurant-control-left {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.restaurant-control-icon {
+    width: 54px;
+    height: 54px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    border-radius: 13px;
+
+    background: #272727;
+
+    font-size: 26px;
+}
+
+.restaurant-control-left h2 {
+    margin-bottom: 5px;
+    font-size: 18px;
+}
+
+.restaurant-control-left p {
+    color: #888;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.restaurant-status-text {
+    display: inline-block;
+
+    margin-top: 9px;
+    padding: 6px 10px;
+
+    border-radius: 8px;
+
+    font-size: 12px;
+    font-weight: 800;
+
+    background: #292929;
+}
+
+.restaurant-status-text.open {
+    color: #69e06f;
+
+    background: rgba(76, 175, 80, 0.14);
+
+    border: 1px solid rgba(76, 175, 80, 0.35);
+}
+
+.restaurant-status-text.closed {
+    color: #ff7777;
+
+    background: rgba(255, 82, 82, 0.14);
+
+    border: 1px solid rgba(255, 82, 82, 0.35);
+}
+
+.restaurant-status-button {
+    min-width: 220px;
+
+    padding: 14px 18px;
+
+    border: none;
+    border-radius: 10px;
+
+    color: #fff;
+
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.restaurant-status-button.close-restaurant {
+    background: #b91c1c;
+}
+
+.restaurant-status-button.close-restaurant:hover {
+    background: #dc2626;
+}
+
+.restaurant-status-button.open-restaurant {
+    background: #168a4d;
+}
+
+.restaurant-status-button.open-restaurant:hover {
+    background: #22a95f;
+}
+
+@media (max-width: 650px) {
+
+    .restaurant-control-box {
+        align-items: stretch;
+    }
+
+    .restaurant-status-button {
+        width: 100%;
+        min-width: 0;
+    }
+}
 </style>
 
 </head>
@@ -4497,7 +4621,370 @@ return String(value)
 );
 
 }
+/* =====================================================
+   RESTORAN AÇ / KAPAT
+===================================================== */
 
+const RESTAURANT_API_BASE =
+"https://ece-d-ner-1.onrender.com";
+
+let adminRestaurantIsOpen =
+null;
+
+
+/* =====================================================
+   DURUMU EKRANA BAS
+===================================================== */
+
+function renderAdminRestaurantStatus() {
+
+const icon =
+document.getElementById(
+"restaurantControlIcon"
+);
+
+const text =
+document.getElementById(
+"restaurantStatusText"
+);
+
+const button =
+document.getElementById(
+"restaurantStatusBtn"
+);
+
+
+if (
+!icon ||
+!text ||
+!button
+) {
+
+return;
+
+}
+
+
+button.disabled =
+false;
+
+
+if (
+adminRestaurantIsOpen
+) {
+
+icon.textContent =
+"🟢";
+
+text.textContent =
+"🟢 Restoran Açık — Siparişler Aktif";
+
+text.classList.add(
+"open"
+);
+
+text.classList.remove(
+"closed"
+);
+
+
+button.textContent =
+"🔴 Restoranı Kapat";
+
+button.classList.add(
+"close-restaurant"
+);
+
+button.classList.remove(
+"open-restaurant"
+);
+
+}
+
+else {
+
+icon.textContent =
+"🔴";
+
+text.textContent =
+"🔴 Restoran Kapalı — Siparişler Pasif";
+
+text.classList.add(
+"closed"
+);
+
+text.classList.remove(
+"open"
+);
+
+
+button.textContent =
+"🟢 Restoranı Aç";
+
+button.classList.add(
+"open-restaurant"
+);
+
+button.classList.remove(
+"close-restaurant"
+);
+
+}
+
+}
+
+
+/* =====================================================
+   DURUMU BACKEND'DEN OKU
+===================================================== */
+
+async function loadAdminRestaurantStatus() {
+
+const button =
+document.getElementById(
+"restaurantStatusBtn"
+);
+
+
+try {
+
+const response =
+await fetch(
+
+RESTAURANT_API_BASE +
+"/api/restaurant/status"
+
+);
+
+
+const result =
+await response.json();
+
+
+if (
+!response.ok ||
+result?.success !== true
+) {
+
+throw new Error(
+result?.message ||
+"Restoran durumu alınamadı."
+);
+
+}
+
+
+adminRestaurantIsOpen =
+result.isOpen === true;
+
+
+renderAdminRestaurantStatus();
+
+}
+
+catch (error) {
+
+console.error(
+"Restoran durum hatası:",
+error
+);
+
+
+if (button) {
+
+button.disabled =
+true;
+
+button.textContent =
+"Durum Alınamadı";
+
+}
+
+
+showToast(
+"Restoran durumu alınamadı.",
+"error"
+);
+
+}
+
+}
+
+
+/* =====================================================
+   RESTORANI AÇ / KAPAT
+===================================================== */
+
+async function changeAdminRestaurantStatus() {
+
+const button =
+document.getElementById(
+"restaurantStatusBtn"
+);
+
+
+const user =
+auth.currentUser;
+
+
+if (!user) {
+
+showToast(
+"Önce yönetici olarak giriş yapmalısınız.",
+"error"
+);
+
+return;
+
+}
+
+
+try {
+
+button.disabled =
+true;
+
+button.textContent =
+"⏳ Güncelleniyor...";
+
+
+const token =
+await user.getIdToken(
+true
+);
+
+
+const nextStatus =
+!adminRestaurantIsOpen;
+
+
+const response =
+await fetch(
+
+RESTAURANT_API_BASE +
+"/api/admin/restaurant/status",
+
+{
+
+method:
+"PATCH",
+
+headers: {
+
+"Content-Type":
+"application/json",
+
+"Authorization":
+"Bearer " + token
+
+},
+
+body:
+JSON.stringify({
+
+isOpen:
+nextStatus
+
+})
+
+}
+
+);
+
+
+const result =
+await response.json();
+
+
+if (
+!response.ok ||
+result?.success !== true
+) {
+
+throw new Error(
+result?.message ||
+"Restoran durumu değiştirilemedi."
+);
+
+}
+
+
+adminRestaurantIsOpen =
+result.isOpen === true;
+
+
+renderAdminRestaurantStatus();
+
+
+showToast(
+
+adminRestaurantIsOpen
+
+? "Restoran açıldı. ✅"
+
+: "Restoran kapatıldı. 🔴"
+
+);
+
+}
+
+catch (error) {
+
+console.error(
+"Restoran durumu değiştirilemedi:",
+error
+);
+
+
+showToast(
+error.message ||
+"Restoran durumu değiştirilemedi.",
+"error"
+);
+
+
+renderAdminRestaurantStatus();
+
+}
+
+}
+
+
+/* =====================================================
+   BUTON BAĞLANTISI
+===================================================== */
+
+const restaurantStatusBtn =
+document.getElementById(
+"restaurantStatusBtn"
+);
+
+
+if (restaurantStatusBtn) {
+
+restaurantStatusBtn.addEventListener(
+"click",
+changeAdminRestaurantStatus
+);
+
+}
+
+
+/* =====================================================
+   ADMIN GİRİŞİNDE DURUMU YÜKLE
+===================================================== */
+
+auth.onAuthStateChanged(
+function (user) {
+
+if (user) {
+
+loadAdminRestaurantStatus();
+
+}
+
+}
+);
 </script>
 
 </body>
