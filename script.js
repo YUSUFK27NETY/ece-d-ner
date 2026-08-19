@@ -58,12 +58,23 @@ const WHATSAPP_NUMBER =
     "905315006996";
 const RESTAURANT_STATUS_URL =
     `${API_BASE_URL}/api/restaurant/status`;
+const RESTAURANT_STATUS_REFRESH_MS =
+    30000;
 
 let restaurantIsOpen =
-    true;
+    false;
 
 let restaurantStatusLoaded =
     false;
+
+let restaurantStatusError =
+    false;
+
+let restaurantStatusRequestInFlight =
+    false;
+
+let restaurantStatusPollTimer =
+    null;
 
 
 // ==========================================
@@ -203,6 +214,34 @@ function cacheDom() {
         "✅ DOM elemanları hazır."
     );
 }
+
+
+function canPlaceOrder() {
+
+    return (
+        restaurantStatusLoaded &&
+        !restaurantStatusError &&
+        restaurantIsOpen
+    );
+}
+
+
+function getRestaurantUnavailableMessage() {
+
+    if (!restaurantStatusLoaded) {
+
+        return "Restoran durumu kontrol ediliyor. Lütfen kısa süre sonra tekrar deneyin. 🟡";
+    }
+
+    if (restaurantStatusError) {
+
+        return "Restoran durumu doğrulanamadı. Lütfen kısa süre sonra tekrar deneyin. 🟠";
+    }
+
+    return "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴";
+}
+
+
 function updateRestaurantStatusUI() {
 
     const statusText =
@@ -229,7 +268,23 @@ function updateRestaurantStatusUI() {
 
     if (statusText) {
 
-        if (restaurantIsOpen) {
+        if (!restaurantStatusLoaded) {
+
+            statusText.textContent =
+                "🟡 Durum Kontrol Ediliyor";
+
+            statusText.style.color =
+                "#facc15";
+
+        } else if (restaurantStatusError) {
+
+            statusText.textContent =
+                "🟠 Durum Alınamadı";
+
+            statusText.style.color =
+                "#fb923c";
+
+        } else if (restaurantIsOpen) {
 
             statusText.textContent =
                 "🟢 Şu Anda Açık";
@@ -250,31 +305,40 @@ function updateRestaurantStatusUI() {
 
     if (restaurantBtn) {
         restaurantBtn.disabled =
-            !restaurantIsOpen;
+            !canPlaceOrder();
     }
 
 
     if (packageBtn) {
         packageBtn.disabled =
-            !restaurantIsOpen;
+            !canPlaceOrder();
     }
 
 
     if (finishOrderBtn) {
         finishOrderBtn.disabled =
-            !restaurantIsOpen ||
+            !canPlaceOrder() ||
             cart.length === 0;
     }
 
 
     if (submitBtn) {
         submitBtn.disabled =
-            !restaurantIsOpen;
+            !canPlaceOrder() ||
+            isSendingOrder;
     }
 }
 
 
 async function loadRestaurantStatus() {
+
+    if (restaurantStatusRequestInFlight) {
+
+        return;
+    }
+
+    restaurantStatusRequestInFlight =
+        true;
 
     try {
 
@@ -310,6 +374,9 @@ async function loadRestaurantStatus() {
         restaurantStatusLoaded =
             true;
 
+        restaurantStatusError =
+            false;
+
         updateRestaurantStatusUI();
 
 
@@ -327,8 +394,47 @@ async function loadRestaurantStatus() {
         restaurantStatusLoaded =
             true;
 
+        restaurantStatusError =
+            true;
+
         updateRestaurantStatusUI();
+
+    } finally {
+
+        restaurantStatusRequestInFlight =
+            false;
     }
+}
+
+
+function startRestaurantStatusPolling() {
+
+    if (restaurantStatusPollTimer) {
+
+        clearInterval(
+            restaurantStatusPollTimer
+        );
+    }
+
+    restaurantStatusPollTimer =
+        setInterval(
+            loadRestaurantStatus,
+            RESTAURANT_STATUS_REFRESH_MS
+        );
+
+    document.addEventListener(
+        "visibilitychange",
+        () => {
+
+            if (
+                document.visibilityState ===
+                "visible"
+            ) {
+
+                loadRestaurantStatus();
+            }
+        }
+    );
 }
 
 // ==========================================
@@ -1580,13 +1686,12 @@ function updateCart() {
     ) {
 
         finishOrderBtn.disabled =
-            cart.length ===
-            0;
+            !canPlaceOrder() ||
+            cart.length === 0;
 
 
         finishOrderBtn.style.opacity =
-            cart.length ===
-                0
+            finishOrderBtn.disabled
                 ? "0.55"
                 : "1";
     }
@@ -1941,17 +2046,14 @@ function setOrderType(
 function openOrderModal(
     orderType = null
 ) {
-if (
-    restaurantStatusLoaded &&
-    !restaurantIsOpen
-) {
+    if (!canPlaceOrder()) {
 
-    showToast(
-        "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴"
-    );
+        showToast(
+            getRestaurantUnavailableMessage()
+        );
 
-    return;
-}
+        return;
+    }
     if (
         !cart.length
     ) {
@@ -2593,17 +2695,15 @@ function setupOrderForm() {
         async event => {
 
             event.preventDefault();
-            if (
-    restaurantStatusLoaded &&
-    !restaurantIsOpen
-) {
 
-    showToast(
-        "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴"
-    );
+            if (!canPlaceOrder()) {
 
-    return;
-}
+                showToast(
+                    getRestaurantUnavailableMessage()
+                );
+
+                return;
+            }
 
             if (
                 isSendingOrder
@@ -2922,7 +3022,7 @@ function setupOrderForm() {
                 ) {
 
                     submitButton.disabled =
-                        false;
+                        !canPlaceOrder();
 
 
                     submitButton.textContent =
@@ -2930,7 +3030,9 @@ function setupOrderForm() {
 
 
                     submitButton.style.opacity =
-                        "1";
+                        submitButton.disabled
+                            ? "0.7"
+                            : "1";
                 }
             }
         }
@@ -2946,7 +3048,11 @@ function initializeApp() {
 
     cacheDom();
 
+    updateRestaurantStatusUI();
+
     loadRestaurantStatus();
+
+    startRestaurantStatusPolling();
 
     setupCartEvents();
 

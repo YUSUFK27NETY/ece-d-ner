@@ -318,10 +318,8 @@ function cleanPhone(value) {
 /*
    Firestore'dan restoran durumunu okur.
 
-   İlk kez çalışıyorsa:
-   restoran otomatik olarak AÇIK başlar.
-
-   Daha sonra sadece admin değiştirir.
+   Ayar belgesi yoksa güvenli biçimde KAPALI kabul edilir.
+   Durumu yalnızca admin endpoint'i değiştirir.
 */
 
 async function getRestaurantStatus() {
@@ -331,16 +329,11 @@ async function getRestaurantStatus() {
 
     if (!snapshot.exists) {
 
-        await restaurantSettingsRef.set({
+        console.warn(
+            "Restoran ayarı bulunamadı; güvenli varsayılan KAPALI."
+        );
 
-            isOpen: true,
-
-            updatedAt:
-                new Date().toISOString()
-
-        });
-
-        return true;
+        return false;
     }
 
     return (

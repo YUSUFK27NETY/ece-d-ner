@@ -935,6 +935,25 @@ background: #1ebe5d;
 transform: translateY(-2px);
 }
 
+.home-buttons button:disabled,
+#finishOrder:disabled,
+.send-order-btn:disabled {
+opacity: 0.55;
+cursor: not-allowed;
+transform: none;
+}
+
+.home-buttons button:disabled:hover,
+#finishOrder:disabled:hover {
+background: #ffd700;
+transform: none;
+}
+
+.send-order-btn:disabled:hover {
+background: #25d366;
+transform: none;
+}
+
 
 /* =========================================
   KART ANİMASYONU

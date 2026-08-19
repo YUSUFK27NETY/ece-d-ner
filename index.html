@@ -94,8 +94,12 @@
 
             <div class="status">
 
-                <span class="open">
-                    🟢 Şu Anda Açık
+                <span
+                    class="open"
+                    role="status"
+                    aria-live="polite"
+                >
+                    🟡 Durum Kontrol Ediliyor
                 </span>
 
                 <span class="rating">
@@ -118,6 +122,7 @@
         <button
             id="restaurantBtn"
             type="button"
+            disabled
         >
             🍽️ Restoranda Sipariş
         </button>
@@ -126,6 +131,7 @@
         <button
             id="packageBtn"
             type="button"
+            disabled
         >
             🛵 Paket Sipariş
         </button>
@@ -268,6 +274,7 @@
         <button
             id="finishOrder"
             type="button"
+            disabled
         >
             Siparişi Tamamla
         </button>
@@ -470,6 +477,7 @@
                 <button
                     type="submit"
                     class="send-order-btn"
+                    disabled
                 >
                     📲 WhatsApp'tan Sipariş Ver
                 </button>

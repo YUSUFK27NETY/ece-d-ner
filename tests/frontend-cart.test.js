@@ -100,3 +100,43 @@ test("sepet ürünleri ada göre değil ürün kimliğine göre ayırır", () =>
         ]
     );
 });
+
+test("restoran durumu doğrulanmadan sipariş düğmesini etkinleştirmez", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            finishOrderBtn = {
+                disabled: false,
+                style: {}
+            };
+            cart = [
+                {
+                    productId: "product-1",
+                    name: "Ayran",
+                    price: 30,
+                    quantity: 1
+                }
+            ];
+
+            restaurantIsOpen = true;
+            restaurantStatusLoaded = false;
+            restaurantStatusError = false;
+            updateCart();
+            globalThis.disabledWhileUnknown = finishOrderBtn.disabled;
+
+            restaurantStatusLoaded = true;
+            updateCart();
+            globalThis.disabledWhenOpen = finishOrderBtn.disabled;
+
+            restaurantStatusError = true;
+            updateCart();
+            globalThis.disabledOnStatusError = finishOrderBtn.disabled;
+        `,
+        context
+    );
+
+    assert.equal(context.disabledWhileUnknown, true);
+    assert.equal(context.disabledWhenOpen, false);
+    assert.equal(context.disabledOnStatusError, true);
+});
