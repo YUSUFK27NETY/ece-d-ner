@@ -1,14 +1,36 @@
 // ==========================================
-// QR MENÜ PRO - ECE DÖNER
-// FIREBASE ÜRÜN SİSTEMİ + RENDER SİPARİŞ SİSTEMİ
 // ECE DÖNER QR MENÜ PRO
-// MÜŞTERİ SAYFASI - TEMİZ SÜRÜM
+// MÜŞTERİ SAYFASI - TEMİZ KURTARMA SÜRÜMÜ
 // Firebase Ürünleri + Sepet + Sipariş
 // ==========================================
 
 "use strict";
-@@ -31,13 +32,10 @@ try {
-console.log("✅ Firebase bağlantısı hazır.");
+
+// ==========================================
+// FIREBASE
+// ==========================================
+
+const firebaseConfig = {
+    apiKey: "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+    authDomain: "ece-2e44c.firebaseapp.com",
+    projectId: "ece-2e44c",
+    storageBucket: "ece-2e44c.firebasestorage.app",
+    messagingSenderId: "937356035748",
+    appId: "1:937356035748:web:6c8f79c774f4c3c64b0831",
+    measurementId: "G-9VEVNMW5T0"
+};
+
+let db = null;
+
+try {
+
+    if (!firebase.apps.length) {
+        firebase.initializeApp(firebaseConfig);
+    }
+
+    db = firebase.firestore();
+
+    console.log("✅ Firebase bağlantısı hazır.");
 
 } catch (error) {
 
@@ -16,16 +38,24 @@ console.log("✅ Firebase bağlantısı hazır.");
         "❌ Firebase başlatılamadı:",
         error
     );
-    console.error("❌ Firebase başlatılamadı:", error);
 }
 
 
 // ==========================================
 // AYARLAR
 // ==========================================
-@@ -53,87 +51,99 @@ const ORDER_API_URL =
+
+const FAVORITES_KEY =
+    "eceDonerFavorites";
+
+const API_BASE_URL =
+    "https://ece-d-ner-1.onrender.com";
+
+const ORDER_API_URL =
+    `${API_BASE_URL}/api/orders`;
+
 const WHATSAPP_NUMBER =
-"905315006996";
+    "905315006996";
 
 
 // ==========================================
@@ -34,114 +64,136 @@ const WHATSAPP_NUMBER =
 
 let cart = [];
 
-let currentCategory = "all";
+let currentCategory =
+    "all";
 
-let isSendingOrder = false;
+let isSendingOrder =
+    false;
 
-let cartItems;
-let cartCount;
-let totalPrice;
-let finishOrderBtn;
+let productsUnsubscribe =
+    null;
 
-let orderModal;
-let closeOrderModal;
-let orderForm;
-let productsUnsubscribe = null;
 
-let orderSummaryItems;
-let orderSummaryTotal;
-let cartItems = null;
-let cartCount = null;
-let totalPrice = null;
-let finishOrderBtn = null;
+let cartItems =
+    null;
 
-let toast;
-let searchInput;
-let orderModal = null;
-let closeOrderModal = null;
-let orderForm = null;
+let cartCount =
+    null;
 
-let menuGrid;
-let orderSummaryItems = null;
-let orderSummaryTotal = null;
+let totalPrice =
+    null;
 
-// Firebase listener
-let productsUnsubscribe = null;
-let toast = null;
-let searchInput = null;
-let menuGrid = null;
+let finishOrderBtn =
+    null;
+
+
+let orderModal =
+    null;
+
+let closeOrderModal =
+    null;
+
+let orderForm =
+    null;
+
+let orderSummaryItems =
+    null;
+
+let orderSummaryTotal =
+    null;
+
+
+let toast =
+    null;
+
+let searchInput =
+    null;
+
+let menuGrid =
+    null;
 
 
 // ==========================================
-// DOM ELEMANLARI
 // DOM
 // ==========================================
 
 function cacheDom() {
 
-cartItems =
-        document.querySelector("#cartItems");
-        document.getElementById("cartItems");
-
-cartCount =
-        document.querySelector("#cartCount");
-        document.getElementById("cartCount");
-
-totalPrice =
-        document.querySelector("#totalPrice");
-        document.getElementById("totalPrice");
-
-finishOrderBtn =
-        document.querySelector("#finishOrder");
-        document.getElementById("finishOrder");
-
-orderModal =
-        document.querySelector("#orderModal");
-        document.getElementById("orderModal");
-
-closeOrderModal =
-        document.querySelector("#closeOrderModal");
-        document.getElementById("closeOrderModal");
-
-orderForm =
-        document.querySelector("#orderForm");
-        document.getElementById("orderForm");
-
-orderSummaryItems =
-        document.querySelector(
-            "#orderSummaryItems"
+    cartItems =
+        document.getElementById(
+            "cartItems"
         );
-        document.getElementById("orderSummaryItems");
 
-orderSummaryTotal =
-        document.querySelector(
-            "#orderSummaryTotal"
+    cartCount =
+        document.getElementById(
+            "cartCount"
         );
-        document.getElementById("orderSummaryTotal");
 
-toast =
-        document.querySelector("#toast");
-        document.getElementById("toast");
+    totalPrice =
+        document.getElementById(
+            "totalPrice"
+        );
 
-searchInput =
-        document.querySelector("#search");
-        document.getElementById("search");
+    finishOrderBtn =
+        document.getElementById(
+            "finishOrder"
+        );
 
-menuGrid =
-        document.querySelector("#menuGrid");
-        document.getElementById("menuGrid");
 
-    // Eğer ID eklenmediyse mevcut menu-grid'i bul
-if (!menuGrid) {
+    orderModal =
+        document.getElementById(
+            "orderModal"
+        );
 
-menuGrid =
+    closeOrderModal =
+        document.getElementById(
+            "closeOrderModal"
+        );
+
+    orderForm =
+        document.getElementById(
+            "orderForm"
+        );
+
+    orderSummaryItems =
+        document.getElementById(
+            "orderSummaryItems"
+        );
+
+    orderSummaryTotal =
+        document.getElementById(
+            "orderSummaryTotal"
+        );
+
+
+    toast =
+        document.getElementById(
+            "toast"
+        );
+
+    searchInput =
+        document.getElementById(
+            "search"
+        );
+
+    menuGrid =
+        document.getElementById(
+            "menuGrid"
+        );
+
+
+    if (!menuGrid) {
+
+        menuGrid =
             document.querySelector(
                 ".menu-grid"
             );
-            document.querySelector(".menu-grid");
-}
+    }
 
-    console.log("✅ DOM elemanları hazır.");
+
+    console.log(
+        "✅ DOM elemanları hazır."
+    );
 }
 
 
@@ -151,102 +203,30 @@ menuGrid =
 
 function escapeHtml(value) {
 
-    return String(value ?? "")
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
+    return String(
+        value ?? ""
+    )
 
-
-@@ -158,91 +168,21 @@ function showToast(
-
-if (!toast) return;
-
-    toast.textContent =
-        message;
-    toast.textContent = message;
-
-    toast.classList.add(
-        "show"
-    );
-    toast.classList.add("show");
-
-    clearTimeout(
-        window.toastTimer
-    );
-    clearTimeout(window.eceToastTimer);
-
-    window.toastTimer =
-    window.eceToastTimer =
-setTimeout(() => {
-
-            toast.classList.remove(
-                "show"
-            );
-            toast.classList.remove("show");
-
-}, 2200);
-}
-
-
-// ==========================================
-// SEPET HESAPLARI
-// ==========================================
-
-function getCartTotal() {
-
-    return cart.reduce(
-        (total, item) => {
-
-            return total +
-                Number(item.price) *
-                Number(item.quantity);
-
-        },
-        0
-    );
-}
-
-
-function getCartCount() {
-
-    return cart.reduce(
-        (count, item) => {
-
-            return count +
-                Number(item.quantity);
-
-        },
-        0
-    );
-}
-
-
-// ==========================================
-// XSS KORUMASI
-// ==========================================
-
-function escapeHtml(value) {
-
-    return String(value ?? "")
         .replace(
             /&/g,
             "&amp;"
         )
+
         .replace(
             /</g,
             "&lt;"
         )
+
         .replace(
             />/g,
             "&gt;"
         )
+
         .replace(
             /"/g,
             "&quot;"
         )
+
         .replace(
             /'/g,
             "&#039;"
@@ -255,291 +235,344 @@ function escapeHtml(value) {
 
 
 // ==========================================
+// FİYAT
+// ==========================================
+
+function formatPrice(price) {
+
+    return Number(
+        price || 0
+    )
+        .toLocaleString(
+            "tr-TR"
+        ) +
+        "₺";
+}
+
+
+// ==========================================
+// TOAST
+// ==========================================
+
+function showToast(
+    message = "İşlem başarılı ✅"
+) {
+
+    if (!toast)
+        return;
+
+
+    toast.textContent =
+        message;
+
+
+    toast.classList.add(
+        "show"
+    );
+
+
+    clearTimeout(
+        window.eceToastTimer
+    );
+
+
+    window.eceToastTimer =
+        setTimeout(
+            () => {
+
+                toast.classList.remove(
+                    "show"
+                );
+
+            },
+            2200
+        );
+}
+
+
+// ==========================================
 // FAVORİLER
 // ==========================================
-@@ -251,15 +191,17 @@ function getFavorites() {
 
-try {
+function getFavorites() {
 
-        const saved =
+    try {
+
         const data =
-localStorage.getItem(
-FAVORITES_KEY
-);
+            localStorage.getItem(
+                FAVORITES_KEY
+            );
 
-        if (!saved) return [];
+
         if (!data) {
+
             return [];
         }
 
-const parsed =
-            JSON.parse(saved);
-            JSON.parse(data);
 
-return Array.isArray(parsed)
-? parsed
-@@ -268,7 +210,7 @@ function getFavorites() {
-} catch (error) {
+        const parsed =
+            JSON.parse(
+                data
+            );
 
-console.error(
-            "Favoriler okunamadı:",
+
+        return Array.isArray(
+            parsed
+        )
+            ? parsed
+            : [];
+
+    } catch (error) {
+
+        console.error(
             "❌ Favoriler okunamadı:",
-error
-);
+            error
+        );
 
-@@ -277,23 +219,19 @@ function getFavorites() {
+
+        return [];
+    }
 }
 
 
 function saveFavorites(
     favorites
 ) {
-function saveFavorites(favorites) {
 
-try {
+    try {
 
-localStorage.setItem(
-FAVORITES_KEY,
+        localStorage.setItem(
+            FAVORITES_KEY,
             JSON.stringify(
                 favorites
             )
-            JSON.stringify(favorites)
-);
+        );
 
-} catch (error) {
+    } catch (error) {
 
-console.error(
-            "Favoriler kaydedilemedi:",
+        console.error(
             "❌ Favoriler kaydedilemedi:",
-error
-);
+            error
+        );
+    }
 }
-@@ -302,144 +240,134 @@ function saveFavorites(
+
 
 function setupFavorites() {
 
-    const favorites =
-        getFavorites();
     const buttons =
         document.querySelectorAll(
             ".menu-grid .favorite"
         );
 
-    document
-        .querySelectorAll(
-            ".favorite"
-        )
-        .forEach(button => {
+
+    buttons.forEach(
+        button => {
+
+            if (
+                button.dataset.favoriteReady ===
+                "true"
+            ) {
+
+                return;
+            }
+
+
+            button.dataset.favoriteReady =
+                "true";
+
 
             const card =
                 button.closest(
                     ".card"
                 );
-    buttons.forEach(button => {
 
-            const productName =
+
+            if (!card)
+                return;
+
+
+            const name =
                 card
-                    ?.querySelector("h3")
+                    .querySelector("h3")
                     ?.textContent
                     .trim();
-        if (button.dataset.favoriteReady === "true") {
-            return;
-        }
 
-            if (!productName) return;
-        button.dataset.favoriteReady = "true";
 
-            const setState =
-                active => {
-        const card =
-            button.closest(".card");
+            if (!name)
+                return;
 
-                    button.classList.toggle(
-                        "active",
-                        active
-                    );
-        if (!card) return;
 
-                    button.textContent =
-                        active
-                            ? "❤️"
-                            : "🤍";
-                };
-        const name =
-            card.querySelector("h3")
-                ?.textContent
-                .trim();
-
-            setState(
-                favorites.includes(
-                    productName
-                )
-        if (!name) return;
-
-        function updateFavoriteUI(active) {
-
-            button.classList.toggle(
-                "active",
+            function updateFavoriteUI(
                 active
-);
+            ) {
+
+                button.classList.toggle(
+                    "active",
+                    active
+                );
+
+
+                button.textContent =
+                    active
+                        ? "❤️"
+                        : "🤍";
+            }
+
+
+            let favorites =
+                getFavorites();
+
+
+            updateFavoriteUI(
+                favorites.includes(
+                    name
+                )
+            );
+
 
             button.addEventListener(
                 "click",
                 () => {
-            button.textContent =
-                active ? "❤️" : "🤍";
-        }
 
-                    let current =
+                    favorites =
                         getFavorites();
-        let favorites =
-            getFavorites();
 
-                    const active =
-                        current.includes(
-                            productName
+
+                    const exists =
+                        favorites.includes(
+                            name
                         );
-        updateFavoriteUI(
-            favorites.includes(name)
-        );
 
-                    if (active) {
-        button.addEventListener(
-            "click",
-            () => {
 
-                        current =
-                            current.filter(
-                                name =>
-                                    name !==
-                                    productName
+                    if (exists) {
+
+                        favorites =
+                            favorites.filter(
+                                item =>
+                                    item !==
+                                    name
                             );
-                favorites =
-                    getFavorites();
 
-                const exists =
-                    favorites.includes(name);
 
-                        setState(false);
-                if (exists) {
+                        updateFavoriteUI(
+                            false
+                        );
+
 
                         showToast(
                             "Favorilerden çıkarıldı"
-                    favorites =
-                        favorites.filter(
-                            item =>
-                                item !== name
-);
+                        );
 
                     } else {
-                    updateFavoriteUI(false);
 
-                        current.push(
-                            productName
+                        favorites.push(
+                            name
                         );
-                    showToast(
-                        "Favorilerden çıkarıldı"
-                    );
 
-                        setState(true);
-                } else {
+
+                        updateFavoriteUI(
+                            true
+                        );
+
 
                         showToast(
                             "Favorilere eklendi ❤️"
                         );
                     }
-                    favorites.push(name);
 
-                    updateFavoriteUI(true);
 
                     saveFavorites(
-                        current
-                    showToast(
-                        "Favorilere eklendi ❤️"
-);
-}
+                        favorites
+                    );
+                }
             );
-        });
-
-                saveFavorites(favorites);
-            }
-        );
-    });
+        }
+    );
 }
 
 
 // ==========================================
-// FIREBASE ÜRÜN VERİLERİNİ NORMALLEŞTİR
 // KATEGORİ
 // ==========================================
 
 function normalizeCategory(
     category
 ) {
-function normalizeCategory(category) {
 
-const value =
+    const value =
         String(
-            category || "all"
+            category || ""
         )
-        .trim()
-        .toLocaleLowerCase(
-            "tr-TR"
-        );
-        String(category || "")
             .trim()
-            .toLocaleLowerCase("tr-TR");
+            .toLocaleLowerCase(
+                "tr-TR"
+            );
 
-if (
+
+    if (
+        value === "doner" ||
         value === "döner" ||
-value === "doner" ||
-        value === "döner" ||
-value === "dönerler"
-) {
-return "doner";
-}
+        value === "dönerler"
+    ) {
 
-if (
-        value === "menü" ||
-value === "menu" ||
-        value === "menü" ||
-value === "menüler" ||
-value === "menuler"
-) {
-return "menu";
-}
+        return "doner";
+    }
 
-if (
+
+    if (
+        value === "menu" ||
+        value === "menü" ||
+        value === "menüler" ||
+        value === "menuler"
+    ) {
+
+        return "menu";
+    }
+
+
+    if (
         value === "drink" ||
-value === "içecek" ||
+        value === "içecek" ||
+        value === "içecekler" ||
         value === "icecek" ||
-value === "içecekler" ||
-        value === "icecek" ||
-value === "icecekler"
-) {
-return "drink";
+        value === "icecekler"
+    ) {
+
+        return "drink";
+    }
+
+
+    if (
+        value === "dessert" ||
+        value === "tatlı" ||
+        value === "tatlılar" ||
+        value === "tatli" ||
+        value === "tatlilar"
+    ) {
+
+        return "dessert";
+    }
+
+
+    return (
+        value ||
+        "all"
+    );
 }
 
-if (
-        value === "dessert" ||
-value === "tatlı" ||
-        value === "tatli" ||
-value === "tatlılar" ||
-        value === "tatli" ||
-value === "tatlilar"
+
+// ==========================================
+// FOTOĞRAF BUL
+// ==========================================
+
+function getProductImage(
+    product
 ) {
-return "dessert";
-@@ -450,7 +378,79 @@ function normalizeCategory(
-
-
-// ==========================================
-// FIREBASE ÜRÜN KARTI
-// FOTOĞRAF URL'Sİ BUL
-// ==========================================
-
-function getProductImage(product) {
 
     const possibleImages = [
+
+        product.imageData,
 
         product.image,
 
@@ -557,16 +590,23 @@ function getProductImage(product) {
 
     ];
 
-    for (const value of possibleImages) {
+
+    for (
+        const value
+        of possibleImages
+    ) {
 
         if (
-            typeof value === "string" &&
-            value.trim() !== ""
+            typeof value ===
+                "string" &&
+            value.trim() !==
+                ""
         ) {
 
             return value.trim();
         }
     }
+
 
     return "";
 }
@@ -576,32 +616,49 @@ function getProductImage(product) {
 // FOTOĞRAF HATA YÖNETİMİ
 // ==========================================
 
-function handleImageError(img) {
+function handleImageError(
+    img
+) {
 
-    if (!img) return;
+    if (!img)
+        return;
+
 
     console.error(
         "❌ Ürün fotoğrafı yüklenemedi:",
         img.src
     );
 
-    img.onerror = null;
+
+    img.onerror =
+        null;
+
 
     const wrapper =
-        img.closest(".product-image-wrapper");
+        img.closest(
+            ".product-image-wrapper"
+        );
+
 
     if (wrapper) {
 
         wrapper.innerHTML = `
-            <div class="product-image-fallback">
+
+            <div
+                class="product-image-fallback"
+            >
                 🍽️
             </div>
+
         `;
+
 
         return;
     }
 
-    img.style.display = "none";
+
+    img.style.display =
+        "none";
 }
 
 
@@ -610,376 +667,430 @@ function handleImageError(img) {
 // ==========================================
 
 function createProductCard(
-@@ -478,18 +478,13 @@ function createProductCard(
+    product,
+    documentId
+) {
 
-const category =
-normalizeCategory(
-            product.category ||
-            product.kategori ||
+    const name =
+        product.name ||
+        product.productName ||
+        product.title ||
+        "İsimsiz Ürün";
+
+
+    const description =
+        product.description ||
+        product.desc ||
+        "Lezzetli Ece Döner ürünü.";
+
+
+    const price =
+        Number(
+            product.price ??
+            product.fiyat ??
+            0
+        );
+
+
+    const category =
+        normalizeCategory(
+
             product.category ??
+
             product.kategori ??
-"all"
-);
 
-const image =
-        product.image ||
-        product.imageUrl ||
-        product.imageURL ||
-        product.photo ||
-        product.photoURL ||
-        "";
-        getProductImage(product);
+            "all"
+        );
 
-const discount =
-Number(
-@@ -499,19 +494,20 @@ function createProductCard(
-);
 
-const card =
+    const image =
+        getProductImage(
+            product
+        );
+
+
+    const discount =
+        Number(
+
+            product.discount ??
+
+            product.indirim ??
+
+            0
+        );
+
+
+    const card =
         document.createElement(
             "div"
         );
-        document.createElement("div");
+
 
     card.className =
         "card";
-    card.className = "card";
 
-card.dataset.category =
-category;
 
-card.dataset.productId =
-documentId;
+    card.dataset.category =
+        category;
+
+
+    card.dataset.productId =
+        documentId;
+
 
     // --------------------------------------
     // İNDİRİM
     // --------------------------------------
 
-let badgeHTML = "";
+    let badgeHTML =
+        "";
 
-if (
-@@ -526,36 +522,57 @@ function createProductCard(
-       `;
-}
+
+    if (
+        Number.isFinite(
+            discount
+        ) &&
+        discount >
+            0
+    ) {
+
+        badgeHTML = `
+
+            <span
+                class="badge"
+            >
+                %${discount} İNDİRİM
+            </span>
+
+        `;
+    }
+
 
     // --------------------------------------
     // FOTOĞRAF
     // --------------------------------------
 
-let imageHTML = "";
+    let imageHTML =
+        "";
 
-if (image) {
 
-imageHTML = `
-            <img
-                src="${escapeHtml(image)}"
-                alt="${escapeHtml(name)}"
-                loading="lazy"
-                onerror="this.style.display='none';"
+    if (image) {
+
+        imageHTML = `
+
+            <div
+                class="product-image-wrapper"
             >
-            <div class="product-image-wrapper">
 
                 <img
-                    src="${escapeHtml(image)}"
-                    alt="${escapeHtml(name)}"
+                    src="${escapeHtml(
+                        image
+                    )}"
+                    alt="${escapeHtml(
+                        name
+                    )}"
                     class="product-image"
                     loading="lazy"
                     onerror="handleImageError(this)"
                 >
 
             </div>
-       `;
 
-        console.log(
-            "🖼️ Fotoğraf bulundu:",
-            name,
-            image
-        );
+        `;
 
-} else {
+    } else {
 
-        console.warn(
-            "⚠️ Bu üründe fotoğraf URL'si yok:",
-            name,
-            product
-        );
+        imageHTML = `
 
-imageHTML = `
-            <div style="
-                width:100%;
-                height:180px;
-                display:flex;
-                align-items:center;
-                justify-content:center;
-                background:#222;
-                font-size:55px;
-            ">
-                🍽️
-            <div class="product-image-wrapper">
+            <div
+                class="product-image-wrapper"
+            >
 
-                <div class="product-image-fallback">
+                <div
+                    class="product-image-fallback"
+                >
                     🍽️
                 </div>
 
-           </div>
-       `;
-}
+            </div>
+
+        `;
+    }
+
 
     // --------------------------------------
     // KART
     // --------------------------------------
 
-card.innerHTML = `
+    card.innerHTML = `
 
-       ${badgeHTML}
-@@ -605,15 +622,19 @@ function createProductCard(
+        ${badgeHTML}
+
+
+        <button
+            class="favorite"
+            type="button"
+            aria-label="Favorilere ekle"
+        >
+            🤍
+        </button>
+
+
+        ${imageHTML}
+
+
+        <div
+            class="card-body"
+        >
+
+            <h3>
+                ${escapeHtml(
+                    name
+                )}
+            </h3>
+
+
+            <p>
+                ${escapeHtml(
+                    description
+                )}
+            </p>
+
+
+            <div
+                class="card-footer"
+            >
+
+                <span
+                    class="price"
+                >
+                    ${formatPrice(
+                        price
+                    )}
+                </span>
+
+
+                <button
+                    class="addCart"
+                    type="button"
+                    data-name="${escapeHtml(
+                        name
+                    )}"
+                    data-price="${price}"
+                >
+                    Sepete Ekle
+                </button>
+
+            </div>
+
+        </div>
+
+    `;
+
+
+    return card;
+}
 
 
 // ==========================================
-// FIREBASE'DEN ÜRÜNLERİ OKU
 // FIREBASE ÜRÜNLERİ
 // ==========================================
 
 function loadProductsFromFirebase() {
 
-if (!db) {
+    if (!db) {
 
-console.error(
-            "❌ Firebase bağlantısı yok."
+        console.error(
             "❌ Firestore bağlantısı yok."
         );
 
+
         showFirebaseError(
             "Firebase bağlantısı kurulamadı."
-);
+        );
 
-return;
-@@ -622,7 +643,7 @@ function loadProductsFromFirebase() {
-if (!menuGrid) {
 
-console.error(
-            "❌ menuGrid bulunamadı."
-            "❌ Menü alanı bulunamadı."
-);
-
-return;
-@@ -632,148 +653,212 @@ function loadProductsFromFirebase() {
-"🔥 Firebase ürünleri dinleniyor..."
-);
-
-    try {
-    if (productsUnsubscribe) {
-
-        productsUnsubscribe =
-            db
-                .collection("products")
-                .onSnapshot(
-                    snapshot => {
-        productsUnsubscribe();
-
-                        console.log(
-                            `🔥 ${snapshot.size} ürün Firebase'den geldi.`
-                        );
-        productsUnsubscribe = null;
+        return;
     }
 
-                        menuGrid.innerHTML =
-                            "";
+
+    if (!menuGrid) {
+
+        console.error(
+            "❌ Menü alanı bulunamadı."
+        );
+
+
+        return;
+    }
+
+
+    console.log(
+        "🔥 Firebase ürünleri dinleniyor..."
+    );
+
+
+    if (
+        productsUnsubscribe
+    ) {
+
+        productsUnsubscribe();
+
+
+        productsUnsubscribe =
+            null;
+    }
+
+
     productsUnsubscribe =
-        db.collection("products")
+
+        db
+            .collection(
+                "products"
+            )
             .onSnapshot(
 
-                        if (
-                            snapshot.empty
-                        ) {
                 snapshot => {
 
                     console.log(
                         `🔥 Firebase'den ${snapshot.size} ürün geldi.`
                     );
 
-                    menuGrid.innerHTML = "";
 
-                    if (snapshot.empty) {
+                    menuGrid.innerHTML =
+                        "";
+
+
+                    if (
+                        snapshot.empty
+                    ) {
 
                         menuGrid.innerHTML = `
 
-                            <div style="
-                                grid-column:1/-1;
-                                text-align:center;
-                                padding:50px 20px;
-                            ">
-
-                            menuGrid.innerHTML = `
-                               <div style="
+                            <div
+                                style="
                                     grid-column:1/-1;
                                     text-align:center;
-                                    padding:40px 20px;
-                                    color:#888;
-                                    font-size:55px;
-                                    margin-bottom:15px;
-                               ">
-                                    <div style="
-                                        font-size:45px;
-                                        margin-bottom:10px;
-                                    ">
-                                        🍽️
-                                    </div>
+                                    padding:50px 20px;
+                                "
+                            >
 
-                                    <h3 style="
-                                        color:#bbb;
-                                        margin-bottom:8px;
-                                    ">
-                                        Henüz ürün bulunmuyor
-                                    </h3>
-
-                                    <p>
-                                        Admin panelinden ürün ekleyebilirsiniz.
-                                    </p>
+                                <div
+                                    style="
+                                        font-size:55px;
+                                        margin-bottom:15px;
+                                    "
+                                >
                                     🍽️
-                               </div>
-                            `;
+                                </div>
 
-                            return;
-                        }
+
                                 <h3>
                                     Henüz ürün bulunmuyor
                                 </h3>
 
-                        snapshot.forEach(
-                            doc => {
 
-                                const product =
-                                    doc.data();
-
-                                // Aktiflik kontrolü
-                                // active false ise gösterme
-                                if (
-                                    product.active === false ||
-                                    product.aktif === false
-                                ) {
-                                    return;
-                                }
-
-                                const card =
-                                    createProductCard(
-                                        product,
-                                        doc.id
-                                    );
-
-                                menuGrid.appendChild(
-                                    card
-                                );
-                            }
-                        );
                                 <p>
                                     Admin panelinden ürün ekleyebilirsiniz.
                                 </p>
 
-                        // Dinamik ürünler oluşturulduktan
-                        // sonra eventleri tekrar kur
-                        setupFavorites();
                             </div>
 
-                        filterProducts();
                         `;
 
-                        console.log(
-                            "✅ Firebase ürünleri menüye aktarıldı."
-                        );
-                    },
+
                         return;
                     }
 
-                    error => {
-                    let visibleCount = 0;
 
-                        console.error(
-                            "❌ Firebase ürünleri okunamadı:",
-                            error
-                        );
-                    snapshot.forEach(doc => {
+                    let visibleCount =
+                        0;
 
-                        const product =
-                            doc.data();
 
-                        // ----------------------------------
-                        // AKTİF ÜRÜN KONTROLÜ
-                        // ----------------------------------
+                    snapshot.forEach(
+                        doc => {
 
-                        if (
-                            product.active === false ||
-                            product.aktif === false ||
-                            product.available === false
-                        ) {
+                            const product =
+                                doc.data();
 
-                            return;
-                        }
 
-                        const card =
-                            createProductCard(
-                                product,
-                                doc.id
+                            if (
+                                product.active ===
+                                    false ||
+
+                                product.aktif ===
+                                    false ||
+
+                                product.available ===
+                                    false
+                            ) {
+
+                                return;
+                            }
+
+
+                            const card =
+                                createProductCard(
+                                    product,
+                                    doc.id
+                                );
+
+
+                            menuGrid.appendChild(
+                                card
                             );
 
-                        menuGrid.appendChild(card);
 
-                        visibleCount++;
-                    });
+                            visibleCount++;
+                        }
+                    );
 
-                    if (visibleCount === 0) {
 
-menuGrid.innerHTML = `
+                    if (
+                        visibleCount ===
+                        0
+                    ) {
 
-                           <div style="
-                               grid-column:1/-1;
-                               text-align:center;
-                                padding:40px 20px;
-                                color:#ff6b6b;
-                                padding:50px 20px;
-                           ">
+                        menuGrid.innerHTML = `
 
-                               <div style="
-                                    font-size:45px;
-                                    margin-bottom:10px;
-                                    font-size:50px;
-                               ">
-                                    ⚠️
+                            <div
+                                style="
+                                    grid-column:1/-1;
+                                    text-align:center;
+                                    padding:50px 20px;
+                                "
+                            >
+
+                                <div
+                                    style="
+                                        font-size:50px;
+                                    "
+                                >
                                     😕
-                               </div>
+                                </div>
 
-                               <h3>
-                                    Ürünler yüklenemedi
+
+                                <h3>
                                     Şu anda gösterilecek ürün yok.
-                               </h3>
+                                </h3>
 
-                                <p style="
-                                    margin-top:8px;
-                                    color:#aaa;
-                                ">
-                                    Firebase bağlantısını veya
-                                    Firestore kurallarını kontrol edin.
-                                </p>
-                           </div>
+                            </div>
 
-                       `;
-}
-                );
+                        `;
+                    }
 
-    } catch (error) {
+
                     setupFavorites();
 
-        console.error(
-            "❌ Firebase ürün sistemi hatası:",
-            error
-        );
-    }
+
                     filterProducts();
+
 
                     console.log(
                         "✅ Ürünler müşteri sayfasına aktarıldı."
                     );
                 },
+
 
                 error => {
 
@@ -988,8 +1099,11 @@ menuGrid.innerHTML = `
                         error
                     );
 
+
                     showFirebaseError(
+
                         "Ürünler yüklenemedi. Firebase bağlantısını kontrol edin."
+
                     );
                 }
             );
@@ -1000,34 +1114,48 @@ menuGrid.innerHTML = `
 // FIREBASE HATA MESAJI
 // ==========================================
 
-function showFirebaseError(message) {
+function showFirebaseError(
+    message
+) {
 
-    if (!menuGrid) return;
+    if (!menuGrid)
+        return;
+
 
     menuGrid.innerHTML = `
 
-        <div style="
-            grid-column:1/-1;
-            text-align:center;
-            padding:50px 20px;
-            color:#ff6b6b;
-        ">
+        <div
+            style="
+                grid-column:1/-1;
+                text-align:center;
+                padding:50px 20px;
+                color:#ff6b6b;
+            "
+        >
 
-            <div style="
-                font-size:50px;
-                margin-bottom:15px;
-            ">
+            <div
+                style="
+                    font-size:50px;
+                    margin-bottom:15px;
+                "
+            >
                 ⚠️
             </div>
 
+
             <h3>
-                ${escapeHtml(message)}
+                ${escapeHtml(
+                    message
+                )}
             </h3>
 
-            <p style="
-                margin-top:10px;
-                color:#999;
-            ">
+
+            <p
+                style="
+                    margin-top:10px;
+                    color:#999;
+                "
+            >
                 Sayfayı yenileyip tekrar deneyin.
             </p>
 
@@ -1041,20 +1169,31 @@ function showFirebaseError(message) {
 // SEPET
 // ==========================================
 
-function addToCart(
-    name,
-    price
-) {
 function getCartTotal() {
 
     return cart.reduce(
-        (total, item) => {
 
-            return total +
-                Number(item.price) *
-                Number(item.quantity);
+        (
+            total,
+            item
+        ) => {
+
+            return (
+
+                total +
+
+                Number(
+                    item.price
+                ) *
+
+                Number(
+                    item.quantity
+                )
+
+            );
 
         },
+
         0
     );
 }
@@ -1063,47 +1202,74 @@ function getCartTotal() {
 function getCartCount() {
 
     return cart.reduce(
-        (total, item) => {
 
-            return total +
-                Number(item.quantity);
+        (
+            total,
+            item
+        ) => {
+
+            return (
+
+                total +
+
+                Number(
+                    item.quantity
+                )
+
+            );
 
         },
+
         0
     );
 }
 
 
-function addToCart(name, price) {
+function addToCart(
+    name,
+    price
+) {
 
-const existing =
-cart.find(
-@@ -783,14 +868,20 @@ function addToCart(
+    const existing =
+        cart.find(
 
-if (existing) {
+            item =>
+                item.name ===
+                name
+        );
 
-        existing.quantity += 1;
+
+    if (existing) {
+
         existing.quantity++;
 
-} else {
+    } else {
 
-cart.push({
-            name,
-            price: Number(price),
-            quantity: 1
+        cart.push({
 
             name:
-                String(name),
+                String(
+                    name
+                ),
 
             price:
-                Number(price),
+                Number(
+                    price
+                ),
 
             quantity:
                 1
-});
-}
 
-@@ -802,10 +893,7 @@ function addToCart(
+        });
+    }
+
+
+    updateCart();
+
+
+    showToast(
+        `${name} sepete eklendi 🛒`
+    );
 }
 
 
@@ -1111,60 +1277,71 @@ function changeQty(
     index,
     delta
 ) {
-function changeQty(index, delta) {
 
-if (
-index < 0 ||
-@@ -814,26 +902,20 @@ function changeQty(
-return;
-}
+    if (
+        index <
+            0 ||
+
+        index >=
+            cart.length
+    ) {
+
+        return;
+    }
+
 
     cart[index].quantity +=
         delta;
-    cart[index].quantity += delta;
 
-if (
-cart[index].quantity <= 0
-) {
+
+    if (
+        cart[index].quantity <=
+        0
+    ) {
 
         cart.splice(
             index,
             1
         );
-        cart.splice(index, 1);
-}
+    }
 
-updateCart();
+
+    updateCart();
 }
 
 
 function removeFromCart(
     index
 ) {
-function removeFromCart(index) {
 
-if (
-index < 0 ||
-@@ -842,79 +924,73 @@ function removeFromCart(
-return;
-}
+    if (
+        index <
+            0 ||
 
-    const removed =
+        index >=
+            cart.length
+    ) {
+
+        return;
+    }
+
+
     const name =
-cart[index].name;
+        cart[index].name;
+
 
     cart.splice(
         index,
         1
     );
-    cart.splice(index, 1);
 
-updateCart();
 
-showToast(
-        `${removed} sepetten çıkarıldı`
+    updateCart();
+
+
+    showToast(
         `${name} sepetten çıkarıldı`
-);
+    );
 }
 
 
@@ -1174,39 +1351,27 @@ showToast(
 
 function updateCart() {
 
-if (cartItems) {
+    if (cartItems) {
 
         cartItems.innerHTML =
             "";
-        cartItems.innerHTML = "";
 
-if (!cart.length) {
 
-            const li =
-                document.createElement(
-                    "li"
-                );
+        if (
+            !cart.length
+        ) {
+
             cartItems.innerHTML = `
 
-            li.innerHTML = `
-                <div style="
-                    text-align:center;
-                    padding:20px 10px;
-                    color:#888;
-                ">
-                    🛒 Sepetiniz şu anda boş.
-                </div>
-            `;
                 <li>
 
-            cartItems.appendChild(
-                li
-            );
-                    <div style="
-                        text-align:center;
-                        padding:20px;
-                        color:#888;
-                    ">
+                    <div
+                        style="
+                            text-align:center;
+                            padding:20px;
+                            color:#888;
+                        "
+                    >
                         🛒 Sepetiniz şu anda boş.
                     </div>
 
@@ -1214,282 +1379,417 @@ if (!cart.length) {
 
             `;
 
-} else {
+        } else {
 
-cart.forEach(
-(item, index) => {
+            cart.forEach(
 
-const li =
+                (
+                    item,
+                    index
+                ) => {
+
+                    const li =
                         document.createElement(
                             "li"
                         );
-                        document.createElement("li");
 
-li.innerHTML = `
 
-                       <div class="cart-item">
+                    li.innerHTML = `
 
-                           <div>
+                        <div
+                            class="cart-item"
+                        >
 
-                               <strong>
+                            <div>
+
+                                <strong>
                                     ${escapeHtml(
                                         item.name
                                     )}
-                                    ${escapeHtml(item.name)}
-                               </strong>
+                                </strong>
 
-                               <br>
+                                <br>
 
-                               <span>
+                                <span>
                                     ${formatPrice(
                                         item.price
                                     )}
-                                    ${formatPrice(item.price)}
-                                   ×
-                                   ${item.quantity}
-                               </span>
 
-                           </div>
+                                    ×
 
-                           <div class="cart-controls">
-@@ -954,9 +1030,7 @@ function updateCart() {
-                       </div>
-                   `;
+                                    ${item.quantity}
+                                </span>
+
+                            </div>
+
+
+                            <div
+                                class="cart-controls"
+                            >
+
+                                <button
+                                    type="button"
+                                    class="qty-btn"
+                                    data-index="${index}"
+                                    data-delta="-1"
+                                >
+                                    −
+                                </button>
+
+
+                                <span>
+                                    ${item.quantity}
+                                </span>
+
+
+                                <button
+                                    type="button"
+                                    class="qty-btn"
+                                    data-index="${index}"
+                                    data-delta="1"
+                                >
+                                    +
+                                </button>
+
+
+                                <button
+                                    type="button"
+                                    class="delete-btn"
+                                    data-delete="${index}"
+                                >
+                                    🗑️
+                                </button>
+
+                            </div>
+
+                        </div>
+
+                    `;
+
 
                     cartItems.appendChild(
                         li
                     );
-                    cartItems.appendChild(li);
-}
-);
-}
-@@ -971,9 +1045,7 @@ function updateCart() {
-if (totalPrice) {
+                }
+            );
+        }
+    }
 
-totalPrice.textContent =
+
+    if (cartCount) {
+
+        cartCount.textContent =
+            getCartCount();
+    }
+
+
+    if (totalPrice) {
+
+        totalPrice.textContent =
             `Toplam: ${formatPrice(
                 getCartTotal()
             )}`;
-            `Toplam: ${formatPrice(getCartTotal())}`;
+    }
+
+
+    if (
+        finishOrderBtn
+    ) {
+
+        finishOrderBtn.disabled =
+            cart.length ===
+            0;
+
+
+        finishOrderBtn.style.opacity =
+            cart.length ===
+                0
+                ? "0.55"
+                : "1";
+    }
+
+
+    updateOrderSummary();
 }
-
-if (finishOrderBtn) {
-@@ -1004,35 +1076,25 @@ function setupCartEvents() {
-event => {
-
-const qty =
-                event.target.closest(
-                    ".qty-btn"
-                );
-                event.target.closest(".qty-btn");
-
-if (qty) {
-
-changeQty(
-                    Number(
-                        qty.dataset.index
-                    ),
-                    Number(
-                        qty.dataset.delta
-                    )
-                    Number(qty.dataset.index),
-                    Number(qty.dataset.delta)
-);
-
-return;
-}
-
-const del =
-                event.target.closest(
-                    ".delete-btn"
-                );
-                event.target.closest(".delete-btn");
-
-if (del) {
-
-removeFromCart(
-                    Number(
-                        del.dataset.delete
-                    )
-                    Number(del.dataset.delete)
-);
-}
-}
-@@ -1041,35 +1103,27 @@ function setupCartEvents() {
 
 
 // ==========================================
-// DİNAMİK SEPETE EKLE
+// SEPET EVENTLERİ
+// ==========================================
+
+function setupCartEvents() {
+
+    if (!cartItems)
+        return;
+
+
+    cartItems.addEventListener(
+
+        "click",
+
+        event => {
+
+            const qty =
+                event.target.closest(
+                    ".qty-btn"
+                );
+
+
+            if (qty) {
+
+                changeQty(
+
+                    Number(
+                        qty.dataset.index
+                    ),
+
+                    Number(
+                        qty.dataset.delta
+                    )
+                );
+
+
+                return;
+            }
+
+
+            const del =
+                event.target.closest(
+                    ".delete-btn"
+                );
+
+
+            if (del) {
+
+                removeFromCart(
+
+                    Number(
+                        del.dataset.delete
+                    )
+                );
+            }
+        }
+    );
+}
+
+
+// ==========================================
 // SEPETE EKLE
 // ==========================================
 
 function setupAddCartButtons() {
 
-if (!menuGrid) return;
+    if (!menuGrid)
+        return;
 
-    // Event delegation
-    // Firebase'den sonradan gelen ürünler
-    // de otomatik çalışır.
 
-menuGrid.addEventListener(
-"click",
-event => {
+    menuGrid.addEventListener(
 
-const button =
+        "click",
+
+        event => {
+
+            const button =
                 event.target.closest(
                     ".addCart"
                 );
-                event.target.closest(".addCart");
 
-if (!button) return;
 
-const name =
-button.dataset.name;
+            if (!button)
+                return;
 
-const price =
+
+            const name =
+                button.dataset.name;
+
+
+            const price =
                 Number(
                     button.dataset.price
                 );
-                Number(button.dataset.price);
 
-if (
-!name ||
-@@ -1093,7 +1147,7 @@ function setupAddCartButtons() {
+
+            if (
+                !name ||
+
+                !Number.isFinite(
+                    price
+                )
+            ) {
+
+                showToast(
+                    "Ürün bilgisi hatalı ❌"
+                );
+
+
+                return;
+            }
+
+
+            addToCart(
+                name,
+                price
+            );
+        }
+    );
+}
 
 
 // ==========================================
-// KATEGORİ + ARAMA
 // FİLTRE
 // ==========================================
 
 function filterProducts() {
-@@ -1102,56 +1156,41 @@ function filterProducts() {
-searchInput
-? searchInput.value
-.trim()
+
+    const searchTerm =
+
+        searchInput
+
+            ? searchInput
+                .value
+                .trim()
                 .toLocaleLowerCase(
                     "tr-TR"
                 )
-                .toLocaleLowerCase("tr-TR")
-: "";
 
-document
+            : "";
+
+
+    document
         .querySelectorAll(
             ".menu-grid .card"
         )
-        .querySelectorAll(".menu-grid .card")
-.forEach(card => {
 
-const category =
-                card.dataset.category ||
-                "";
-                card.dataset.category || "";
+        .forEach(
+            card => {
 
-const name =
-                card
-                    .querySelector("h3")
-                card.querySelector("h3")
-?.textContent
-.trim()
-                    .toLocaleLowerCase(
-                        "tr-TR"
-                    ) || "";
-                    .toLocaleLowerCase("tr-TR")
-                    || "";
+                const category =
+                    card.dataset.category ||
+                    "";
 
-const description =
-                card
-                    .querySelector("p")
-                card.querySelector("p")
-?.textContent
-.trim()
-                    .toLocaleLowerCase(
-                        "tr-TR"
-                    ) || "";
-                    .toLocaleLowerCase("tr-TR")
-                    || "";
 
-const categoryMatch =
-currentCategory === "all" ||
-                category ===
-                    currentCategory;
-                category === currentCategory;
+                const name =
 
-const searchMatch =
-!searchTerm ||
-                name.includes(
-                    searchTerm
-                ) ||
-                description.includes(
-                    searchTerm
-                );
-                name.includes(searchTerm) ||
-                description.includes(searchTerm);
+                    card
+                        .querySelector(
+                            "h3"
+                        )
+                        ?.textContent
+                        .trim()
+                        .toLocaleLowerCase(
+                            "tr-TR"
+                        )
 
-card.style.display =
-                categoryMatch &&
-                searchMatch
-                categoryMatch && searchMatch
-? ""
-: "none";
-});
-@@ -1165,45 +1204,42 @@ function setupCategories() {
-".categories [data-category]"
-);
+                    ||
+                    "";
+
+
+                const description =
+
+                    card
+                        .querySelector(
+                            "p"
+                        )
+                        ?.textContent
+                        .trim()
+                        .toLocaleLowerCase(
+                            "tr-TR"
+                        )
+
+                    ||
+                    "";
+
+
+                const categoryMatch =
+
+                    currentCategory ===
+                        "all"
+
+                    ||
+
+                    category ===
+                        currentCategory;
+
+
+                const searchMatch =
+
+                    !searchTerm
+
+                    ||
+
+                    name.includes(
+                        searchTerm
+                    )
+
+                    ||
+
+                    description.includes(
+                        searchTerm
+                    );
+
+
+                card.style.display =
+
+                    categoryMatch &&
+                    searchMatch
+
+                        ? ""
+
+                        : "none";
+            }
+        );
+}
+
+
+function setupCategories() {
+
+    const buttons =
+        document.querySelectorAll(
+            ".categories [data-category]"
+        );
+
 
     buttons.forEach(
         button => {
-    buttons.forEach(button => {
 
             button.addEventListener(
+
                 "click",
+
                 () => {
-        button.addEventListener(
-            "click",
-            () => {
 
                     const category =
                         button.dataset.category;
-                const category =
-                    button.dataset.category;
+
 
                     if (!category)
                         return;
-                if (!category) return;
+
 
                     currentCategory =
                         category;
-                currentCategory =
-                    category;
+
 
                     buttons.forEach(
-                        btn =>
+                        btn => {
+
                             btn.classList.remove(
                                 "active"
-                            )
+                            );
+                        }
                     );
-                buttons.forEach(btn => {
+
 
                     button.classList.add(
-                    btn.classList.remove(
-"active"
-);
+                        "active"
+                    );
+
 
                     filterProducts();
                 }
             );
         }
     );
-                });
-
-                button.classList.add(
-                    "active"
-                );
-
-                filterProducts();
-            }
-        );
-    });
 }
 
 
@@ -1497,108 +1797,112 @@ function setupSearch() {
 
     if (!searchInput)
         return;
-    if (!searchInput) return;
 
-searchInput.addEventListener(
-"input",
-@@ -1213,45 +1249,31 @@ function setupSearch() {
+
+    searchInput.addEventListener(
+
+        "input",
+
+        filterProducts
+    );
+}
 
 
 // ==========================================
-// SİPARİŞ TÜRÜ
 // MODAL
 // ==========================================
 
 function setOrderType(
     type
 ) {
-function setOrderType(type) {
 
-const select =
-        document.querySelector(
-            "#orderType"
+    const select =
+        document.getElementById(
+            "orderType"
         );
-        document.getElementById("orderType");
+
 
     if (!select)
         return;
-    if (!select) return;
 
-const exists =
+
+    const exists =
+
         Array.from(
             select.options
-        ).some(
-            option =>
-                option.value ===
-                type
-        );
-        Array.from(select.options)
+        )
+
             .some(
+
                 option =>
-                    option.value === type
+                    option.value ===
+                    type
             );
 
-if (exists) {
+
+    if (exists) {
 
         select.value =
             type;
-        select.value = type;
-}
+    }
 }
 
-
-// ==========================================
-// SİPARİŞ MODALI
-// ==========================================
 
 function openOrderModal(
     orderType = null
 ) {
-function openOrderModal(orderType = null) {
 
-if (!cart.length) {
+    if (
+        !cart.length
+    ) {
 
-@@ -1262,21 +1284,16 @@ function openOrderModal(
-return;
-}
+        showToast(
+            "Önce sepete ürün ekleyin 🛒"
+        );
+
+
+        return;
+    }
+
 
     if (!orderModal)
         return;
-    if (!orderModal) return;
 
-if (orderType) {
+
+    if (orderType) {
 
         setOrderType(
             orderType
         );
-        setOrderType(orderType);
-}
+    }
 
-updateOrderSummary();
+
+    updateOrderSummary();
+
 
     orderModal.classList.add(
         "show"
     );
-    orderModal.classList.add("show");
 
-document.body.style.overflow =
-"hidden";
-@@ -1285,83 +1302,73 @@ function openOrderModal(
+
+    document.body.style.overflow =
+        "hidden";
+}
+
 
 function closeModal() {
 
     if (!orderModal)
         return;
-    if (!orderModal) return;
+
 
     orderModal.classList.remove(
         "show"
     );
-    orderModal.classList.remove("show");
+
 
     document.body.style.overflow =
         "";
-    document.body.style.overflow = "";
 }
 
 
@@ -1610,222 +1914,273 @@ function updateOrderSummary() {
 
     if (!orderSummaryItems)
         return;
-    if (!orderSummaryItems) return;
+
 
     orderSummaryItems.innerHTML =
         "";
-    orderSummaryItems.innerHTML = "";
 
-if (!cart.length) {
 
-orderSummaryItems.innerHTML = `
+    if (
+        !cart.length
+    ) {
 
-           <div style="
-                color:#888;
-               text-align:center;
-                color:#888;
-               padding:10px;
-           ">
-               Sepet boş
-           </div>
+        orderSummaryItems.innerHTML = `
 
-       `;
+            <div
+                style="
+                    text-align:center;
+                    color:#888;
+                    padding:10px;
+                "
+            >
+                Sepet boş
+            </div>
 
-} else {
+        `;
+
+    } else {
 
         cart.forEach(
             item => {
-        cart.forEach(item => {
 
                 const row =
                     document.createElement(
                         "div"
                     );
-            const row =
-                document.createElement("div");
+
 
                 row.className =
                     "summary-item";
 
+
                 const itemTotal =
-                    Number(item.price) *
-                    Number(item.quantity);
+
+                    Number(
+                        item.price
+                    )
+
+                    *
+
+                    Number(
+                        item.quantity
+                    );
+
 
                 row.innerHTML = `
+
                     <span>
                         ${escapeHtml(
                             item.name
                         )}
-                        × ${item.quantity}
+
+                        ×
+
+                        ${item.quantity}
                     </span>
+
 
                     <strong>
                         ${formatPrice(
                             itemTotal
                         )}
                     </strong>
+
                 `;
+
 
                 orderSummaryItems.appendChild(
                     row
                 );
             }
         );
-            row.className =
-                "summary-item";
+    }
 
-            const itemTotal =
-                Number(item.price) *
-                Number(item.quantity);
 
-            row.innerHTML = `
+    if (
+        orderSummaryTotal
+    ) {
 
-                <span>
-                    ${escapeHtml(item.name)}
-                    × ${item.quantity}
-                </span>
-
-                <strong>
-                    ${formatPrice(itemTotal)}
-                </strong>
-
-            `;
-
-            orderSummaryItems.appendChild(row);
-        });
-}
-
-if (orderSummaryTotal) {
-
-orderSummaryTotal.textContent =
+        orderSummaryTotal.textContent =
             `Toplam: ${formatPrice(
                 getCartTotal()
             )}`;
-            `Toplam: ${formatPrice(getCartTotal())}`;
-}
+    }
 }
 
-@@ -1373,9 +1380,7 @@ function updateOrderSummary() {
+
+// ==========================================
+// MODAL EVENTLERİ
+// ==========================================
+
 function setupModal() {
 
-const menuBtn =
-        document.querySelector(
-            "#menuBtn"
+    const menuBtn =
+        document.getElementById(
+            "menuBtn"
         );
-        document.getElementById("menuBtn");
 
-if (menuBtn) {
 
-@@ -1384,28 +1389,22 @@ function setupModal() {
-() => {
+    if (menuBtn) {
 
-const menu =
-                    document.querySelector(
-                        "#menu"
+        menuBtn.addEventListener(
+
+            "click",
+
+            () => {
+
+                const menu =
+                    document.getElementById(
+                        "menu"
                     );
-                    document.getElementById("menu");
 
-if (menu) {
 
-menu.scrollIntoView({
+                if (menu) {
+
+                    menu.scrollIntoView({
+
                         behavior:
                             "smooth",
 
                         block:
                             "start"
-                        behavior: "smooth",
-                        block: "start"
-});
-}
-}
-);
-}
 
-
-const packageBtn =
-        document.querySelector(
-            "#packageBtn"
+                    });
+                }
+            }
         );
-        document.getElementById("packageBtn");
-
-if (packageBtn) {
-
-@@ -1418,10 +1417,9 @@ function setupModal() {
-);
-}
+    }
 
 
-const restaurantBtn =
-        document.querySelector(
-            "#restaurantBtn"
+    const packageBtn =
+        document.getElementById(
+            "packageBtn"
         );
-        document.getElementById("restaurantBtn");
-
-if (restaurantBtn) {
-
-@@ -1434,6 +1432,7 @@ function setupModal() {
-);
-}
 
 
-if (finishOrderBtn) {
+    if (packageBtn) {
 
-finishOrderBtn.addEventListener(
-@@ -1443,6 +1442,7 @@ function setupModal() {
-);
-}
+        packageBtn.addEventListener(
+
+            "click",
+
+            () => {
+
+                openOrderModal(
+                    "Paket Sipariş"
+                );
+            }
+        );
+    }
 
 
-if (closeOrderModal) {
-
-closeOrderModal.addEventListener(
-@@ -1451,15 +1451,15 @@ function setupModal() {
-);
-}
+    const restaurantBtn =
+        document.getElementById(
+            "restaurantBtn"
+        );
 
 
-if (orderModal) {
+    if (restaurantBtn) {
 
-orderModal.addEventListener(
-"click",
-event => {
+        restaurantBtn.addEventListener(
 
-if (
+            "click",
+
+            () => {
+
+                openOrderModal(
+                    "Restoranda Sipariş"
+                );
+            }
+        );
+    }
+
+
+    if (
+        finishOrderBtn
+    ) {
+
+        finishOrderBtn.addEventListener(
+
+            "click",
+
+            () => {
+
+                openOrderModal();
+            }
+        );
+    }
+
+
+    if (
+        closeOrderModal
+    ) {
+
+        closeOrderModal.addEventListener(
+
+            "click",
+
+            closeModal
+        );
+    }
+
+
+    if (
+        orderModal
+    ) {
+
+        orderModal.addEventListener(
+
+            "click",
+
+            event => {
+
+                if (
                     event.target ===
                     orderModal
-                    event.target === orderModal
-) {
+                ) {
 
-closeModal();
-@@ -1468,17 +1468,15 @@ function setupModal() {
-);
-}
+                    closeModal();
+                }
+            }
+        );
+    }
 
 
-document.addEventListener(
-"keydown",
-event => {
+    document.addEventListener(
 
-if (
+        "keydown",
+
+        event => {
+
+            if (
                 event.key ===
-                    "Escape" &&
-                event.key === "Escape" &&
-orderModal &&
+                    "Escape"
+
+                &&
+
+                orderModal
+
+                &&
+
                 orderModal.classList.contains(
                     "show"
                 )
-                orderModal.classList.contains("show")
-) {
+            ) {
 
-closeModal();
-@@ -1492,42 +1490,27 @@ function setupModal() {
+                closeModal();
+            }
+        }
+    );
+}
+
+
+// ==========================================
 // TELEFON
 // ==========================================
 
 function normalizePhone(
     phone
 ) {
-function normalizePhone(phone) {
 
     return String(
         phone || ""
@@ -1834,286 +2189,470 @@ function normalizePhone(phone) {
             /\D/g,
             ""
         );
-    return String(phone || "")
-        .replace(/\D/g, "");
 }
 
 
 function isValidTurkishPhone(
     phone
 ) {
-function isValidTurkishPhone(phone) {
 
-const normalized =
+    const normalized =
         normalizePhone(
             phone
         );
-        normalizePhone(phone);
 
-return (
+
+    return (
+
         /^05\d{9}$/.test(
             normalized
-        ) ||
+        )
+
+        ||
+
         /^5\d{9}$/.test(
             normalized
         )
-        /^05\d{9}$/.test(normalized) ||
-        /^5\d{9}$/.test(normalized)
-);
+
+    );
 }
 
 
 // ==========================================
-// WHATSAPP
 // WHATSAPP MESAJI
 // ==========================================
 
 function createWhatsAppMessage(
-@@ -1539,9 +1522,6 @@ function createWhatsAppMessage(
-note
+
+    customerName,
+
+    customerPhone,
+
+    orderType,
+
+    tableNumber,
+
+    address,
+
+    note
+
 ) {
 
-    const total =
-        getCartTotal();
+    let message =
+        "🍽️ *ECE DÖNER SİPARİŞİ*";
 
-let message =
-"🍽️ *ECE DÖNER SİPARİŞİ*";
 
-@@ -1578,21 +1558,19 @@ function createWhatsAppMessage(
-"\n\n🛒 *SİPARİŞLER*" +
-"\n━━━━━━━━━━━━━━";
+    message +=
+        "\n\n━━━━━━━━━━━━━━";
+
+
+    message +=
+        "\n👤 *Müşteri:* " +
+        customerName;
+
+
+    message +=
+        "\n📱 *Telefon:* " +
+        customerPhone;
+
+
+    message +=
+        "\n📦 *Sipariş Türü:* " +
+        orderType;
+
+
+    if (
+        tableNumber
+    ) {
+
+        message +=
+            "\n🪑 *Masa No:* " +
+            tableNumber;
+    }
+
+
+    if (
+        address
+    ) {
+
+        message +=
+            "\n📍 *Adres:* " +
+            address;
+    }
+
+
+    message +=
+        "\n\n🛒 *SİPARİŞLER*" +
+        "\n━━━━━━━━━━━━━━";
+
 
     cart.forEach(
         item => {
-    cart.forEach(item => {
 
             const itemTotal =
-                Number(item.price) *
-                Number(item.quantity);
-        const itemTotal =
-            Number(item.price) *
-            Number(item.quantity);
+
+                Number(
+                    item.price
+                )
+
+                *
+
+                Number(
+                    item.quantity
+                );
+
 
             message +=
-                `\n• ${item.name} × ${item.quantity} = ${formatPrice(itemTotal)}`;
+
+                `\n• ${item.name} × ${item.quantity} = ${formatPrice(
+                    itemTotal
+                )}`;
         }
     );
+
+
+    message +=
+
+        "\n\n💰 *TOPLAM: " +
+
+        formatPrice(
+            getCartTotal()
+        )
+
+        +
+
+        "*";
+
+
+    if (
+        note
+    ) {
+
         message +=
-            `\n• ${item.name} × ${item.quantity} = ${formatPrice(itemTotal)}`;
-    });
+            "\n\n📝 *Sipariş Notu:* " +
+            note;
+    }
 
-message +=
-"\n\n💰 *TOPLAM: " +
-        formatPrice(total) +
-        formatPrice(getCartTotal()) +
-"*";
 
-if (note) {
-@@ -1610,17 +1588,17 @@ function createWhatsAppMessage(
+    message +=
+        "\n\n━━━━━━━━━━━━━━" +
+        "\nQR Menü Pro";
+
+
+    return message;
 }
 
 
-function openWhatsApp(
-    message
-) {
 // ==========================================
 // WHATSAPP
 // ==========================================
 
-function openWhatsApp(message) {
+function openWhatsApp(
+    message
+) {
 
-const url =
-"https://api.whatsapp.com/send?phone=" +
-WHATSAPP_NUMBER +
-"&text=" +
+    const url =
+
+        "https://api.whatsapp.com/send?phone="
+
+        +
+
+        WHATSAPP_NUMBER
+
+        +
+
+        "&text="
+
+        +
+
         encodeURIComponent(
             message
         );
-        encodeURIComponent(message);
 
-window.open(
-url,
-@@ -1631,40 +1609,35 @@ function openWhatsApp(
+
+    window.open(
+
+        url,
+
+        "_blank",
+
+        "noopener,noreferrer"
+    );
+}
 
 
 // ==========================================
-// RENDER BACKEND
 // BACKEND
 // ==========================================
 
 async function sendOrderToBackend(
     orderData
 ) {
-async function sendOrderToBackend(orderData) {
 
-const response =
-await fetch(
-ORDER_API_URL,
-{
+    const response =
+
+        await fetch(
+
+            ORDER_API_URL,
+
+            {
+
                 method:
                     "POST",
-                method: "POST",
 
-headers: {
-"Content-Type":
-"application/json"
-},
 
-body:
+                headers: {
+
+                    "Content-Type":
+                        "application/json"
+
+                },
+
+
+                body:
+
                     JSON.stringify(
                         orderData
                     )
-                    JSON.stringify(orderData)
-}
-);
+            }
+        );
 
-    let result;
-    let result = null;
 
-try {
+    let result =
+        null;
 
-result =
-await response.json();
 
-    } catch (error) {
+    try {
+
+        result =
+            await response.json();
+
     } catch {
 
-throw new Error(
-"Sunucudan geçersiz cevap geldi."
-@@ -1692,17 +1665,15 @@ async function sendOrderToBackend(
+        throw new Error(
+
+            "Sunucudan geçersiz cevap geldi."
+
+        );
+    }
+
+
+    if (
+        !response.ok
+
+        ||
+
+        !result?.success
+    ) {
+
+        throw new Error(
+
+            result?.message
+
+            ||
+
+            "Sipariş sunucuya gönderilemedi."
+        );
+    }
+
+
+    return result;
+}
+
+
+// ==========================================
+// SİPARİŞ FORMU
+// ==========================================
 
 function setupOrderForm() {
 
     if (!orderForm)
         return;
-    if (!orderForm) return;
 
-orderForm.addEventListener(
-"submit",
-async event => {
 
-event.preventDefault();
+    orderForm.addEventListener(
 
-            if (isSendingOrder)
+        "submit",
+
+        async event => {
+
+            event.preventDefault();
+
+
+            if (
+                isSendingOrder
+            ) {
+
                 return;
-            if (isSendingOrder) return;
+            }
 
-if (!cart.length) {
 
-@@ -1717,56 +1688,42 @@ function setupOrderForm() {
+            if (
+                !cart.length
+            ) {
 
-const customerName =
-document
-                    .querySelector(
-                        "#customerName"
+                showToast(
+                    "Sepetiniz boş 🛒"
+                );
+
+
+                closeModal();
+
+
+                return;
+            }
+
+
+            const customerName =
+
+                document
+                    .getElementById(
+                        "customerName"
                     )
-                    .getElementById("customerName")
-?.value
-.trim() || "";
+                    ?.value
+                    .trim()
 
-const customerPhone =
-document
-                    .querySelector(
-                        "#customerPhone"
-                    )
-                    .getElementById("customerPhone")
-?.value
-.trim() || "";
+                ||
 
-const orderType =
-document
-                    .querySelector(
-                        "#orderType"
-                    )
-                    .getElementById("orderType")
-?.value ||
-"Paket Sipariş";
+                "";
 
-const tableNumber =
-document
-                    .querySelector(
-                        "#tableNumber"
-                    )
-                    .getElementById("tableNumber")
-?.value
-.trim() || "";
 
-const address =
-document
-                    .querySelector(
-                        "#orderAddress"
-                    )
-                    .getElementById("orderAddress")
-?.value
-.trim() || "";
+            const customerPhone =
 
-const note =
-document
-                    .querySelector(
-                        "#orderNote"
+                document
+                    .getElementById(
+                        "customerPhone"
                     )
-                    .getElementById("orderNote")
-?.value
-.trim() || "";
+                    ?.value
+                    .trim()
+
+                ||
+
+                "";
+
+
+            const orderType =
+
+                document
+                    .getElementById(
+                        "orderType"
+                    )
+                    ?.value
+
+                ||
+
+                "Paket Sipariş";
+
+
+            const tableNumber =
+
+                document
+                    .getElementById(
+                        "tableNumber"
+                    )
+                    ?.value
+                    .trim()
+
+                ||
+
+                "";
+
+
+            const address =
+
+                document
+                    .getElementById(
+                        "orderAddress"
+                    )
+                    ?.value
+                    .trim()
+
+                ||
+
+                "";
+
+
+            const note =
+
+                document
+                    .getElementById(
+                        "orderNote"
+                    )
+                    ?.value
+                    .trim()
+
+                ||
+
+                "";
+
 
             if (
                 customerName.length <
                 2
             ) {
 
-            if (customerName.length < 2) {
-
-showToast(
-"Lütfen adınızı ve soyadınızı girin."
-@@ -1775,22 +1732,23 @@ function setupOrderForm() {
-return;
-}
+                showToast(
+                    "Lütfen adınızı ve soyadınızı girin."
+                );
 
 
-if (
-!isValidTurkishPhone(
-customerPhone
-)
-) {
+                return;
+            }
 
-showToast(
-                    "Lütfen geçerli bir telefon numarası girin."
+
+            if (
+                !isValidTurkishPhone(
+                    customerPhone
+                )
+            ) {
+
+                showToast(
                     "Geçerli bir telefon numarası girin."
-);
-
-return;
-}
+                );
 
 
-if (
+                return;
+            }
+
+
+            if (
                 orderType ===
-                    "Paket Sipariş" &&
-                orderType === "Paket Sipariş" &&
-!address
-) {
+                    "Paket Sipariş"
 
-@@ -1801,39 +1759,34 @@ function setupOrderForm() {
-return;
-}
+                &&
+
+                !address
+            ) {
+
+                showToast(
+                    "Paket siparişi için adres gerekli 📍"
+                );
 
 
-if (
+                return;
+            }
+
+
+            if (
                 orderType ===
-                    "Restoranda Sipariş" &&
-                orderType === "Restoranda Sipariş" &&
-!tableNumber
-) {
+                    "Restoranda Sipariş"
 
-showToast(
-                    "Restoran siparişi için masa numarasını girin 🪑"
+                &&
+
+                !tableNumber
+            ) {
+
+                showToast(
                     "Restoran siparişi için masa numarası gerekli 🪑"
-);
-
-return;
-}
+                );
 
 
-const items =
+                return;
+            }
+
+
+            const items =
+
                 cart.map(
                     item => ({
 
@@ -2131,200 +2670,287 @@ const items =
                             Number(
                                 item.quantity
                             )
+
                     })
                 );
-                cart.map(item => ({
-
-                    name:
-                        String(item.name),
-
-                    price:
-                        Number(item.price),
-
-                    quantity:
-                        Number(item.quantity)
-
-                }));
 
 
-const orderData = {
+            const orderData = {
 
-@@ -1861,27 +1814,27 @@ function setupOrderForm() {
-"new",
+                customerName,
 
-createdAt:
+
+                phone:
+                    normalizePhone(
+                        customerPhone
+                    ),
+
+
+                orderType,
+
+
+                tableNumber,
+
+
+                address,
+
+
+                note,
+
+
+                items,
+
+
+                total:
+                    getCartTotal(),
+
+
+                status:
+                    "new",
+
+
+                createdAt:
                     new Date()
                         .toISOString()
-                    new Date().toISOString()
-};
+            };
+
 
             isSendingOrder =
                 true;
 
-            isSendingOrder = true;
+
+            const submitButton =
+
+                orderForm.querySelector(
+
+                    'button[type="submit"]'
+
+                );
 
 
-const submitButton =
-orderForm.querySelector(
-'button[type="submit"]'
-);
+            const originalText =
 
+                submitButton?.textContent
 
-const originalText =
-                submitButton
-                    ?.textContent ||
-                "";
-                submitButton?.textContent ||
+                ||
+
                 "📲 WhatsApp'tan Sipariş Ver";
 
 
-if (submitButton) {
+            if (
+                submitButton
+            ) {
 
                 submitButton.disabled =
                     true;
-                submitButton.disabled = true;
-
-submitButton.textContent =
-"⏳ Sipariş Gönderiliyor...";
-@@ -1890,12 +1843,14 @@ function setupOrderForm() {
-"0.7";
-}
 
 
-try {
-
-await sendOrderToBackend(
-orderData
-);
+                submitButton.textContent =
+                    "⏳ Sipariş Gönderiliyor...";
 
 
-const message =
-createWhatsAppMessage(
-customerName,
-@@ -1906,14 +1861,15 @@ function setupOrderForm() {
-note
-);
+                submitButton.style.opacity =
+                    "0.7";
+            }
+
+
+            try {
+
+                await sendOrderToBackend(
+                    orderData
+                );
+
+
+                const message =
+                    createWhatsAppMessage(
+
+                        customerName,
+
+                        customerPhone,
+
+                        orderType,
+
+                        tableNumber,
+
+                        address,
+
+                        note
+
+                    );
+
 
                 openWhatsApp(
                     message
                 );
 
-                openWhatsApp(message);
+
+                showToast(
+                    "Siparişiniz başarıyla alındı! ✅"
+                );
 
 
-showToast(
-"Siparişiniz başarıyla alındı! ✅"
-);
+                cart =
+                    [];
 
 
-cart = [];
-
-updateCart();
-@@ -1922,30 +1878,29 @@ function setupOrderForm() {
-
-closeModal();
+                updateCart();
 
 
-} catch (error) {
+                orderForm.reset();
 
-console.error(
-                    "Sipariş gönderme hatası:",
+
+                closeModal();
+
+            } catch (error) {
+
+                console.error(
                     "❌ Sipariş gönderme hatası:",
-error
-);
+                    error
+                );
 
-showToast(
-                    "Sipariş gönderilemedi. Lütfen tekrar deneyin. ❌"
+
+                showToast(
                     "Sipariş gönderilemedi. Tekrar deneyin. ❌"
-);
+                );
 
-
-} finally {
+            } finally {
 
                 isSendingOrder =
                     false;
-                isSendingOrder = false;
 
-if (submitButton) {
+
+                if (
+                    submitButton
+                ) {
 
                     submitButton.disabled =
                         false;
-                    submitButton.disabled = false;
 
-submitButton.textContent =
-                        originalText ||
-                        "📲 WhatsApp'tan Sipariş Ver";
+
+                    submitButton.textContent =
                         originalText;
 
-submitButton.style.opacity =
-"1";
-@@ -1957,7 +1912,7 @@ function setupOrderForm() {
+
+                    submitButton.style.opacity =
+                        "1";
+                }
+            }
+        }
+    );
+}
 
 
 // ==========================================
-// BAŞLANGIÇ
 // BAŞLAT
 // ==========================================
 
 function initializeApp() {
-@@ -1978,33 +1933,44 @@ function initializeApp() {
 
-updateCart();
+    cacheDom();
 
-    // Önce mevcut HTML ürünlerine
-    // event bağlanabilir.
-setupFavorites();
 
-filterProducts();
+    setupCartEvents();
 
-    // 🔥 ASIL YENİ SİSTEM
-loadProductsFromFirebase();
 
-console.log(
-        "✅ Ece Döner QR Menü Pro hazır."
+    setupAddCartButtons();
+
+
+    setupCategories();
+
+
+    setupSearch();
+
+
+    setupModal();
+
+
+    setupOrderForm();
+
+
+    updateCart();
+
+
+    setupFavorites();
+
+
+    filterProducts();
+
+
+    loadProductsFromFirebase();
+
+
+    console.log(
         "================================"
-);
+    );
 
-console.log(
-        "✅ Sipariş API:",
-        ORDER_API_URL
+
+    console.log(
         "✅ ECE DÖNER QR MENÜ PRO HAZIR"
     );
+
 
     console.log(
         "🔥 Firebase ürün sistemi aktif"
     );
 
+
     console.log(
         "🛒 Sepet sistemi aktif"
     );
+
 
     console.log(
         "📦 Sipariş sistemi aktif"
     );
 
+
     console.log(
         "================================"
-);
+    );
 }
 
 
 // ==========================================
-// UYGULAMAYI BAŞLAT
 // BAŞLAT
 // ==========================================
 
 if (
     document.readyState ===
     "loading"
-    document.readyState === "loading"
 ) {
 
-document.addEventListener(
-@@ -2033,3 +1999,7 @@ window.openOrderModal =
+    document.addEventListener(
+
+        "DOMContentLoaded",
+
+        initializeApp
+    );
+
+} else {
+
+    initializeApp();
+}
+
+
+// ==========================================
+// GLOBAL
+// ==========================================
+
+window.changeQty =
+    changeQty;
+
+
+window.removeFromCart =
+    removeFromCart;
+
+
+window.openOrderModal =
+    openOrderModal;
+
 
 window.closeModal =
-closeModal;
+    closeModal;
+
 
 window.handleImageError =
     handleImageError;
