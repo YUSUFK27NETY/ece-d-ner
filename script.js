@@ -92,6 +92,9 @@ let isSendingOrder =
 let productsUnsubscribe =
     null;
 
+let lastFocusedElement =
+    null;
+
 
 let cartItems =
     null;
@@ -2287,13 +2290,35 @@ function openOrderModal(
     updateOrderSummary();
 
 
+    lastFocusedElement =
+        document.activeElement;
+
+
     orderModal.classList.add(
         "show"
     );
 
 
+    orderModal.setAttribute(
+        "aria-hidden",
+        "false"
+    );
+
+
     document.body.style.overflow =
         "hidden";
+
+
+    requestAnimationFrame(
+        () => {
+
+            document
+                .getElementById(
+                    "customerName"
+                )
+                ?.focus();
+        }
+    );
 }
 
 
@@ -2308,8 +2333,90 @@ function closeModal() {
     );
 
 
+    orderModal.setAttribute(
+        "aria-hidden",
+        "true"
+    );
+
+
     document.body.style.overflow =
         "";
+
+
+    if (
+        lastFocusedElement &&
+        typeof lastFocusedElement.focus ===
+            "function"
+    ) {
+
+        lastFocusedElement.focus();
+    }
+
+    lastFocusedElement =
+        null;
+}
+
+
+function trapOrderModalFocus(
+    event
+) {
+
+    if (
+        event.key !== "Tab" ||
+        !orderModal ||
+        !orderModal.classList.contains(
+            "show"
+        )
+    ) {
+
+        return;
+    }
+
+    const focusableElements =
+        Array.from(
+            orderModal.querySelectorAll(
+                'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])'
+            )
+        )
+            .filter(
+                element =>
+                    !element.disabled &&
+                    !element.hidden
+            );
+
+    if (focusableElements.length === 0) {
+
+        return;
+    }
+
+    const firstElement =
+        focusableElements[0];
+
+    const lastElement =
+        focusableElements[
+            focusableElements.length - 1
+        ];
+
+    if (
+        event.shiftKey &&
+        document.activeElement ===
+            firstElement
+    ) {
+
+        event.preventDefault();
+
+        lastElement.focus();
+
+    } else if (
+        !event.shiftKey &&
+        document.activeElement ===
+            lastElement
+    ) {
+
+        event.preventDefault();
+
+        firstElement.focus();
+    }
 }
 
 
@@ -2558,6 +2665,10 @@ function setupModal() {
         "keydown",
 
         event => {
+
+            trapOrderModalFocus(
+                event
+            );
 
             if (
                 event.key ===

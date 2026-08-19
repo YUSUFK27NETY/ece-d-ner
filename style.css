@@ -368,7 +368,8 @@ animation: cardAppear 0.5s ease;
 width: 100%;
 height: 220px;
 
-object-fit: cover;
+background: #111;
+object-fit: contain;
 }
 
 .card-body {
@@ -942,6 +943,17 @@ font-weight: bold;
 background: #1ebe5d;
 
 transform: translateY(-2px);
+}
+
+.privacy-note {
+margin-top: 12px;
+padding: 11px 12px;
+border: 1px solid #333;
+border-radius: 10px;
+background: #181818;
+color: #aaa;
+font-size: 12px;
+line-height: 1.55;
 }
 
 .home-buttons button:disabled,
