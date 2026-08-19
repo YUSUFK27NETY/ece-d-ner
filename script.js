@@ -2912,6 +2912,7 @@ function initializeApp() {
 
     cacheDom();
 
+    loadRestaurantStatus();
 
     setupCartEvents();
 
