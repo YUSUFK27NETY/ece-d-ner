@@ -924,6 +924,7 @@ function createProductCard(product, documentId) {
             <button
                 class="addCart"
                 type="button"
+                data-product-id="${escapeHtml(documentId)}"
                 data-name="${escapeHtml(name)}"
                 data-price="${price}"
             >
@@ -1269,7 +1270,40 @@ function getCartCount() {
 }
 
 
+function getBackendOrderItems() {
+
+    return cart.map(
+        item => ({
+
+            productId:
+                String(
+                    item.productId
+                ),
+
+            // Eski backend sürümüyle kısa dağıtım geçişinde uyumluluk.
+            // Yeni backend ad ve fiyatı yok sayıp Firestore'dan okur.
+            name:
+                String(
+                    item.name
+                ),
+
+            price:
+                Number(
+                    item.price
+                ),
+
+            quantity:
+                Number(
+                    item.quantity
+                )
+
+        })
+    );
+}
+
+
 function addToCart(
+    productId,
     name,
     price
 ) {
@@ -1278,8 +1312,8 @@ function addToCart(
         cart.find(
 
             item =>
-                item.name ===
-                name
+                item.productId ===
+                productId
         );
 
 
@@ -1290,6 +1324,11 @@ function addToCart(
     } else {
 
         cart.push({
+
+            productId:
+                String(
+                    productId
+                ),
 
             name:
                 String(
@@ -1647,6 +1686,10 @@ function setupAddCartButtons() {
                 button.dataset.name;
 
 
+            const productId =
+                button.dataset.productId;
+
+
             const price =
                 Number(
                     button.dataset.price
@@ -1654,6 +1697,8 @@ function setupAddCartButtons() {
 
 
             if (
+                !productId ||
+
                 !name ||
 
                 !Number.isFinite(
@@ -1671,6 +1716,7 @@ function setupAddCartButtons() {
 
 
             addToCart(
+                productId,
                 name,
                 price
             );
@@ -2288,9 +2334,25 @@ function createWhatsAppMessage(
 
     address,
 
-    note
+    note,
+
+    confirmedItems,
+
+    confirmedTotal
 
 ) {
+
+    const orderItems =
+        Array.isArray(confirmedItems)
+            ? confirmedItems
+            : cart;
+
+    const orderTotal =
+        Number.isFinite(
+            Number(confirmedTotal)
+        )
+            ? Number(confirmedTotal)
+            : getCartTotal();
 
     let message =
         "🍽️ *ECE DÖNER SİPARİŞİ*";
@@ -2340,7 +2402,7 @@ function createWhatsAppMessage(
         "\n━━━━━━━━━━━━━━";
 
 
-    cart.forEach(
+    orderItems.forEach(
         item => {
 
             const itemTotal =
@@ -2370,7 +2432,7 @@ function createWhatsAppMessage(
         "\n\n💰 *TOPLAM: " +
 
         formatPrice(
-            getCartTotal()
+            orderTotal
         )
 
         +
@@ -2716,27 +2778,7 @@ function setupOrderForm() {
 
 
             const items =
-
-                cart.map(
-                    item => ({
-
-                        name:
-                            String(
-                                item.name
-                            ),
-
-                        price:
-                            Number(
-                                item.price
-                            ),
-
-                        quantity:
-                            Number(
-                                item.quantity
-                            )
-
-                    })
-                );
+                getBackendOrderItems();
 
 
             const orderData = {
@@ -2761,21 +2803,7 @@ function setupOrderForm() {
 
                 note,
 
-
-                items,
-
-
-                total:
-                    getCartTotal(),
-
-
-                status:
-                    "new",
-
-
-                createdAt:
-                    new Date()
-                        .toISOString()
+                items
             };
 
 
@@ -2820,7 +2848,8 @@ function setupOrderForm() {
 
             try {
 
-                await sendOrderToBackend(
+                const result =
+                    await sendOrderToBackend(
                     orderData
                 );
 
@@ -2838,7 +2867,11 @@ function setupOrderForm() {
 
                         address,
 
-                        note
+                        note,
+
+                        result?.order?.items,
+
+                        result?.order?.total
 
                     );
 
@@ -2874,6 +2907,7 @@ function setupOrderForm() {
 
 
                 showToast(
+                    error?.message ||
                     "Sipariş gönderilemedi. Tekrar deneyin. ❌"
                 );
 

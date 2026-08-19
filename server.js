@@ -2,6 +2,10 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 const rateLimit = require("express-rate-limit");
+const {
+    normalizeRequestedItems,
+    priceRequestedItems
+} = require("./order-pricing");
 
 const app = express();
 
@@ -201,6 +205,9 @@ const db =
 const ordersCollection =
     db.collection("orders");
 
+const productsCollection =
+    db.collection("products");
+
 /*
    Manuel restoran durumu:
 
@@ -323,43 +330,6 @@ function cleanPhone(value) {
     )
         .replace(/[^\d+]/g, "")
         .slice(0, 20);
-}
-
-
-function cleanPositiveNumber(
-    value
-) {
-
-    const number =
-        Number(value);
-
-    if (
-        !Number.isFinite(number) ||
-        number < 0
-    ) {
-        return null;
-    }
-
-    return number;
-}
-
-
-function cleanQuantity(
-    value
-) {
-
-    const quantity =
-        Number(value);
-
-    if (
-        !Number.isFinite(quantity) ||
-        quantity <= 0 ||
-        quantity > 99
-    ) {
-        return null;
-    }
-
-    return Math.floor(quantity);
 }
 
 
@@ -832,154 +802,84 @@ app.post(
             }
 
 
-            if (
-                !Array.isArray(
+            const requestedItemsResult =
+                normalizeRequestedItems(
                     orderData.items
-                ) ||
-                orderData.items.length === 0
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Sipariş sepeti boş."
-
-                });
-            }
-
-
-            /*
-               Maksimum ürün sayısı.
-            */
-
-            if (
-                orderData.items.length > 50
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Siparişte çok fazla ürün var."
-
-                });
-            }
-
-
-            /* --------------------------
-               ÜRÜNLERİ TEMİZLE
-            -------------------------- */
-
-            const items =
-                orderData.items
-                    .map(item => {
-
-                        if (
-                            !item ||
-                            typeof item !== "object"
-                        ) {
-                            return null;
-                        }
-
-                        const name =
-                            cleanString(
-                                item.name ||
-                                "Ürün",
-                                150
-                            );
-
-                        const price =
-                            cleanPositiveNumber(
-                                item.price
-                            );
-
-                        const quantity =
-                            cleanQuantity(
-                                item.quantity
-                            );
-
-                        if (
-                            !name ||
-                            price === null ||
-                            quantity === null
-                        ) {
-                            return null;
-                        }
-
-                        return {
-
-                            name,
-
-                            price,
-
-                            quantity
-
-                        };
-
-                    })
-                    .filter(Boolean);
-
-
-            if (
-                items.length === 0
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Geçerli ürün bulunamadı."
-
-                });
-            }
-
-
-            /* --------------------------
-               TOPLAM SUNUCUDA HESAPLANIR
-            -------------------------- */
-
-            const total =
-                items.reduce(
-                    (
-                        sum,
-                        item
-                    ) => {
-
-                        return (
-                            sum +
-                            (
-                                item.price *
-                                item.quantity
-                            )
-                        );
-
-                    },
-                    0
                 );
 
+            if (!requestedItemsResult.ok) {
 
-            /*
-               Aşırı büyük toplamları engelle.
-            */
+                return res
+                    .status(requestedItemsResult.status)
+                    .json({
 
-            if (
-                total <= 0 ||
-                total > 100000
-            ) {
+                        success: false,
 
-                return res.status(400).json({
+                        message:
+                            requestedItemsResult.message
 
-                    success: false,
-
-                    message:
-                        "Geçersiz sipariş toplamı."
-
-                });
+                    });
             }
+
+
+            /* --------------------------
+               FİYATLAR FIRESTORE'DAN
+            -------------------------- */
+
+            const productRefs =
+                requestedItemsResult.items
+                    .map(item =>
+                        productsCollection.doc(
+                            item.productId
+                        )
+                    );
+
+            const productSnapshots =
+                await db.getAll(
+                    ...productRefs
+                );
+
+            const productsById =
+                new Map();
+
+            productSnapshots.forEach(
+                snapshot => {
+
+                    if (snapshot.exists) {
+
+                        productsById.set(
+                            snapshot.id,
+                            snapshot.data()
+                        );
+                    }
+                }
+            );
+
+            const pricedOrderResult =
+                priceRequestedItems(
+                    requestedItemsResult.items,
+                    productsById
+                );
+
+            if (!pricedOrderResult.ok) {
+
+                return res
+                    .status(pricedOrderResult.status)
+                    .json({
+
+                        success: false,
+
+                        message:
+                            pricedOrderResult.message
+
+                    });
+            }
+
+            const items =
+                pricedOrderResult.items;
+
+            const total =
+                pricedOrderResult.total;
 
 
             /* --------------------------
