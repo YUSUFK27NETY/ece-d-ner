@@ -752,6 +752,12 @@ font-weight: 800;
 color: #38bdf8;
 }
 
+.order-meta {
+margin-top: 5px;
+color: #999;
+font-size: 12px;
+}
+
 .order-status {
 background: #075985;
 
@@ -2773,6 +2779,7 @@ productsCollection
 "createdAt",
 "desc"
 )
+.limit(200)
 .onSnapshot(
 function (snapshot) {
 
@@ -2839,6 +2846,7 @@ null;
 
 productsUnsubscribe =
 productsCollection
+.limit(200)
 .onSnapshot(
 function (snapshot) {
 
@@ -3812,6 +3820,7 @@ db
 "createdAt",
 "desc"
 )
+.limit(200)
 .onSnapshot(
 function (snapshot) {
 
@@ -3862,6 +3871,7 @@ db
 .collection(
 "orders"
 )
+.limit(200)
 .onSnapshot(
 function (snapshot) {
 
@@ -4176,6 +4186,25 @@ order.orderNote ||
 );
 
 
+const orderNumber =
+escapeHTML(
+order.orderNumber ||
+`ECE-${doc.id
+.replace(
+/[^a-z0-9]/gi,
+""
+)
+.slice(0, 8)
+.toUpperCase()}`
+);
+
+
+const createdAt =
+formatOrderDate(
+order.createdAt
+);
+
+
 ordersHTML.push(`
 
                    <article
@@ -4184,9 +4213,19 @@ ordersHTML.push(`
 
                        <div class="order-top">
 
-                           <div class="order-name">
-                               👤
-                               ${customerName}
+                           <div>
+
+                               <div class="order-name">
+                                   👤
+                                   ${customerName}
+                               </div>
+
+                               <div class="order-meta">
+                                   #${orderNumber}
+                                   ·
+                                   ${createdAt}
+                               </div>
+
                            </div>
 
 
@@ -4581,6 +4620,64 @@ minimumFractionDigits:
 
 maximumFractionDigits:
 2
+}
+);
+
+}
+
+
+function formatOrderDate(value) {
+
+let date =
+null;
+
+
+if (
+value &&
+typeof value.toDate ===
+"function"
+) {
+
+date =
+value.toDate();
+
+}
+
+else if (value) {
+
+date =
+new Date(value);
+
+}
+
+
+if (
+!date ||
+Number.isNaN(
+date.getTime()
+)
+) {
+
+return "Tarih yok";
+
+}
+
+
+return date.toLocaleString(
+"tr-TR",
+{
+timeZone:
+"Europe/Istanbul",
+day:
+"2-digit",
+month:
+"2-digit",
+year:
+"numeric",
+hour:
+"2-digit",
+minute:
+"2-digit"
 }
 );
 

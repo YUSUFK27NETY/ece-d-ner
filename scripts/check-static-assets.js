@@ -142,6 +142,7 @@ function checkBalancedBraces(fileName) {
     "cors-policy.js",
     "order-request.js",
     "admin-auth.js",
+    "order-identifier.js",
     "scripts/set-admin-claim.js"
 ].forEach(fileName => {
     checkJavaScript(fileName, read(fileName));

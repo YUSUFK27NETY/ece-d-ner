@@ -15,6 +15,10 @@ const {
 const {
     hasAdminClaim
 } = require("./admin-auth");
+const {
+    normalizeOrderIdentifier,
+    createOrderNumber
+} = require("./order-identifier");
 
 const app = express();
 
@@ -205,6 +209,67 @@ const settingsCollection =
 
 const restaurantSettingsRef =
     settingsCollection.doc("restaurant");
+
+
+async function findOrderDocument(
+    rawIdentifier
+) {
+
+    const identifier =
+        normalizeOrderIdentifier(
+            rawIdentifier
+        );
+
+    if (!identifier) {
+
+        return {
+            valid: false,
+            doc: null
+        };
+    }
+
+    const directSnapshot =
+        await ordersCollection
+            .doc(identifier)
+            .get();
+
+    if (directSnapshot.exists) {
+
+        return {
+            valid: true,
+            doc: directSnapshot
+        };
+    }
+
+    const legacyId =
+        Number(identifier);
+
+    if (Number.isSafeInteger(legacyId)) {
+
+        const legacySnapshot =
+            await ordersCollection
+                .where(
+                    "id",
+                    "==",
+                    legacyId
+                )
+                .limit(1)
+                .get();
+
+        if (!legacySnapshot.empty) {
+
+            return {
+                valid: true,
+                doc: legacySnapshot.docs[0]
+            };
+        }
+    }
+
+    return {
+        valid: true,
+        doc: null
+    };
+}
 
 
 /* ==========================================
@@ -576,6 +641,7 @@ app.get(
                         "createdAt",
                         "desc"
                     )
+                    .limit(200)
                     .get();
 
             const orders = [];
@@ -778,13 +844,16 @@ app.post(
                SİPARİŞ NUMARASI
             -------------------------- */
 
+            const docRef =
+                ordersCollection.doc();
+
             const id =
-                Date.now();
+                docRef.id;
 
             const orderNumber =
-                `ECE-${id
-                    .toString()
-                    .slice(-6)}`;
+                createOrderNumber(
+                    docRef.id
+                );
 
 
             /* --------------------------
@@ -827,9 +896,9 @@ app.post(
                FIRESTORE
             -------------------------- */
 
-            const docRef =
-                await ordersCollection
-                    .add(newOrder);
+            await docRef.set(
+                newOrder
+            );
 
 
             console.log("");
@@ -903,11 +972,6 @@ app.patch(
 
         try {
 
-            const orderId =
-                Number(
-                    req.params.id
-                );
-
             const status =
                 cleanString(
                     req.body?.status,
@@ -928,23 +992,6 @@ app.patch(
 
 
             if (
-                !Number.isSafeInteger(
-                    orderId
-                )
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Geçersiz sipariş ID."
-
-                });
-            }
-
-
-            if (
                 !validStatuses.includes(
                     status
                 )
@@ -961,20 +1008,25 @@ app.patch(
             }
 
 
-            const snapshot =
-                await ordersCollection
-                    .where(
-                        "id",
-                        "==",
-                        orderId
-                    )
-                    .limit(1)
-                    .get();
+            const orderLookup =
+                await findOrderDocument(
+                    req.params.id
+                );
+
+            if (!orderLookup.valid) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçersiz sipariş ID."
+
+                });
+            }
 
 
-            if (
-                snapshot.empty
-            ) {
+            if (!orderLookup.doc) {
 
                 return res.status(404).json({
 
@@ -988,7 +1040,7 @@ app.patch(
 
 
             const doc =
-                snapshot.docs[0];
+                orderLookup.doc;
 
 
             await doc.ref.update({
@@ -1054,17 +1106,12 @@ app.delete(
 
         try {
 
-            const orderId =
-                Number(
+            const orderLookup =
+                await findOrderDocument(
                     req.params.id
                 );
 
-
-            if (
-                !Number.isSafeInteger(
-                    orderId
-                )
-            ) {
+            if (!orderLookup.valid) {
 
                 return res.status(400).json({
 
@@ -1077,20 +1124,7 @@ app.delete(
             }
 
 
-            const snapshot =
-                await ordersCollection
-                    .where(
-                        "id",
-                        "==",
-                        orderId
-                    )
-                    .limit(1)
-                    .get();
-
-
-            if (
-                snapshot.empty
-            ) {
+            if (!orderLookup.doc) {
 
                 return res.status(404).json({
 
@@ -1104,7 +1138,7 @@ app.delete(
 
 
             const doc =
-                snapshot.docs[0];
+                orderLookup.doc;
 
 
             await doc.ref.delete();
