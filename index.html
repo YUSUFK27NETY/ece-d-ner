@@ -411,6 +411,7 @@
                 <select
                     id="orderType"
                     name="orderType"
+                    required
                 >
 
                     <option value="Paket Sipariş">
@@ -427,7 +428,11 @@
 
                 <!-- MASA NO -->
 
-                <label for="tableNumber">
+                <label
+                    for="tableNumber"
+                    id="tableNumberLabel"
+                    hidden
+                >
                     🪑 Masa No
                 </label>
 
@@ -438,12 +443,16 @@
                     name="tableNumber"
                     placeholder="Masa numarası"
                     inputmode="numeric"
+                    hidden
                 >
 
 
                 <!-- ADRES -->
 
-                <label for="orderAddress">
+                <label
+                    for="orderAddress"
+                    id="orderAddressLabel"
+                >
                     📍 Adres
                 </label>
 
@@ -454,6 +463,7 @@
                     placeholder="Teslimat adresiniz"
                     rows="3"
                     autocomplete="street-address"
+                    required
                 ></textarea>
 
 

@@ -2039,7 +2039,107 @@ function setOrderType(
 
         select.value =
             type;
+
+        syncOrderTypeFields();
     }
+}
+
+
+function syncOrderTypeFields() {
+
+    const select =
+        document.getElementById(
+            "orderType"
+        );
+
+    const tableLabel =
+        document.getElementById(
+            "tableNumberLabel"
+        );
+
+    const tableInput =
+        document.getElementById(
+            "tableNumber"
+        );
+
+    const addressLabel =
+        document.getElementById(
+            "orderAddressLabel"
+        );
+
+    const addressInput =
+        document.getElementById(
+            "orderAddress"
+        );
+
+    if (
+        !select ||
+        !tableInput ||
+        !addressInput
+    ) {
+
+        return;
+    }
+
+    const isRestaurantOrder =
+        select.value ===
+        "Restoranda Sipariş";
+
+    tableInput.hidden =
+        !isRestaurantOrder;
+
+    tableInput.required =
+        isRestaurantOrder;
+
+    addressInput.hidden =
+        isRestaurantOrder;
+
+    addressInput.required =
+        !isRestaurantOrder;
+
+    if (tableLabel) {
+
+        tableLabel.hidden =
+            !isRestaurantOrder;
+    }
+
+    if (addressLabel) {
+
+        addressLabel.hidden =
+            isRestaurantOrder;
+    }
+
+    if (isRestaurantOrder) {
+
+        addressInput.value =
+            "";
+
+    } else {
+
+        tableInput.value =
+            "";
+    }
+}
+
+
+function setupOrderTypeFields() {
+
+    const select =
+        document.getElementById(
+            "orderType"
+        );
+
+    if (!select) {
+
+        return;
+    }
+
+    select.addEventListener(
+        "change",
+        syncOrderTypeFields
+    );
+
+    syncOrderTypeFields();
 }
 
 
@@ -3117,6 +3217,8 @@ function setupOrderForm() {
 
                 orderForm.reset();
 
+                syncOrderTypeFields();
+
 
                 closeModal();
 
@@ -3193,6 +3295,8 @@ function initializeApp() {
 
 
     setupModal();
+
+    setupOrderTypeFields();
 
 
     setupOrderForm();

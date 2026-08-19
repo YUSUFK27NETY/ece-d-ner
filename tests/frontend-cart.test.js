@@ -180,6 +180,73 @@ test("telefon alanı 05, 5 ve +90 cep telefonu biçimlerini kabul eder", () => {
     );
 });
 
+test("sipariş türüne göre yalnız gerekli adres veya masa alanını açar", () => {
+    const context = loadFrontendScript();
+    const elements = {
+        orderType: {
+            value: "Paket Sipariş"
+        },
+        tableNumberLabel: {
+            hidden: false
+        },
+        tableNumber: {
+            hidden: false,
+            required: false,
+            value: "12"
+        },
+        orderAddressLabel: {
+            hidden: false
+        },
+        orderAddress: {
+            hidden: false,
+            required: false,
+            value: "Adres"
+        }
+    };
+
+    context.document.getElementById = id => elements[id] || null;
+
+    vm.runInContext(
+        `
+            syncOrderTypeFields();
+            globalThis.packageState = {
+                tableHidden: document.getElementById("tableNumber").hidden,
+                tableValue: document.getElementById("tableNumber").value,
+                addressRequired: document.getElementById("orderAddress").required
+            };
+
+            document.getElementById("orderType").value =
+                "Restoranda Sipariş";
+            document.getElementById("tableNumber").value = "7";
+            document.getElementById("orderAddress").value = "Adres";
+            syncOrderTypeFields();
+            globalThis.restaurantState = {
+                tableRequired: document.getElementById("tableNumber").required,
+                addressHidden: document.getElementById("orderAddress").hidden,
+                addressValue: document.getElementById("orderAddress").value
+            };
+        `,
+        context
+    );
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.packageState)),
+        {
+            tableHidden: true,
+            tableValue: "",
+            addressRequired: true
+        }
+    );
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.restaurantState)),
+        {
+            tableRequired: true,
+            addressHidden: true,
+            addressValue: ""
+        }
+    );
+});
+
 test("hazırlanan pencere varsa WhatsApp'ı orada, yoksa aynı sekmede açar", () => {
     const context = loadFrontendScript();
     const navigations = [];
