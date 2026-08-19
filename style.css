@@ -333,6 +333,15 @@ grid-template-columns: 1fr;
 gap: 20px;
 }
 
+.filter-empty-state {
+grid-column: 1 / -1;
+padding: 38px 20px;
+border: 1px dashed #444;
+border-radius: 14px;
+color: #aaa;
+text-align: center;
+}
+
 
 /* =========================================
   ÜRÜN KARTI
@@ -952,6 +961,14 @@ transform: none;
 .send-order-btn:disabled:hover {
 background: #25d366;
 transform: none;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+outline: 3px solid #ffd700;
+outline-offset: 3px;
 }
 
 

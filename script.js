@@ -657,6 +657,20 @@ function setupFavorites() {
                     active
                         ? "❤️"
                         : "🤍";
+
+
+                button.setAttribute(
+                    "aria-pressed",
+                    String(active)
+                );
+
+
+                button.setAttribute(
+                    "aria-label",
+                    active
+                        ? `${name} ürününü favorilerden çıkar`
+                        : `${name} ürününü favorilere ekle`
+                );
             }
 
 
@@ -664,9 +678,42 @@ function setupFavorites() {
                 getFavorites();
 
 
+            const favoriteKey =
+                card.dataset.productId ||
+                name;
+
+
+            if (
+                favoriteKey !== name &&
+                favorites.includes(name)
+            ) {
+
+                favorites =
+                    favorites.filter(
+                        item =>
+                            item !== name
+                    );
+
+                if (
+                    !favorites.includes(
+                        favoriteKey
+                    )
+                ) {
+
+                    favorites.push(
+                        favoriteKey
+                    );
+                }
+
+                saveFavorites(
+                    favorites
+                );
+            }
+
+
             updateFavoriteUI(
                 favorites.includes(
-                    name
+                    favoriteKey
                 )
             );
 
@@ -681,7 +728,7 @@ function setupFavorites() {
 
                     const exists =
                         favorites.includes(
-                            name
+                            favoriteKey
                         );
 
 
@@ -691,7 +738,7 @@ function setupFavorites() {
                             favorites.filter(
                                 item =>
                                     item !==
-                                    name
+                                    favoriteKey
                             );
 
 
@@ -707,7 +754,7 @@ function setupFavorites() {
                     } else {
 
                         favorites.push(
-                            name
+                            favoriteKey
                         );
 
 
@@ -1007,6 +1054,7 @@ function createProductCard(product, documentId) {
             class="favorite"
             type="button"
             aria-label="Favorilere ekle"
+            aria-pressed="false"
         >
             🤍
         </button>
@@ -1621,6 +1669,7 @@ function updateCart() {
                                     class="qty-btn"
                                     data-index="${index}"
                                     data-delta="-1"
+                                    aria-label="${escapeHtml(item.name)} miktarını azalt"
                                 >
                                     −
                                 </button>
@@ -1636,6 +1685,7 @@ function updateCart() {
                                     class="qty-btn"
                                     data-index="${index}"
                                     data-delta="1"
+                                    aria-label="${escapeHtml(item.name)} miktarını artır"
                                 >
                                     +
                                 </button>
@@ -1645,6 +1695,7 @@ function updateCart() {
                                     type="button"
                                     class="delete-btn"
                                     data-delete="${index}"
+                                    aria-label="${escapeHtml(item.name)} ürününü sepetten çıkar"
                                 >
                                     🗑️
                                 </button>
@@ -1850,12 +1901,29 @@ function filterProducts() {
             : "";
 
 
-    document
-        .querySelectorAll(
-            ".menu-grid .card"
-        )
+    const cards =
+        Array.from(
+            document.querySelectorAll(
+                ".menu-grid .card"
+            )
+        );
 
-        .forEach(
+
+    const previousEmptyState =
+        menuGrid
+            ?.querySelector(
+                ".filter-empty-state"
+            );
+
+
+    previousEmptyState?.remove();
+
+
+    let visibleCount =
+        0;
+
+
+    cards.forEach(
             card => {
 
                 const category =
@@ -1923,16 +1991,53 @@ function filterProducts() {
                     );
 
 
-                card.style.display =
-
+                const isVisible =
                     categoryMatch &&
-                    searchMatch
+                    searchMatch;
 
+
+                card.style.display =
+                    isVisible
                         ? ""
-
                         : "none";
+
+
+                if (isVisible) {
+
+                    visibleCount++;
+                }
             }
         );
+
+
+    if (
+        menuGrid &&
+        cards.length > 0 &&
+        visibleCount === 0
+    ) {
+
+        const emptyState =
+            document.createElement(
+                "div"
+            );
+
+        emptyState.className =
+            "filter-empty-state";
+
+        emptyState.setAttribute(
+            "role",
+            "status"
+        );
+
+        emptyState.textContent =
+            searchTerm
+                ? `“${searchInput.value.trim()}” için ürün bulunamadı.`
+                : "Bu kategoride şu anda ürün bulunmuyor.";
+
+        menuGrid.appendChild(
+            emptyState
+        );
+    }
 }
 
 

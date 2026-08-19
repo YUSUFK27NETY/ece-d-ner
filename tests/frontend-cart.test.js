@@ -64,6 +64,10 @@ test("ürün kartı Firestore belge kimliğini sepete ekle düğmesine taşır",
         context.cardHtml,
         /data-product-id="product-1"/
     );
+    assert.match(
+        context.cardHtml,
+        /aria-pressed="false"/
+    );
 });
 
 test("sepet ürünleri ada göre değil ürün kimliğine göre ayırır", () => {
@@ -244,6 +248,59 @@ test("sipariş türüne göre yalnız gerekli adres veya masa alanını açar", 
             addressHidden: true,
             addressValue: ""
         }
+    );
+});
+
+test("arama sonucu yoksa kullanıcıya boş durum mesajı gösterir", () => {
+    const context = loadFrontendScript();
+    const card = {
+        dataset: {
+            category: "drink"
+        },
+        style: {},
+        querySelector(selector) {
+            return {
+                textContent:
+                    selector === "h3"
+                        ? "Ayran"
+                        : "Soğuk içecek"
+            };
+        }
+    };
+
+    context.cards = [card];
+    context.searchMock = {
+        value: "döner"
+    };
+    context.menuGridMock = {
+        querySelector() {
+            return null;
+        },
+        appendChild(node) {
+            context.emptyState = node;
+        }
+    };
+    context.document.querySelectorAll = () => context.cards;
+    context.document.createElement = () => ({
+        className: "",
+        textContent: "",
+        setAttribute() {}
+    });
+
+    vm.runInContext(
+        `
+            menuGrid = menuGridMock;
+            searchInput = searchMock;
+            currentCategory = "all";
+            filterProducts();
+        `,
+        context
+    );
+
+    assert.equal(card.style.display, "none");
+    assert.equal(
+        context.emptyState.textContent,
+        "“döner” için ürün bulunamadı."
     );
 });
 
