@@ -6,6 +6,9 @@ const {
     normalizeRequestedItems,
     priceRequestedItems
 } = require("./order-pricing");
+const {
+    createOriginValidator
+} = require("./cors-policy");
 
 const app = express();
 
@@ -15,9 +18,6 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-const FRONTEND_URL =
-    process.env.FRONTEND_URL || "";
-
 app.set("trust proxy", 1);
 
 /* ==========================================
@@ -26,32 +26,10 @@ app.set("trust proxy", 1);
 
 app.use(
     cors({
-        origin: function (origin, callback) {
-
-            // Mobil uygulama / Postman / doğrudan istek
-            if (!origin) {
-                return callback(null, true);
-            }
-
-            // FRONTEND_URL tanımlı değilse mevcut sistem bozulmasın
-            if (!FRONTEND_URL) {
-                return callback(null, true);
-            }
-
-            const allowedOrigins =
-                FRONTEND_URL
-                    .split(",")
-                    .map(url => url.trim())
-                    .filter(Boolean);
-
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-
-            return callback(
-                new Error("CORS engellendi.")
-            );
-        },
+        origin:
+            createOriginValidator(
+                process.env.FRONTEND_URL
+            ),
 
         methods: [
             "GET",
