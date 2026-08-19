@@ -2565,11 +2565,11 @@ function createWhatsAppMessage(
 // WHATSAPP
 // ==========================================
 
-function openWhatsApp(
+function buildWhatsAppUrl(
     message
 ) {
 
-    const url =
+    return (
 
         "https://api.whatsapp.com/send?phone="
 
@@ -2585,17 +2585,119 @@ function openWhatsApp(
 
         encodeURIComponent(
             message
+        )
+    );
+}
+
+
+function prepareWhatsAppWindow() {
+
+    let preparedWindow =
+        null;
+
+    try {
+
+        preparedWindow =
+            window.open(
+                "about:blank",
+                "_blank"
+            );
+
+    } catch {
+
+        return null;
+    }
+
+    if (!preparedWindow) {
+
+        return null;
+    }
+
+    try {
+
+        preparedWindow.opener =
+            null;
+
+        preparedWindow.document.title =
+            "Ece Döner Siparişi";
+
+        preparedWindow.document.body.textContent =
+            "Sipariş doğrulanıyor, WhatsApp hazırlanıyor...";
+
+    } catch {
+
+        // Pencere hazırlanmışsa yönlendirme yine yapılabilir.
+    }
+
+    return preparedWindow;
+}
+
+
+function closePreparedWhatsAppWindow(
+    preparedWindow
+) {
+
+    if (
+        preparedWindow &&
+        !preparedWindow.closed
+    ) {
+
+        try {
+
+            preparedWindow.close();
+
+        } catch {
+
+            // Kapanamayan pencere sipariş akışını bozmamalı.
+        }
+    }
+}
+
+
+function openWhatsApp(
+    message,
+    preparedWindow = null
+) {
+
+    const url =
+        buildWhatsAppUrl(
+            message
         );
 
+    if (
+        preparedWindow &&
+        !preparedWindow.closed
+    ) {
 
-    window.open(
+        try {
 
-        url,
+            preparedWindow.location.replace(
+                url
+            );
 
-        "_blank",
+            return true;
 
-        "noopener,noreferrer"
-    );
+        } catch {
+
+            closePreparedWhatsAppWindow(
+                preparedWindow
+            );
+        }
+    }
+
+
+    try {
+
+        window.location.assign(
+            url
+        );
+
+        return true;
+
+    } catch {
+
+        return false;
+    }
 }
 
 
@@ -2907,6 +3009,10 @@ function setupOrderForm() {
             };
 
 
+            const preparedWhatsAppWindow =
+                prepareWhatsAppWindow();
+
+
             isSendingOrder =
                 true;
 
@@ -2976,13 +3082,17 @@ function setupOrderForm() {
                     );
 
 
-                openWhatsApp(
-                    message
-                );
+                const whatsAppOpened =
+                    openWhatsApp(
+                        message,
+                        preparedWhatsAppWindow
+                    );
 
 
                 showToast(
-                    "Siparişiniz başarıyla alındı! ✅"
+                    whatsAppOpened
+                        ? "Siparişiniz başarıyla alındı! ✅"
+                        : "Siparişiniz alındı; WhatsApp açılamadı. ✅"
                 );
 
 
@@ -2999,6 +3109,10 @@ function setupOrderForm() {
                 closeModal();
 
             } catch (error) {
+
+                closePreparedWhatsAppWindow(
+                    preparedWhatsAppWindow
+                );
 
                 console.error(
                     "❌ Sipariş gönderme hatası:",

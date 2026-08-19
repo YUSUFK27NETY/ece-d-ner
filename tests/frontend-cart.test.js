@@ -140,3 +140,87 @@ test("restoran durumu doğrulanmadan sipariş düğmesini etkinleştirmez", () =
     assert.equal(context.disabledWhenOpen, false);
     assert.equal(context.disabledOnStatusError, true);
 });
+
+test("WhatsApp URL'sini güvenli biçimde kodlar", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            globalThis.whatsAppUrl = buildWhatsAppUrl(
+                "Ayran & Döner = 120₺"
+            );
+        `,
+        context
+    );
+
+    assert.equal(
+        context.whatsAppUrl,
+        "https://api.whatsapp.com/send?phone=905315006996&text=Ayran%20%26%20D%C3%B6ner%20%3D%20120%E2%82%BA"
+    );
+});
+
+test("hazırlanan pencere varsa WhatsApp'ı orada, yoksa aynı sekmede açar", () => {
+    const context = loadFrontendScript();
+    const navigations = [];
+
+    context.preparedWindow = {
+        closed: false,
+        location: {
+            replace(url) {
+                navigations.push(["prepared", url]);
+            }
+        }
+    };
+
+    context.window.location = {
+        assign(url) {
+            navigations.push(["same-tab", url]);
+        }
+    };
+
+    vm.runInContext(
+        `
+            openWhatsApp("Birinci", preparedWindow);
+            openWhatsApp("İkinci", null);
+        `,
+        context
+    );
+
+    assert.equal(navigations.length, 2);
+    assert.equal(navigations[0][0], "prepared");
+    assert.equal(navigations[1][0], "same-tab");
+});
+
+test("hazırlanan pencere yönlendirilemezse aynı sekmeye geri düşer", () => {
+    const context = loadFrontendScript();
+    const navigations = [];
+
+    context.brokenWindow = {
+        closed: false,
+        location: {
+            replace() {
+                throw new Error("blocked");
+            }
+        },
+        close() {}
+    };
+
+    context.window.location = {
+        assign(url) {
+            navigations.push(url);
+        }
+    };
+
+    vm.runInContext(
+        `
+            globalThis.opened = openWhatsApp(
+                "Sipariş",
+                brokenWindow
+            );
+        `,
+        context
+    );
+
+    assert.equal(context.opened, true);
+    assert.equal(navigations.length, 1);
+});
