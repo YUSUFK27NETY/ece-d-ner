@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "check": "node scripts/check-static-assets.js",
+    "test": "node --test",
+    "ci": "npm run check && npm test"
   },
   "dependencies": {
     "cors": "^2.8.5",
