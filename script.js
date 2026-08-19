@@ -56,6 +56,14 @@ const ORDER_API_URL =
 
 const WHATSAPP_NUMBER =
     "905315006996";
+const RESTAURANT_STATUS_URL =
+    `${API_BASE_URL}/api/restaurant/status`;
+
+let restaurantIsOpen =
+    true;
+
+let restaurantStatusLoaded =
+    false;
 
 
 // ==========================================
