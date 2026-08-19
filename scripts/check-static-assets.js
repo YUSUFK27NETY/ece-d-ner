@@ -139,7 +139,8 @@ function checkCssBraces(fileName) {
     "script.js",
     "server.js",
     "order-pricing.js",
-    "cors-policy.js"
+    "cors-policy.js",
+    "order-request.js"
 ].forEach(fileName => {
     checkJavaScript(fileName, read(fileName));
 });

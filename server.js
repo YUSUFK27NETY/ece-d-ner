@@ -9,6 +9,9 @@ const {
 const {
     createOriginValidator
 } = require("./cors-policy");
+const {
+    validateOrderRequest
+} = require("./order-request");
 
 const app = express();
 
@@ -298,16 +301,6 @@ function cleanString(
     )
         .trim()
         .slice(0, maxLength);
-}
-
-
-function cleanPhone(value) {
-
-    return String(
-        value ?? ""
-    )
-        .replace(/[^\d+]/g, "")
-        .slice(0, 20);
 }
 
 
@@ -663,114 +656,33 @@ app.post(
                 req.body;
 
 
-            if (
-                !orderData ||
-                typeof orderData !== "object" ||
-                Array.isArray(orderData)
-            ) {
+            const orderRequestResult =
+                validateOrderRequest(
+                    orderData
+                );
 
-                return res.status(400).json({
+            if (!orderRequestResult.ok) {
 
-                    success: false,
+                return res
+                    .status(orderRequestResult.status)
+                    .json({
 
-                    message:
-                        "Geçersiz sipariş verisi."
+                        success: false,
 
-                });
+                        message:
+                            orderRequestResult.message
+
+                    });
             }
 
-
-            /* --------------------------
-               MÜŞTERİ BİLGİLERİ
-            -------------------------- */
-
-            const customerName =
-                cleanString(
-                    orderData.customerName,
-                    100
-                );
-
-            const phone =
-                cleanPhone(
-                    orderData.phone
-                );
-
-            const orderType =
-                cleanString(
-                    orderData.orderType ||
-                    "Paket Sipariş",
-                    50
-                );
-
-            const address =
-                cleanString(
-                    orderData.address,
-                    500
-                );
-
-            const tableNumber =
-                cleanString(
-                    orderData.tableNumber,
-                    30
-                );
-
-            const note =
-                cleanString(
-                    orderData.note,
-                    500
-                );
-
-
-            /* --------------------------
-               TEMEL KONTROLLER
-            -------------------------- */
-
-            if (!customerName) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Müşteri adı gerekli."
-
-                });
-            }
-
-
-            if (!phone) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Telefon numarası gerekli."
-
-                });
-            }
-
-
-            /*
-               Paket siparişte adres zorunlu.
-            */
-
-            if (
-                orderType
-                    .toLowerCase()
-                    .includes("paket") &&
-                !address
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Adres gerekli."
-
-                });
-            }
+            const {
+                customerName,
+                phone,
+                orderType,
+                address,
+                tableNumber,
+                note
+            } = orderRequestResult.details;
 
 
             const requestedItemsResult =

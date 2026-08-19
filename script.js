@@ -2416,6 +2416,18 @@ function isValidTurkishPhone(
             normalized
         )
 
+        ||
+
+        /^905\d{9}$/.test(
+            normalized
+        )
+
+        ||
+
+        /^00905\d{9}$/.test(
+            normalized
+        )
+
     );
 }
 

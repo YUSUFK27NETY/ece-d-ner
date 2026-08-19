@@ -159,6 +159,27 @@ test("WhatsApp URL'sini güvenli biçimde kodlar", () => {
     );
 });
 
+test("telefon alanı 05, 5 ve +90 cep telefonu biçimlerini kabul eder", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            globalThis.phoneChecks = [
+                isValidTurkishPhone("0531 500 69 96"),
+                isValidTurkishPhone("5315006996"),
+                isValidTurkishPhone("+90 531 500 69 96"),
+                isValidTurkishPhone("0212 555 12 12")
+            ];
+        `,
+        context
+    );
+
+    assert.deepEqual(
+        JSON.parse(JSON.stringify(context.phoneChecks)),
+        [true, true, true, false]
+    );
+});
+
 test("hazırlanan pencere varsa WhatsApp'ı orada, yoksa aynı sekmede açar", () => {
     const context = loadFrontendScript();
     const navigations = [];

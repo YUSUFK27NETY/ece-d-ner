@@ -1830,7 +1830,7 @@ Fiyat (₺) *
 id="productPrice"
 class="form-input"
 type="number"
-min="0"
+min="0.01"
 step="0.01"
 placeholder="180"
 required
@@ -3389,7 +3389,7 @@ if (
 !Number.isFinite(
 price
 ) ||
-price < 0
+price <= 0
 ) {
 
 showToast(
