@@ -1895,7 +1895,17 @@ function setOrderType(
 function openOrderModal(
     orderType = null
 ) {
+if (
+    restaurantStatusLoaded &&
+    !restaurantIsOpen
+) {
 
+    showToast(
+        "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴"
+    );
+
+    return;
+}
     if (
         !cart.length
     ) {
