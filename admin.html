@@ -2243,9 +2243,40 @@ loginError.style.display =
 ===================================================== */
 
 auth.onAuthStateChanged(
-function (user) {
+async function (user) {
 
 if (user) {
+
+loginOverlay.style.display =
+"flex";
+
+adminApp.style.display =
+"none";
+
+try {
+
+const tokenResult =
+await user.getIdTokenResult(
+true
+);
+
+
+if (
+tokenResult.claims.admin !==
+true
+) {
+
+loginError.textContent =
+"Bu hesabın yönetici yetkisi yok.";
+
+loginError.style.display =
+"block";
+
+await auth.signOut();
+
+return;
+
+}
 
 loginOverlay.style.display =
 "none";
@@ -2257,6 +2288,25 @@ adminApp.style.display =
 loadProducts();
 
 loadOrders();
+
+}
+
+catch (error) {
+
+console.error(
+"Yönetici yetkisi doğrulanamadı:",
+error
+);
+
+loginError.textContent =
+"Yönetici yetkisi doğrulanamadı.";
+
+loginError.style.display =
+"block";
+
+await auth.signOut();
+
+}
 
 }
 

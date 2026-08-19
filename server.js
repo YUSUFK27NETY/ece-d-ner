@@ -12,6 +12,9 @@ const {
 const {
     validateOrderRequest
 } = require("./order-request");
+const {
+    hasAdminClaim
+} = require("./admin-auth");
 
 const app = express();
 
@@ -257,11 +260,17 @@ async function requireAdmin(
                 .auth()
                 .verifyIdToken(idToken);
 
-        /*
-           Mevcut sistemde Firebase'e
-           giriş yapmış kullanıcı admin
-           olarak kabul ediliyor.
-        */
+        if (!hasAdminClaim(decodedToken)) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "Yönetici yetkisi gerekli."
+
+            });
+        }
 
         req.user =
             decodedToken;

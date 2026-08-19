@@ -72,15 +72,15 @@ function checkDuplicateIds(fileName) {
     }
 }
 
-function checkCssBraces(fileName) {
-    const css = read(fileName);
+function checkBalancedBraces(fileName) {
+    const source = read(fileName);
     let balance = 0;
     let quote = null;
     let inComment = false;
 
-    for (let index = 0; index < css.length; index++) {
-        const current = css[index];
-        const next = css[index + 1];
+    for (let index = 0; index < source.length; index++) {
+        const current = source[index];
+        const next = source[index + 1];
 
         if (inComment) {
             if (current === "*" && next === "/") {
@@ -129,9 +129,9 @@ function checkCssBraces(fileName) {
     }
 
     if (balance !== 0) {
-        throw new Error(
-            `${fileName}: CSS süslü parantez dengesi bozuk (${balance}).`
-        );
+                throw new Error(
+                    `${fileName}: süslü parantez dengesi bozuk (${balance}).`
+                );
     }
 }
 
@@ -140,7 +140,9 @@ function checkCssBraces(fileName) {
     "server.js",
     "order-pricing.js",
     "cors-policy.js",
-    "order-request.js"
+    "order-request.js",
+    "admin-auth.js",
+    "scripts/set-admin-claim.js"
 ].forEach(fileName => {
     checkJavaScript(fileName, read(fileName));
 });
@@ -153,8 +155,11 @@ function checkCssBraces(fileName) {
     checkDuplicateIds(fileName);
 });
 
-checkCssBraces("style.css");
+checkBalancedBraces("style.css");
+checkBalancedBraces("firestore.rules");
+
+JSON.parse(read("firebase.json"));
 
 console.log(
-    "JavaScript, HTML kimlikleri ve CSS yapısı geçerli."
+    "JavaScript, HTML kimlikleri, CSS ve Firebase yapı dosyaları geçerli."
 );

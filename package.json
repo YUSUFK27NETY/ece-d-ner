@@ -7,7 +7,8 @@
     "start": "node server.js",
     "check": "node scripts/check-static-assets.js",
     "test": "node --test",
-    "ci": "npm run check && npm test"
+    "ci": "npm run check && npm test",
+    "grant-admin": "node scripts/set-admin-claim.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
