@@ -2531,7 +2531,17 @@ function setupOrderForm() {
         async event => {
 
             event.preventDefault();
+            if (
+    restaurantStatusLoaded &&
+    !restaurantIsOpen
+) {
 
+    showToast(
+        "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴"
+    );
+
+    return;
+}
 
             if (
                 isSendingOrder
