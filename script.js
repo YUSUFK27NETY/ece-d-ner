@@ -661,15 +661,7 @@ function handleImageError(
         "none";
 }
 
-
-// ==========================================
-// ÜRÜN KARTI
-// ==========================================
-
-function createProductCard(
-    product,
-    documentId
-) {
+function createProductCard(product, documentId) {
 
     const name =
         product.name ||
@@ -677,12 +669,10 @@ function createProductCard(
         product.title ||
         "İsimsiz Ürün";
 
-
     const description =
         product.description ||
         product.desc ||
         "Lezzetli Ece Döner ürünü.";
-
 
     const price =
         Number(
@@ -691,141 +681,87 @@ function createProductCard(
             0
         );
 
-
     const category =
         normalizeCategory(
-
             product.category ??
-
             product.kategori ??
-
             "all"
         );
 
-
     const image =
-        getProductImage(
-            product
-        );
-
+        getProductImage(product);
 
     const discount =
         Number(
-
             product.discount ??
-
             product.indirim ??
-
             0
         );
 
-
     const card =
-        document.createElement(
-            "div"
-        );
+        document.createElement("div");
 
-
-    card.className =
-        "card";
-
+    card.className = "card";
 
     card.dataset.category =
         category;
-
 
     card.dataset.productId =
         documentId;
 
 
-    // --------------------------------------
-    // İNDİRİM
-    // --------------------------------------
-
-    let badgeHTML =
-        "";
-
+    // İNDİRİM ROZETİ
+    let badgeHTML = "";
 
     if (
-        Number.isFinite(
-            discount
-        ) &&
-        discount >
-            0
+        Number.isFinite(discount) &&
+        discount > 0
     ) {
 
         badgeHTML = `
-
-            <span
-                class="badge"
-            >
+            <span class="badge">
                 %${discount} İNDİRİM
             </span>
-
         `;
     }
 
 
-    // --------------------------------------
     // FOTOĞRAF
-    // --------------------------------------
-
-    let imageHTML =
-        "";
-
+    let imageHTML = "";
 
     if (image) {
 
         imageHTML = `
-
-            <div
-                class="product-image-wrapper"
+            <img
+                src="${escapeHtml(image)}"
+                alt="${escapeHtml(name)}"
+                loading="lazy"
+                onerror="this.onerror=null; this.style.display='none';"
             >
-
-                <img
-                    src="${escapeHtml(
-                        image
-                    )}"
-                    alt="${escapeHtml(
-                        name
-                    )}"
-                    class="product-image"
-                    loading="lazy"
-                    onerror="handleImageError(this)"
-                >
-
-            </div>
-
         `;
 
     } else {
 
         imageHTML = `
-
-            <div
-                class="product-image-wrapper"
-            >
-
-                <div
-                    class="product-image-fallback"
-                >
-                    🍽️
-                </div>
-
+            <div style="
+                width:100%;
+                height:180px;
+                display:flex;
+                align-items:center;
+                justify-content:center;
+                background:#222;
+                font-size:55px;
+            ">
+                🍽️
             </div>
-
         `;
     }
 
 
-    // --------------------------------------
     // KART
-    // --------------------------------------
-
     card.innerHTML = `
 
         ${badgeHTML}
-
 
         <button
             class="favorite"
@@ -835,62 +771,36 @@ function createProductCard(
             🤍
         </button>
 
-
         ${imageHTML}
 
+        <h3>
+            ${escapeHtml(name)}
+        </h3>
 
-        <div
-            class="card-body"
-        >
+        <p>
+            ${escapeHtml(description)}
+        </p>
 
-            <h3>
-                ${escapeHtml(
-                    name
-                )}
-            </h3>
+        <div class="card-footer">
 
+            <span class="price">
+                ${formatPrice(price)}
+            </span>
 
-            <p>
-                ${escapeHtml(
-                    description
-                )}
-            </p>
-
-
-            <div
-                class="card-footer"
+            <button
+                class="addCart"
+                type="button"
+                data-name="${escapeHtml(name)}"
+                data-price="${price}"
             >
-
-                <span
-                    class="price"
-                >
-                    ${formatPrice(
-                        price
-                    )}
-                </span>
-
-
-                <button
-                    class="addCart"
-                    type="button"
-                    data-name="${escapeHtml(
-                        name
-                    )}"
-                    data-price="${price}"
-                >
-                    Sepete Ekle
-                </button>
-
-            </div>
+                Sepete Ekle
+            </button>
 
         </div>
-
     `;
-
 
     return card;
 }
-
 
 // ==========================================
 // FIREBASE ÜRÜNLERİ
