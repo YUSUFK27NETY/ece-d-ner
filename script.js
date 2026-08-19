@@ -203,7 +203,133 @@ function cacheDom() {
         "✅ DOM elemanları hazır."
     );
 }
+function updateRestaurantStatusUI() {
 
+    const statusText =
+        document.querySelector(
+            ".status .open"
+        );
+
+    const restaurantBtn =
+        document.getElementById(
+            "restaurantBtn"
+        );
+
+    const packageBtn =
+        document.getElementById(
+            "packageBtn"
+        );
+
+    const submitBtn =
+        orderForm
+            ?.querySelector(
+                'button[type="submit"]'
+            );
+
+
+    if (statusText) {
+
+        if (restaurantIsOpen) {
+
+            statusText.textContent =
+                "🟢 Şu Anda Açık";
+
+            statusText.style.color =
+                "#22c55e";
+
+        } else {
+
+            statusText.textContent =
+                "🔴 Şu Anda Kapalı";
+
+            statusText.style.color =
+                "#ef4444";
+        }
+    }
+
+
+    if (restaurantBtn) {
+        restaurantBtn.disabled =
+            !restaurantIsOpen;
+    }
+
+
+    if (packageBtn) {
+        packageBtn.disabled =
+            !restaurantIsOpen;
+    }
+
+
+    if (finishOrderBtn) {
+        finishOrderBtn.disabled =
+            !restaurantIsOpen ||
+            cart.length === 0;
+    }
+
+
+    if (submitBtn) {
+        submitBtn.disabled =
+            !restaurantIsOpen;
+    }
+}
+
+
+async function loadRestaurantStatus() {
+
+    try {
+
+        const response =
+            await fetch(
+                RESTAURANT_STATUS_URL,
+                {
+                    cache:
+                        "no-store"
+                }
+            );
+
+
+        const result =
+            await response.json();
+
+
+        if (
+            !response.ok ||
+            result?.success !== true
+        ) {
+
+            throw new Error(
+                result?.message ||
+                "Restoran durumu alınamadı."
+            );
+        }
+
+
+        restaurantIsOpen =
+            result.isOpen === true;
+
+        restaurantStatusLoaded =
+            true;
+
+        updateRestaurantStatusUI();
+
+
+    } catch (error) {
+
+        console.error(
+            "❌ Restoran durumu alınamadı:",
+            error
+        );
+
+
+        restaurantIsOpen =
+            false;
+
+        restaurantStatusLoaded =
+            true;
+
+        updateRestaurantStatusUI();
+    }
+}
 
 // ==========================================
 // GÜVENLİ HTML
