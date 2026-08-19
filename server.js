@@ -22,6 +22,8 @@ const {
 
 const app = express();
 
+app.disable("x-powered-by");
+
 /* ==========================================
    AYARLAR
 ========================================== */
@@ -29,6 +31,22 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.set("trust proxy", 1);
+
+app.use(
+    (req, res, next) => {
+
+        res.set({
+            "X-Content-Type-Options":
+                "nosniff",
+            "Referrer-Policy":
+                "no-referrer",
+            "Permissions-Policy":
+                "camera=(), microphone=(), geolocation=()"
+        });
+
+        next();
+    }
+);
 
 /* ==========================================
    CORS
@@ -87,6 +105,15 @@ const generalLimiter =
 
 app.use(
     "/api/",
+    (req, res, next) => {
+
+        res.set(
+            "Cache-Control",
+            "no-store"
+        );
+
+        next();
+    },
     generalLimiter
 );
 
@@ -562,63 +589,24 @@ app.patch(
 
 app.get(
     "/",
-    async (req, res) => {
+    (req, res) => {
 
-        try {
+        res.set(
+            "Cache-Control",
+            "no-store"
+        );
 
-            const snapshot =
-                await ordersCollection
-                    .limit(1)
-                    .get();
+        res.json({
 
-            const isOpen =
-                await getRestaurantStatus();
+            success: true,
 
-            res.json({
+            status:
+                "ok",
 
-                success: true,
+            service:
+                "qr-menu-pro"
 
-                message:
-                    "QR Menü Pro Backend çalışıyor.",
-
-                firebase: true,
-
-                firestore: true,
-
-                firebaseAuth: true,
-
-                restaurantStatus:
-                    isOpen
-                        ? "open"
-                        : "closed",
-
-                restaurantOpen:
-                    isOpen,
-
-                ordersCollection:
-                    "orders",
-
-                hasOrders:
-                    !snapshot.empty
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "Ana test hatası:",
-                error.message
-            );
-
-            res.status(500).json({
-
-                success: false,
-
-                message:
-                    "Backend test hatası."
-
-            });
-        }
+        });
     }
 );
 
@@ -1205,14 +1193,26 @@ app.use(
             error.message
         );
 
-        res.status(500).json({
+        const isCorsError =
+            error?.message ===
+            "CORS engellendi.";
 
-            success: false,
+        res
+            .status(
+                isCorsError
+                    ? 403
+                    : 500
+            )
+            .json({
 
-            message:
-                "Sunucu hatası oluştu."
+                success: false,
 
-        });
+                message:
+                    isCorsError
+                        ? "İstek kaynağına izin verilmiyor."
+                        : "Sunucu hatası oluştu."
+
+            });
 
     }
 );
