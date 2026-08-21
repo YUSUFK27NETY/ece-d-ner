@@ -2,8 +2,27 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 const rateLimit = require("express-rate-limit");
+const {
+    normalizeRequestedItems,
+    priceRequestedItems
+} = require("./order-pricing");
+const {
+    createOriginValidator
+} = require("./cors-policy");
+const {
+    validateOrderRequest
+} = require("./order-request");
+const {
+    hasAdminClaim
+} = require("./admin-auth");
+const {
+    normalizeOrderIdentifier,
+    createOrderNumber
+} = require("./order-identifier");
 
 const app = express();
+
+app.disable("x-powered-by");
 
 /* ==========================================
    AYARLAR
@@ -11,10 +30,23 @@ const app = express();
 
 const PORT = process.env.PORT || 3000;
 
-const FRONTEND_URL =
-    process.env.FRONTEND_URL || "";
-
 app.set("trust proxy", 1);
+
+app.use(
+    (req, res, next) => {
+
+        res.set({
+            "X-Content-Type-Options":
+                "nosniff",
+            "Referrer-Policy":
+                "no-referrer",
+            "Permissions-Policy":
+                "camera=(), microphone=(), geolocation=()"
+        });
+
+        next();
+    }
+);
 
 /* ==========================================
    CORS
@@ -22,32 +54,10 @@ app.set("trust proxy", 1);
 
 app.use(
     cors({
-        origin: function (origin, callback) {
-
-            // Mobil uygulama / Postman / doğrudan istek
-            if (!origin) {
-                return callback(null, true);
-            }
-
-            // FRONTEND_URL tanımlı değilse mevcut sistem bozulmasın
-            if (!FRONTEND_URL) {
-                return callback(null, true);
-            }
-
-            const allowedOrigins =
-                FRONTEND_URL
-                    .split(",")
-                    .map(url => url.trim())
-                    .filter(Boolean);
-
-            if (allowedOrigins.includes(origin)) {
-                return callback(null, true);
-            }
-
-            return callback(
-                new Error("CORS engellendi.")
-            );
-        },
+        origin:
+            createOriginValidator(
+                process.env.FRONTEND_URL
+            ),
 
         methods: [
             "GET",
@@ -95,6 +105,15 @@ const generalLimiter =
 
 app.use(
     "/api/",
+    (req, res, next) => {
+
+        res.set(
+            "Cache-Control",
+            "no-store"
+        );
+
+        next();
+    },
     generalLimiter
 );
 
@@ -201,6 +220,9 @@ const db =
 const ordersCollection =
     db.collection("orders");
 
+const productsCollection =
+    db.collection("products");
+
 /*
    Manuel restoran durumu:
 
@@ -214,6 +236,67 @@ const settingsCollection =
 
 const restaurantSettingsRef =
     settingsCollection.doc("restaurant");
+
+
+async function findOrderDocument(
+    rawIdentifier
+) {
+
+    const identifier =
+        normalizeOrderIdentifier(
+            rawIdentifier
+        );
+
+    if (!identifier) {
+
+        return {
+            valid: false,
+            doc: null
+        };
+    }
+
+    const directSnapshot =
+        await ordersCollection
+            .doc(identifier)
+            .get();
+
+    if (directSnapshot.exists) {
+
+        return {
+            valid: true,
+            doc: directSnapshot
+        };
+    }
+
+    const legacyId =
+        Number(identifier);
+
+    if (Number.isSafeInteger(legacyId)) {
+
+        const legacySnapshot =
+            await ordersCollection
+                .where(
+                    "id",
+                    "==",
+                    legacyId
+                )
+                .limit(1)
+                .get();
+
+        if (!legacySnapshot.empty) {
+
+            return {
+                valid: true,
+                doc: legacySnapshot.docs[0]
+            };
+        }
+    }
+
+    return {
+        valid: true,
+        doc: null
+    };
+}
 
 
 /* ==========================================
@@ -269,11 +352,17 @@ async function requireAdmin(
                 .auth()
                 .verifyIdToken(idToken);
 
-        /*
-           Mevcut sistemde Firebase'e
-           giriş yapmış kullanıcı admin
-           olarak kabul ediliyor.
-        */
+        if (!hasAdminClaim(decodedToken)) {
+
+            return res.status(403).json({
+
+                success: false,
+
+                message:
+                    "Yönetici yetkisi gerekli."
+
+            });
+        }
 
         req.user =
             decodedToken;
@@ -316,53 +405,6 @@ function cleanString(
 }
 
 
-function cleanPhone(value) {
-
-    return String(
-        value ?? ""
-    )
-        .replace(/[^\d+]/g, "")
-        .slice(0, 20);
-}
-
-
-function cleanPositiveNumber(
-    value
-) {
-
-    const number =
-        Number(value);
-
-    if (
-        !Number.isFinite(number) ||
-        number < 0
-    ) {
-        return null;
-    }
-
-    return number;
-}
-
-
-function cleanQuantity(
-    value
-) {
-
-    const quantity =
-        Number(value);
-
-    if (
-        !Number.isFinite(quantity) ||
-        quantity <= 0 ||
-        quantity > 99
-    ) {
-        return null;
-    }
-
-    return Math.floor(quantity);
-}
-
-
 /* ==========================================
    RESTORAN DURUMU
 ========================================== */
@@ -370,10 +412,8 @@ function cleanQuantity(
 /*
    Firestore'dan restoran durumunu okur.
 
-   İlk kez çalışıyorsa:
-   restoran otomatik olarak AÇIK başlar.
-
-   Daha sonra sadece admin değiştirir.
+   Ayar belgesi yoksa güvenli biçimde KAPALI kabul edilir.
+   Durumu yalnızca admin endpoint'i değiştirir.
 */
 
 async function getRestaurantStatus() {
@@ -383,16 +423,11 @@ async function getRestaurantStatus() {
 
     if (!snapshot.exists) {
 
-        await restaurantSettingsRef.set({
+        console.warn(
+            "Restoran ayarı bulunamadı; güvenli varsayılan KAPALI."
+        );
 
-            isOpen: true,
-
-            updatedAt:
-                new Date().toISOString()
-
-        });
-
-        return true;
+        return false;
     }
 
     return (
@@ -554,63 +589,24 @@ app.patch(
 
 app.get(
     "/",
-    async (req, res) => {
+    (req, res) => {
 
-        try {
+        res.set(
+            "Cache-Control",
+            "no-store"
+        );
 
-            const snapshot =
-                await ordersCollection
-                    .limit(1)
-                    .get();
+        res.json({
 
-            const isOpen =
-                await getRestaurantStatus();
+            success: true,
 
-            res.json({
+            status:
+                "ok",
 
-                success: true,
+            service:
+                "qr-menu-pro"
 
-                message:
-                    "QR Menü Pro Backend çalışıyor.",
-
-                firebase: true,
-
-                firestore: true,
-
-                firebaseAuth: true,
-
-                restaurantStatus:
-                    isOpen
-                        ? "open"
-                        : "closed",
-
-                restaurantOpen:
-                    isOpen,
-
-                ordersCollection:
-                    "orders",
-
-                hasOrders:
-                    !snapshot.empty
-
-            });
-
-        } catch (error) {
-
-            console.error(
-                "Ana test hatası:",
-                error.message
-            );
-
-            res.status(500).json({
-
-                success: false,
-
-                message:
-                    "Backend test hatası."
-
-            });
-        }
+        });
     }
 );
 
@@ -633,6 +629,7 @@ app.get(
                         "createdAt",
                         "desc"
                     )
+                    .limit(200)
                     .get();
 
             const orders = [];
@@ -722,277 +719,129 @@ app.post(
                 req.body;
 
 
-            if (
-                !orderData ||
-                typeof orderData !== "object" ||
-                Array.isArray(orderData)
-            ) {
+            const orderRequestResult =
+                validateOrderRequest(
+                    orderData
+                );
 
-                return res.status(400).json({
+            if (!orderRequestResult.ok) {
 
-                    success: false,
+                return res
+                    .status(orderRequestResult.status)
+                    .json({
 
-                    message:
-                        "Geçersiz sipariş verisi."
+                        success: false,
 
-                });
+                        message:
+                            orderRequestResult.message
+
+                    });
             }
 
-
-            /* --------------------------
-               MÜŞTERİ BİLGİLERİ
-            -------------------------- */
-
-            const customerName =
-                cleanString(
-                    orderData.customerName,
-                    100
-                );
-
-            const phone =
-                cleanPhone(
-                    orderData.phone
-                );
-
-            const orderType =
-                cleanString(
-                    orderData.orderType ||
-                    "Paket Sipariş",
-                    50
-                );
-
-            const address =
-                cleanString(
-                    orderData.address,
-                    500
-                );
-
-            const tableNumber =
-                cleanString(
-                    orderData.tableNumber,
-                    30
-                );
-
-            const note =
-                cleanString(
-                    orderData.note,
-                    500
-                );
+            const {
+                customerName,
+                phone,
+                orderType,
+                address,
+                tableNumber,
+                note
+            } = orderRequestResult.details;
 
 
-            /* --------------------------
-               TEMEL KONTROLLER
-            -------------------------- */
-
-            if (!customerName) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Müşteri adı gerekli."
-
-                });
-            }
-
-
-            if (!phone) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Telefon numarası gerekli."
-
-                });
-            }
-
-
-            /*
-               Paket siparişte adres zorunlu.
-            */
-
-            if (
-                orderType
-                    .toLowerCase()
-                    .includes("paket") &&
-                !address
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Adres gerekli."
-
-                });
-            }
-
-
-            if (
-                !Array.isArray(
+            const requestedItemsResult =
+                normalizeRequestedItems(
                     orderData.items
-                ) ||
-                orderData.items.length === 0
-            ) {
+                );
 
-                return res.status(400).json({
+            if (!requestedItemsResult.ok) {
 
-                    success: false,
+                return res
+                    .status(requestedItemsResult.status)
+                    .json({
 
-                    message:
-                        "Sipariş sepeti boş."
+                        success: false,
 
-                });
-            }
+                        message:
+                            requestedItemsResult.message
 
-
-            /*
-               Maksimum ürün sayısı.
-            */
-
-            if (
-                orderData.items.length > 50
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Siparişte çok fazla ürün var."
-
-                });
+                    });
             }
 
 
             /* --------------------------
-               ÜRÜNLERİ TEMİZLE
+               FİYATLAR FIRESTORE'DAN
             -------------------------- */
+
+            const productRefs =
+                requestedItemsResult.items
+                    .map(item =>
+                        productsCollection.doc(
+                            item.productId
+                        )
+                    );
+
+            const productSnapshots =
+                await db.getAll(
+                    ...productRefs
+                );
+
+            const productsById =
+                new Map();
+
+            productSnapshots.forEach(
+                snapshot => {
+
+                    if (snapshot.exists) {
+
+                        productsById.set(
+                            snapshot.id,
+                            snapshot.data()
+                        );
+                    }
+                }
+            );
+
+            const pricedOrderResult =
+                priceRequestedItems(
+                    requestedItemsResult.items,
+                    productsById
+                );
+
+            if (!pricedOrderResult.ok) {
+
+                return res
+                    .status(pricedOrderResult.status)
+                    .json({
+
+                        success: false,
+
+                        message:
+                            pricedOrderResult.message
+
+                    });
+            }
 
             const items =
-                orderData.items
-                    .map(item => {
-
-                        if (
-                            !item ||
-                            typeof item !== "object"
-                        ) {
-                            return null;
-                        }
-
-                        const name =
-                            cleanString(
-                                item.name ||
-                                "Ürün",
-                                150
-                            );
-
-                        const price =
-                            cleanPositiveNumber(
-                                item.price
-                            );
-
-                        const quantity =
-                            cleanQuantity(
-                                item.quantity
-                            );
-
-                        if (
-                            !name ||
-                            price === null ||
-                            quantity === null
-                        ) {
-                            return null;
-                        }
-
-                        return {
-
-                            name,
-
-                            price,
-
-                            quantity
-
-                        };
-
-                    })
-                    .filter(Boolean);
-
-
-            if (
-                items.length === 0
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Geçerli ürün bulunamadı."
-
-                });
-            }
-
-
-            /* --------------------------
-               TOPLAM SUNUCUDA HESAPLANIR
-            -------------------------- */
+                pricedOrderResult.items;
 
             const total =
-                items.reduce(
-                    (
-                        sum,
-                        item
-                    ) => {
-
-                        return (
-                            sum +
-                            (
-                                item.price *
-                                item.quantity
-                            )
-                        );
-
-                    },
-                    0
-                );
-
-
-            /*
-               Aşırı büyük toplamları engelle.
-            */
-
-            if (
-                total <= 0 ||
-                total > 100000
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Geçersiz sipariş toplamı."
-
-                });
-            }
+                pricedOrderResult.total;
 
 
             /* --------------------------
                SİPARİŞ NUMARASI
             -------------------------- */
 
+            const docRef =
+                ordersCollection.doc();
+
             const id =
-                Date.now();
+                docRef.id;
 
             const orderNumber =
-                `ECE-${id
-                    .toString()
-                    .slice(-6)}`;
+                createOrderNumber(
+                    docRef.id
+                );
 
 
             /* --------------------------
@@ -1035,9 +884,9 @@ app.post(
                FIRESTORE
             -------------------------- */
 
-            const docRef =
-                await ordersCollection
-                    .add(newOrder);
+            await docRef.set(
+                newOrder
+            );
 
 
             console.log("");
@@ -1111,11 +960,6 @@ app.patch(
 
         try {
 
-            const orderId =
-                Number(
-                    req.params.id
-                );
-
             const status =
                 cleanString(
                     req.body?.status,
@@ -1136,23 +980,6 @@ app.patch(
 
 
             if (
-                !Number.isSafeInteger(
-                    orderId
-                )
-            ) {
-
-                return res.status(400).json({
-
-                    success: false,
-
-                    message:
-                        "Geçersiz sipariş ID."
-
-                });
-            }
-
-
-            if (
                 !validStatuses.includes(
                     status
                 )
@@ -1169,20 +996,25 @@ app.patch(
             }
 
 
-            const snapshot =
-                await ordersCollection
-                    .where(
-                        "id",
-                        "==",
-                        orderId
-                    )
-                    .limit(1)
-                    .get();
+            const orderLookup =
+                await findOrderDocument(
+                    req.params.id
+                );
+
+            if (!orderLookup.valid) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçersiz sipariş ID."
+
+                });
+            }
 
 
-            if (
-                snapshot.empty
-            ) {
+            if (!orderLookup.doc) {
 
                 return res.status(404).json({
 
@@ -1196,7 +1028,7 @@ app.patch(
 
 
             const doc =
-                snapshot.docs[0];
+                orderLookup.doc;
 
 
             await doc.ref.update({
@@ -1262,17 +1094,12 @@ app.delete(
 
         try {
 
-            const orderId =
-                Number(
+            const orderLookup =
+                await findOrderDocument(
                     req.params.id
                 );
 
-
-            if (
-                !Number.isSafeInteger(
-                    orderId
-                )
-            ) {
+            if (!orderLookup.valid) {
 
                 return res.status(400).json({
 
@@ -1285,20 +1112,7 @@ app.delete(
             }
 
 
-            const snapshot =
-                await ordersCollection
-                    .where(
-                        "id",
-                        "==",
-                        orderId
-                    )
-                    .limit(1)
-                    .get();
-
-
-            if (
-                snapshot.empty
-            ) {
+            if (!orderLookup.doc) {
 
                 return res.status(404).json({
 
@@ -1312,7 +1126,7 @@ app.delete(
 
 
             const doc =
-                snapshot.docs[0];
+                orderLookup.doc;
 
 
             await doc.ref.delete();
@@ -1379,14 +1193,26 @@ app.use(
             error.message
         );
 
-        res.status(500).json({
+        const isCorsError =
+            error?.message ===
+            "CORS engellendi.";
 
-            success: false,
+        res
+            .status(
+                isCorsError
+                    ? 403
+                    : 500
+            )
+            .json({
 
-            message:
-                "Sunucu hatası oluştu."
+                success: false,
 
-        });
+                message:
+                    isCorsError
+                        ? "İstek kaynağına izin verilmiyor."
+                        : "Sunucu hatası oluştu."
+
+            });
 
     }
 );

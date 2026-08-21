@@ -28,8 +28,8 @@
     <!-- FAVICON -->
     <link
         rel="icon"
-        href="logo.png"
-        type="image/png"
+        href="logo.jpg"
+        type="image/jpeg"
     >
 </head>
 
@@ -44,7 +44,7 @@
         <div class="brand">
 
             <img
-                src="logo.png"
+                src="logo.jpg"
                 alt="Ece Döner Logo"
             >
 
@@ -78,7 +78,7 @@
         <div class="hero-content">
 
             <img
-                src="logo.png"
+                src="logo.jpg"
                 alt="Ece Döner"
                 class="logo"
             >
@@ -94,12 +94,12 @@
 
             <div class="status">
 
-                <span class="open">
-                    🟢 Şu Anda Açık
-                </span>
-
-                <span class="rating">
-                    ⭐ 4.8
+                <span
+                    class="open"
+                    role="status"
+                    aria-live="polite"
+                >
+                    🟡 Durum Kontrol Ediliyor
                 </span>
 
             </div>
@@ -118,6 +118,7 @@
         <button
             id="restaurantBtn"
             type="button"
+            disabled
         >
             🍽️ Restoranda Sipariş
         </button>
@@ -126,6 +127,7 @@
         <button
             id="packageBtn"
             type="button"
+            disabled
         >
             🛵 Paket Sipariş
         </button>
@@ -268,6 +270,7 @@
         <button
             id="finishOrder"
             type="button"
+            disabled
         >
             Siparişi Tamamla
         </button>
@@ -298,6 +301,7 @@
         role="dialog"
         aria-modal="true"
         aria-labelledby="orderModalTitle"
+        aria-hidden="true"
     >
 
         <div class="order-modal-content">
@@ -404,6 +408,7 @@
                 <select
                     id="orderType"
                     name="orderType"
+                    required
                 >
 
                     <option value="Paket Sipariş">
@@ -420,7 +425,11 @@
 
                 <!-- MASA NO -->
 
-                <label for="tableNumber">
+                <label
+                    for="tableNumber"
+                    id="tableNumberLabel"
+                    hidden
+                >
                     🪑 Masa No
                 </label>
 
@@ -431,12 +440,16 @@
                     name="tableNumber"
                     placeholder="Masa numarası"
                     inputmode="numeric"
+                    hidden
                 >
 
 
                 <!-- ADRES -->
 
-                <label for="orderAddress">
+                <label
+                    for="orderAddress"
+                    id="orderAddressLabel"
+                >
                     📍 Adres
                 </label>
 
@@ -447,6 +460,7 @@
                     placeholder="Teslimat adresiniz"
                     rows="3"
                     autocomplete="street-address"
+                    required
                 ></textarea>
 
 
@@ -465,11 +479,20 @@
                 ></textarea>
 
 
+                <p class="privacy-note">
+                    🔒 Ad, telefon, adres/masa ve sipariş notu
+                    yalnızca siparişin alınması, hazırlanması,
+                    teslimi ve sizinle iletişim için kullanılır.
+                    Sipariş notuna gereksiz özel bilgi yazmayın.
+                </p>
+
+
                 <!-- GÖNDER -->
 
                 <button
                     type="submit"
                     class="send-order-btn"
+                    disabled
                 >
                     📲 WhatsApp'tan Sipariş Ver
                 </button>

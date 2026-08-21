@@ -4,7 +4,11 @@
   "description": "QR Menü Pro - Ece Döner Backend",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "check": "node scripts/check-static-assets.js",
+    "test": "node --test",
+    "ci": "npm run check && npm test",
+    "grant-admin": "node scripts/set-admin-claim.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
