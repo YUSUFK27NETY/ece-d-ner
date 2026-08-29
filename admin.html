@@ -2128,6 +2128,20 @@ isOnline
 }
 
 
+
+
+if (text) {
+
+text.textContent =
+isOnline
+? "Sistem bağlı"
+: "Bağlantı sorunu";
+
+}
+
+}
+
+
 async function fetchWithAdminTimeout(
 url,
 options = {},
@@ -2160,17 +2174,6 @@ signal: controller.signal
 } finally {
 
 clearTimeout(timer);
-
-}
-
-}
-
-if (text) {
-
-text.textContent =
-isOnline
-? "Sistem bağlı"
-: "Bağlantı sorunu";
 
 }
 
