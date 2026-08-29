@@ -1,0 +1,129 @@
+name: Repair admin helper scope v2
+
+on:
+  push:
+    branches: ["fix/admin-fetch-timeout-scope-v2"]
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move fetchWithAdminTimeout to top-level scope
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('admin.html')
+          src = path.read_text(encoding='utf-8')
+
+          helper_marker = 'async function fetchWithAdminTimeout('
+          setter_marker = 'function setConnectionState('
+
+          def function_end(text, start):
+              paren = text.find('(', start)
+              if paren < 0:
+                  raise RuntimeError('Opening parenthesis not found')
+              pdepth = 0
+              param_end = None
+              for i in range(paren, len(text)):
+                  c = text[i]
+                  if c == '(':
+                      pdepth += 1
+                  elif c == ')':
+                      pdepth -= 1
+                      if pdepth == 0:
+                          param_end = i + 1
+                          break
+              if param_end is None:
+                  raise RuntimeError('Parameter list did not close')
+              brace = text.find('{', param_end)
+              if brace < 0:
+                  raise RuntimeError('Function body opening brace not found')
+              depth = 0
+              for i in range(brace, len(text)):
+                  c = text[i]
+                  if c == '{':
+                      depth += 1
+                  elif c == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return i + 1
+              raise RuntimeError('Matching closing brace not found')
+
+          helper_start = src.find(helper_marker)
+          setter_start = src.find(setter_marker)
+          if helper_start < 0 or setter_start < 0:
+              raise SystemExit('Expected admin helper markers were not found')
+
+          setter_end = function_end(src, setter_start)
+          if helper_start > setter_end:
+              print('Helper is already top-level; nothing to change.')
+              raise SystemExit(0)
+
+          helper_end = function_end(src, helper_start)
+          helper = src[helper_start:helper_end]
+
+          src = src[:helper_start] + src[helper_end:]
+
+          setter_start = src.find(setter_marker)
+          setter_end = function_end(src, setter_start)
+          src = src[:setter_end] + '\n\n\n' + helper + src[setter_end:]
+
+          path.write_text(src, encoding='utf-8')
+          print('Moved fetchWithAdminTimeout to top-level scope.')
+          PY
+      - name: Verify helper placement
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          src = Path('admin.html').read_text(encoding='utf-8')
+          setter_marker = 'function setConnectionState('
+          helper_marker = 'async function fetchWithAdminTimeout('
+
+          def function_end(text, start):
+              paren = text.find('(', start)
+              pdepth = 0
+              for i in range(paren, len(text)):
+                  if text[i] == '(':
+                      pdepth += 1
+                  elif text[i] == ')':
+                      pdepth -= 1
+                      if pdepth == 0:
+                          param_end = i + 1
+                          break
+              brace = text.find('{', param_end)
+              depth = 0
+              for i in range(brace, len(text)):
+                  if text[i] == '{':
+                      depth += 1
+                  elif text[i] == '}':
+                      depth -= 1
+                      if depth == 0:
+                          return i + 1
+              raise RuntimeError('Unbalanced braces')
+
+          setter = src.index(setter_marker)
+          helper = src.index(helper_marker)
+          assert helper > function_end(src, setter), 'fetchWithAdminTimeout is still nested inside setConnectionState'
+          helper_end = function_end(src, helper)
+          helper_text = src[helper:helper_end]
+          assert 'new AbortController()' in helper_text
+          assert 'return await fetch(' in helper_text
+          assert 'clearTimeout(timer);' in helper_text
+          print('Admin helper scope verified.')
+          PY
+      - name: Commit repair
+        run: |
+          if git diff --quiet -- admin.html; then
+            echo "No repair commit needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add admin.html
+          git commit -m "Fix admin fetch timeout helper scope"
+          git push
