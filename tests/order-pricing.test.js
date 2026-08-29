@@ -8,12 +8,11 @@ const {
     priceRequestedItems
 } = require("../order-pricing");
 
-test("istemcinin değiştirdiği ad ve fiyat yerine Firestore verisini kullanır", () => {
+test("istemci fiyat göndermediğinde Firestore fiyatını kullanır", () => {
     const request = normalizeRequestedItems([
         {
             productId: "product-1",
             name: "Sahte ürün",
-            price: 1,
             quantity: 2
         }
     ]);
@@ -44,6 +43,34 @@ test("istemcinin değiştirdiği ad ve fiyat yerine Firestore verisini kullanır
     ]);
 });
 
+test("istemcideki eski veya değiştirilmiş fiyatı reddeder", () => {
+    const request = normalizeRequestedItems([
+        {
+            productId: "product-1",
+            price: 1,
+            quantity: 2
+        }
+    ]);
+
+    const result = priceRequestedItems(
+        request.items,
+        new Map([
+            [
+                "product-1",
+                {
+                    name: "Pide Döner",
+                    price: 90,
+                    available: true
+                }
+            ]
+        ])
+    );
+
+    assert.equal(result.ok, false);
+    assert.equal(result.status, 409);
+    assert.match(result.message, /fiyatı değişti/i);
+});
+
 test("aynı ürün tekrar gönderilirse miktarları güvenli biçimde birleştirir", () => {
     const result = normalizeRequestedItems([
         { productId: "product-1", quantity: 2 },
@@ -65,8 +92,23 @@ test("ürün kimliği veya miktar geçersizse siparişi reddeder", () => {
         { productId: "product-1", quantity: 1.5 }
     ]);
 
+    const stringQuantity = normalizeRequestedItems([
+        { productId: "product-1", quantity: "1" }
+    ]);
+
+    const booleanQuantity = normalizeRequestedItems([
+        { productId: "product-1", quantity: true }
+    ]);
+
+    const reservedId = normalizeRequestedItems([
+        { productId: "__bad__", quantity: 1 }
+    ]);
+
     assert.equal(invalidId.ok, false);
     assert.equal(fractionalQuantity.ok, false);
+    assert.equal(stringQuantity.ok, false);
+    assert.equal(booleanQuantity.ok, false);
+    assert.equal(reservedId.ok, false);
 });
 
 test("olmayan veya satışa kapalı ürünü reddeder", () => {

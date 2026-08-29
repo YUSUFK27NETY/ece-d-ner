@@ -22,6 +22,7 @@ test("eski sayısal kimlikleri kabul edip geçersiz yolları reddeder", () => {
     );
     assert.equal(normalizeOrderIdentifier("bad/id"), null);
     assert.equal(normalizeOrderIdentifier(".."), null);
+    assert.equal(normalizeOrderIdentifier("__bad__"), null);
     assert.throws(
         () => createOrderNumber("--------"),
         /okunabilir/

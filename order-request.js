@@ -17,13 +17,29 @@ function failure(message) {
 }
 
 function cleanText(value, maxLength) {
-    return String(value ?? "")
-        .trim()
-        .slice(0, maxLength);
+    if (value === undefined || value === null) {
+        return "";
+    }
+
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    const text = value.trim();
+
+    if (text.length > maxLength) {
+        return null;
+    }
+
+    return text;
 }
 
 function normalizeTurkishPhone(value) {
-    let digits = String(value ?? "")
+    if (typeof value !== "string") {
+        return null;
+    }
+
+    let digits = value
         .replace(/\D/g, "");
 
     if (digits.startsWith("00")) {
@@ -57,6 +73,10 @@ function validateOrderRequest(orderData) {
     const customerName =
         cleanText(orderData.customerName, 100);
 
+    if (customerName === null) {
+        return failure("Müşteri adı metin olmalıdır.");
+    }
+
     if (customerName.length < 2) {
         return failure("Müşteri adı en az 2 karakter olmalıdır.");
     }
@@ -71,7 +91,7 @@ function validateOrderRequest(orderData) {
     const orderType =
         cleanText(orderData.orderType, 50);
 
-    if (!VALID_ORDER_TYPES.has(orderType)) {
+    if (orderType === null || !VALID_ORDER_TYPES.has(orderType)) {
         return failure("Geçersiz sipariş türü.");
     }
 
@@ -80,6 +100,17 @@ function validateOrderRequest(orderData) {
 
     const rawTableNumber =
         cleanText(orderData.tableNumber, 30);
+
+    const note =
+        cleanText(orderData.note, 500);
+
+    if (
+        rawAddress === null ||
+        rawTableNumber === null ||
+        note === null
+    ) {
+        return failure("Adres, masa ve not alanları metin olmalıdır.");
+    }
 
     if (orderType === PACKAGE_ORDER && !rawAddress) {
         return failure("Paket siparişi için adres gerekli.");
@@ -104,7 +135,7 @@ function validateOrderRequest(orderData) {
                     ? rawTableNumber
                     : "",
             note:
-                cleanText(orderData.note, 500)
+                note
         }
     };
 }

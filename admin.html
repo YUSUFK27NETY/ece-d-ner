@@ -11,6 +11,11 @@ content="width=device-width, initial-scale=1.0"
 >
 
 <meta
+name="robots"
+content="noindex, nofollow, noarchive"
+>
+
+<meta
 name="theme-color"
 content="#111111"
 >
@@ -332,6 +337,14 @@ color: #ff7777;
 
 padding: 8px 12px;
 
+border-radius: 8px;
+}
+
+.notification-btn {
+background: #252525;
+border: 1px solid #444;
+color: #fff;
+padding: 8px 12px;
 border-radius: 8px;
 }
 
@@ -1400,14 +1413,23 @@ Ece Döner
 
 <span
 id="connectionDot"
-class="status-dot online"
+class="status-dot"
 ></span>
 
-<span>
-Sistem Aktif
+<span id="connectionText">
+Bağlantı kontrol ediliyor
 </span>
 
 </div>
+
+
+<button
+id="notificationBtn"
+class="notification-btn"
+type="button"
+>
+🔔 Bildirimleri Aç
+</button>
 
 
 <button
@@ -1507,7 +1529,7 @@ type="button"
 <div class="stat-info">
 
 <span>
-Toplam Sipariş
+Son 200 Aktif Sipariş
 </span>
 
 <strong id="totalOrders">
@@ -1570,7 +1592,7 @@ Toplam Ürün
 <div class="stat-info">
 
 <span>
-Toplam Ciro
+Tamamlanan Ciro (Son 200)
 </span>
 
 <strong id="totalRevenue">
@@ -1588,12 +1610,15 @@ Toplam Ciro
             TABS
        ========================== -->
 
-<div class="tabs">
+<div class="tabs" role="tablist" aria-label="Yönetim bölümleri">
 
 <button
 class="tab-btn active"
 data-tab="ordersTab"
 type="button"
+role="tab"
+aria-selected="true"
+aria-controls="ordersTab"
 >
 🛒 Siparişler
 </button>
@@ -1603,6 +1628,9 @@ type="button"
 class="tab-btn"
 data-tab="productsTab"
 type="button"
+role="tab"
+aria-selected="false"
+aria-controls="productsTab"
 >
 🍽️ Menü Yönetimi
 </button>
@@ -1617,6 +1645,7 @@ type="button"
 <div
 id="ordersTab"
 class="tab-content active"
+role="tabpanel"
 >
 
 <section class="panel-section">
@@ -1669,6 +1698,8 @@ Siparişler yükleniyor...
 <div
 id="productsTab"
 class="tab-content"
+role="tabpanel"
+hidden
 >
 
 <section class="panel-section">
@@ -1735,6 +1766,11 @@ class="products-grid"
 <div
 id="productModal"
 class="modal"
+role="dialog"
+aria-modal="true"
+aria-labelledby="modalTitle"
+aria-hidden="true"
+inert
 >
 
 <div class="modal-box">
@@ -1779,6 +1815,7 @@ id="productName"
 class="form-input"
 type="text"
 placeholder="Örn: Tavuk Döner"
+maxlength="150"
 required
 >
 
@@ -1837,6 +1874,7 @@ id="productPrice"
 class="form-input"
 type="number"
 min="0.01"
+max="100000"
 step="0.01"
 placeholder="180"
 required
@@ -1857,6 +1895,7 @@ Açıklama
 id="productDescription"
 class="form-textarea"
 placeholder="Ürün açıklaması..."
+maxlength="500"
 ></textarea>
 
 </div>
@@ -1883,6 +1922,14 @@ type="file"
 accept="image/jpeg,image/png,image/webp,image/*"
 >
 
+<button
+id="removeProductImageBtn"
+class="cancel-product"
+type="button"
+>
+Fotoğrafı Kaldır
+</button>
+
 
 <div
 id="imagePreview"
@@ -1891,7 +1938,6 @@ class="image-preview"
 
 <img
 id="imagePreviewImg"
-src=""
 alt="Ürün fotoğrafı önizleme"
 >
 
@@ -1982,7 +2028,7 @@ type="submit"
 
 <!-- TOAST -->
 
-<div id="toast"></div>
+<div id="toast" role="status" aria-live="polite"></div>
 
 
 <script>
@@ -2045,9 +2091,90 @@ let products = [];
 
 let currentImageData = "";
 
+let removeCurrentImage = false;
+
 let productsUnsubscribe = null;
 
 let ordersUnsubscribe = null;
+
+let ordersSnapshotInitialized = false;
+
+let notificationAudioContext = null;
+
+let lastAdminFocusedElement = null;
+
+
+function setConnectionState(
+isOnline
+) {
+
+const dot =
+document.getElementById(
+"connectionDot"
+);
+
+const text =
+document.getElementById(
+"connectionText"
+);
+
+if (dot) {
+
+dot.classList.toggle(
+"online",
+isOnline
+);
+
+}
+
+
+async function fetchWithAdminTimeout(
+url,
+options = {},
+timeoutMs = 15000
+) {
+
+const controller =
+new AbortController();
+
+const timer =
+setTimeout(
+function () {
+
+controller.abort();
+
+},
+timeoutMs
+);
+
+try {
+
+return await fetch(
+url,
+{
+...options,
+signal: controller.signal
+}
+);
+
+} finally {
+
+clearTimeout(timer);
+
+}
+
+}
+
+if (text) {
+
+text.textContent =
+isOnline
+? "Sistem bağlı"
+: "Bağlantı sorunu";
+
+}
+
+}
 
 
 /* =====================================================
@@ -2104,6 +2231,31 @@ document.getElementById(
 "saveProductBtn"
 );
 
+const removeProductImageBtn =
+document.getElementById(
+"removeProductImageBtn"
+);
+
+removeProductImageBtn.addEventListener(
+"click",
+function () {
+
+currentImageData = "";
+removeCurrentImage = true;
+imageFile.value = "";
+imagePreview.style.display =
+"none";
+imagePreviewImg.removeAttribute(
+"src"
+);
+
+showToast(
+"Fotoğraf kaydedince kaldırılacak."
+);
+
+}
+);
+
 
 /* =====================================================
   TOAST
@@ -2143,6 +2295,193 @@ toast.classList.remove(
 
 },
 2500
+);
+
+}
+
+
+function playNewOrderSound() {
+
+try {
+
+const AudioContextClass =
+window.AudioContext ||
+window.webkitAudioContext;
+
+if (!AudioContextClass) {
+return;
+}
+
+notificationAudioContext =
+notificationAudioContext ||
+new AudioContextClass();
+
+const oscillator =
+notificationAudioContext.createOscillator();
+
+const gain =
+notificationAudioContext.createGain();
+
+oscillator.frequency.value =
+880;
+
+gain.gain.setValueAtTime(
+0.0001,
+notificationAudioContext.currentTime
+);
+
+gain.gain.exponentialRampToValueAtTime(
+0.25,
+notificationAudioContext.currentTime + 0.02
+);
+
+gain.gain.exponentialRampToValueAtTime(
+0.0001,
+notificationAudioContext.currentTime + 0.45
+);
+
+oscillator.connect(gain);
+gain.connect(
+notificationAudioContext.destination
+);
+
+oscillator.start();
+oscillator.stop(
+notificationAudioContext.currentTime + 0.5
+);
+
+} catch (error) {
+
+console.warn(
+"Bildirim sesi çalınamadı:",
+error
+);
+
+}
+
+}
+
+
+function notifyAboutNewOrders(
+snapshot
+) {
+
+if (!ordersSnapshotInitialized) {
+
+ordersSnapshotInitialized =
+true;
+
+return;
+
+}
+
+const addedOrders =
+snapshot.docChanges()
+.filter(function (change) {
+
+const order =
+change.doc.data();
+
+return (
+change.type === "added" &&
+order.status !== "cancelled" &&
+order.archived !== true
+);
+
+});
+
+if (!addedOrders.length) {
+return;
+}
+
+playNewOrderSound();
+
+const message =
+addedOrders.length === 1
+? "Yeni sipariş geldi!"
+: addedOrders.length + " yeni sipariş geldi!";
+
+showToast(message);
+
+if (
+"Notification" in window &&
+Notification.permission === "granted"
+) {
+
+new Notification(
+"Ece Döner",
+{
+body: message,
+icon: "logo.jpg"
+}
+);
+
+}
+
+}
+
+
+const notificationBtn =
+document.getElementById(
+"notificationBtn"
+);
+
+if (notificationBtn) {
+
+notificationBtn.addEventListener(
+"click",
+async function () {
+
+try {
+
+if (
+notificationAudioContext &&
+notificationAudioContext.state === "suspended"
+) {
+await notificationAudioContext.resume();
+}
+
+playNewOrderSound();
+
+if (!("Notification" in window)) {
+
+notificationBtn.textContent =
+"🔊 Ses Açık";
+
+showToast(
+"Sesli sipariş bildirimi açıldı."
+);
+
+return;
+
+}
+
+const permission =
+await Notification.requestPermission();
+
+notificationBtn.textContent =
+permission === "granted"
+? "🔔 Bildirimler Açık"
+: "🔊 Ses Açık";
+
+showToast(
+permission === "granted"
+? "Sipariş bildirimleri açıldı."
+: "Tarayıcı bildirimi kapalı; sesli uyarı açık."
+);
+
+} catch (error) {
+
+console.error(error);
+
+showToast(
+"Bildirim ayarı açılamadı.",
+"error"
+);
+
+}
+
+}
 );
 
 }
@@ -2295,6 +2634,8 @@ loadProducts();
 
 loadOrders();
 
+loadAdminRestaurantStatus();
+
 }
 
 catch (error) {
@@ -2404,6 +2745,11 @@ btn.classList.remove(
 "active"
 );
 
+btn.setAttribute(
+"aria-selected",
+"false"
+);
+
 }
 );
 
@@ -2419,12 +2765,20 @@ tab.classList.remove(
 "active"
 );
 
+tab.hidden =
+true;
+
 }
 );
 
 
 button.classList.add(
 "active"
+);
+
+button.setAttribute(
+"aria-selected",
+"true"
 );
 
 
@@ -2439,6 +2793,9 @@ if (target) {
 target.classList.add(
 "active"
 );
+
+target.hidden =
+false;
 
 }
 
@@ -3011,7 +3368,8 @@ product.image ||
 
 
 const available =
-product.available !== false;
+product.available !== false &&
+product.archived !== true;
 
 
 let imageHTML =
@@ -3096,7 +3454,9 @@ return `
                >
 
                    ${
-                       available
+                       product.archived === true
+                           ? "📦 Arşivde"
+                           : available
                            ? "🟢 Satışta"
                            : "🔴 Tükendi / Kapalı"
                    }
@@ -3105,6 +3465,19 @@ return `
 
 
                <div class="product-actions">
+
+                   ${
+                       product.archived === true
+                           ? `
+                               <button
+                                   class="small-btn edit-btn"
+                                   onclick="restoreProduct('${product.id}')"
+                                   type="button"
+                               >
+                                   ↩️ Geri Al
+                               </button>
+                             `
+                           : `
 
                    <button
                        class="small-btn edit-btn"
@@ -3135,8 +3508,11 @@ return `
                        onclick="deleteProduct('${product.id}')"
                        type="button"
                    >
-                       🗑️ Sil
+                       📦 Arşivle
                    </button>
+
+                             `
+                   }
 
                </div>
 
@@ -3223,9 +3599,27 @@ function openProductModal(
 product = null
 ) {
 
+removeCurrentImage =
+false;
+
+lastAdminFocusedElement =
+document.activeElement;
+
+productModal.removeAttribute(
+"inert"
+);
+
+productModal.setAttribute(
+"aria-hidden",
+"false"
+);
+
 productModal.classList.add(
 "active"
 );
+
+document.body.style.overflow =
+"hidden";
 
 
 if (product) {
@@ -3291,8 +3685,9 @@ else {
 imagePreview.style.display =
 "none";
 
-imagePreviewImg.src =
-"";
+imagePreviewImg.removeAttribute(
+"src"
+);
 
 }
 
@@ -3326,15 +3721,29 @@ document.getElementById(
 currentImageData =
 "";
 
+removeCurrentImage =
+false;
+
 
 imagePreview.style.display =
 "none";
 
 
-imagePreviewImg.src =
-"";
+imagePreviewImg.removeAttribute(
+"src"
+);
 
 }
+
+requestAnimationFrame(
+function () {
+
+document.getElementById(
+"productName"
+).focus();
+
+}
+);
 
 }
 
@@ -3349,6 +3758,14 @@ productModal.classList.remove(
 "active"
 );
 
+productModal.setAttribute(
+"aria-hidden",
+"true"
+);
+
+document.body.style.overflow =
+"";
+
 
 productForm.reset();
 
@@ -3361,8 +3778,27 @@ imagePreview.style.display =
 "none";
 
 
-imagePreviewImg.src =
-"";
+imagePreviewImg.removeAttribute(
+"src"
+);
+
+if (
+lastAdminFocusedElement &&
+typeof lastAdminFocusedElement.focus ===
+"function"
+) {
+
+lastAdminFocusedElement.focus();
+
+}
+
+lastAdminFocusedElement =
+null;
+
+productModal.setAttribute(
+"inert",
+""
+);
 
 }
 
@@ -3447,7 +3883,8 @@ if (
 !Number.isFinite(
 price
 ) ||
-price <= 0
+price <= 0 ||
+price > 100000
 ) {
 
 showToast(
@@ -3496,6 +3933,20 @@ if (currentImageData) {
 
 data.imageData =
 currentImageData;
+
+}
+
+else if (removeCurrentImage && id) {
+
+data.imageData =
+firebase.firestore
+.FieldValue
+.delete();
+
+data.image =
+firebase.firestore
+.FieldValue
+.delete();
 
 }
 
@@ -3722,7 +4173,7 @@ showToast(
 
 
 /* =====================================================
-  DELETE PRODUCT
+  ARCHIVE PRODUCT
 ===================================================== */
 
 window.deleteProduct =
@@ -3745,7 +4196,7 @@ return;
 
 const confirmed =
 confirm(
-`"${product.name}" ürününü silmek istediğinize emin misiniz?`
+`"${product.name}" ürünü arşivlensin mi? Müşteri menüsünden kaldırılacak.`
 );
 
 
@@ -3758,11 +4209,22 @@ try {
 
 await productsCollection
 .doc(id)
-.delete();
+.update({
+
+archived: true,
+
+available: false,
+
+archivedAt:
+firebase.firestore
+.FieldValue
+.serverTimestamp()
+
+});
 
 
 showToast(
-"Ürün silindi."
+"Ürün arşivlendi."
 );
 
 }
@@ -3775,7 +4237,45 @@ error
 
 
 showToast(
-"Ürün silinemedi.",
+"Ürün arşivlenemedi.",
+"error"
+);
+
+}
+
+};
+
+
+window.restoreProduct =
+async function (id) {
+
+try {
+
+await productsCollection
+.doc(id)
+.update({
+
+archived: false,
+
+available: true,
+
+updatedAt:
+firebase.firestore
+.FieldValue
+.serverTimestamp()
+
+});
+
+showToast(
+"Ürün arşivden geri alındı."
+);
+
+} catch (error) {
+
+console.error(error);
+
+showToast(
+"Ürün geri alınamadı.",
 "error"
 );
 
@@ -3793,7 +4293,14 @@ function updateProductStats() {
 document.getElementById(
 "totalProducts"
 ).textContent =
-products.length;
+products.filter(
+function (product) {
+
+return product.archived !==
+true;
+
+}
+).length;
 
 }
 
@@ -3810,6 +4317,9 @@ ordersUnsubscribe();
 
 }
 
+ordersSnapshotInitialized =
+false;
+
 
 ordersUnsubscribe =
 db
@@ -3824,12 +4334,24 @@ db
 .onSnapshot(
 function (snapshot) {
 
+setConnectionState(
+true
+);
+
+notifyAboutNewOrders(
+snapshot
+);
+
 renderOrders(
 snapshot
 );
 
 },
 function (error) {
+
+setConnectionState(
+false
+);
 
 console.error(
 "Sipariş hatası:",
@@ -3874,6 +4396,10 @@ db
 .limit(200)
 .onSnapshot(
 function (snapshot) {
+
+setConnectionState(
+true
+);
 
 const orderDocs =
 [];
@@ -3929,6 +4455,10 @@ orderDocs
 },
 function (error) {
 
+setConnectionState(
+false
+);
+
 console.error(
 "Sipariş fallback hatası:",
 error
@@ -3983,6 +4513,15 @@ docs
 function renderOrdersFromDocs(
 docs
 ) {
+
+docs = docs.filter(
+function (doc) {
+
+return doc.data().archived !==
+true;
+
+}
+);
 
 const container =
 document.getElementById(
@@ -4136,8 +4675,15 @@ calculatedTotal;
 }
 
 
+if (
+status ===
+"completed"
+) {
+
 totalRevenue +=
 orderTotal;
+
+}
 
 
 const customerName =
@@ -4372,6 +4918,19 @@ ordersHTML.push(`
                                    ✔️ Tamamlandı
                                </option>
 
+
+                               <option
+                                   value="cancelled"
+                                   ${
+                                       status ===
+                                       "cancelled"
+                                           ? "selected"
+                                           : ""
+                                   }
+                               >
+                                   ❌ İptal
+                               </option>
+
                            </select>
 
 
@@ -4387,7 +4946,7 @@ ordersHTML.push(`
                                "
                                type="button"
                            >
-                               🗑️ Sil
+                               📦 Arşivle
                            </button>
 
                        </div>
@@ -4433,12 +4992,82 @@ document.getElementById(
 docs.length +
 " sipariş";
 
+
+document.title =
+newCount > 0
+? "(" + newCount + ") Ece Döner Yönetim"
+: "Ece Döner Yönetim";
+
 }
 
 
 /* =====================================================
   ORDER STATUS
 ===================================================== */
+
+async function adminApiRequest(
+path,
+options = {}
+) {
+
+const user =
+auth.currentUser;
+
+if (!user) {
+throw new Error(
+"Yönetici oturumu bulunamadı."
+);
+}
+
+const token =
+await user.getIdToken();
+
+const response =
+await fetchWithAdminTimeout(
+RESTAURANT_API_BASE + path,
+{
+...options,
+headers: {
+"Content-Type":
+"application/json",
+"Authorization":
+"Bearer " + token,
+...(options.headers || {})
+}
+}
+);
+
+let result =
+null;
+
+try {
+
+result =
+await response.json();
+
+} catch {
+
+throw new Error(
+"Sunucudan geçersiz cevap geldi."
+);
+
+}
+
+if (
+!response.ok ||
+result?.success !== true
+) {
+
+throw new Error(
+result?.message ||
+"İşlem tamamlanamadı."
+);
+
+}
+
+return result;
+
+}
 
 window.changeOrderStatus =
 async function (
@@ -4448,19 +5077,15 @@ status
 
 try {
 
-await db
-.collection(
-"orders"
-)
-.doc(
-docId
-)
-.update({
-
-status:
-status
-
-});
+await adminApiRequest(
+"/api/orders/" +
+encodeURIComponent(docId) +
+"/status",
+{
+method: "PATCH",
+body: JSON.stringify({ status })
+}
+);
 
 
 showToast(
@@ -4487,7 +5112,7 @@ showToast(
 
 
 /* =====================================================
-  DELETE ORDER
+  ARCHIVE ORDER
 ===================================================== */
 
 window.deleteOrder =
@@ -4496,8 +5121,22 @@ docId
 ) {
 
 if (
+adminBackendCapabilities.softArchive !==
+true
+) {
+
+showToast(
+"Güvenli arşivleme servisi henüz hazır değil. Biraz sonra tekrar deneyin.",
+"error"
+);
+
+return;
+
+}
+
+if (
 !confirm(
-"Bu siparişi silmek istediğinize emin misiniz?"
+"Bu sipariş aktif listeden arşivlensin mi? Kayıt silinmeyecek."
 )
 ) {
 
@@ -4508,18 +5147,17 @@ return;
 
 try {
 
-await db
-.collection(
-"orders"
-)
-.doc(
-docId
-)
-.delete();
+await adminApiRequest(
+"/api/orders/" +
+encodeURIComponent(docId),
+{
+method: "DELETE"
+}
+);
 
 
 showToast(
-"Sipariş silindi."
+"Sipariş arşivlendi."
 );
 
 }
@@ -4532,7 +5170,8 @@ error
 
 
 showToast(
-"Sipariş silinemedi.",
+error?.message ||
+"Sipariş arşivlenemedi.",
 "error"
 );
 
@@ -4597,6 +5236,60 @@ productModal.classList.contains(
 ) {
 
 closeProductModal();
+
+}
+
+if (
+event.key === "Tab" &&
+productModal.classList.contains(
+"active"
+)
+) {
+
+const focusable =
+Array.from(
+productModal.querySelectorAll(
+'button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])'
+)
+)
+.filter(function (element) {
+
+return (
+!element.disabled &&
+!element.hidden
+);
+
+});
+
+if (focusable.length) {
+
+const first =
+focusable[0];
+
+const last =
+focusable[
+focusable.length - 1
+];
+
+if (
+event.shiftKey &&
+document.activeElement === first
+) {
+
+event.preventDefault();
+last.focus();
+
+} else if (
+!event.shiftKey &&
+document.activeElement === last
+) {
+
+event.preventDefault();
+first.focus();
+
+}
+
+}
 
 }
 
@@ -4698,7 +5391,10 @@ ready:
 "✅ Hazır",
 
 completed:
-"✔️ Tamamlandı"
+"✔️ Tamamlandı",
+
+cancelled:
+"❌ İptal"
 
 };
 
@@ -4777,6 +5473,9 @@ const RESTAURANT_API_BASE =
 
 let adminRestaurantIsOpen =
 null;
+
+let adminBackendCapabilities =
+{};
 
 
 /* =====================================================
@@ -4896,7 +5595,7 @@ document.getElementById(
 try {
 
 const response =
-await fetch(
+await fetchWithAdminTimeout(
 
 RESTAURANT_API_BASE +
 "/api/restaurant/status"
@@ -4924,12 +5623,23 @@ result?.message ||
 adminRestaurantIsOpen =
 result.isOpen === true;
 
+adminBackendCapabilities =
+result.features || {};
+
+setConnectionState(
+true
+);
+
 
 renderAdminRestaurantStatus();
 
 }
 
 catch (error) {
+
+setConnectionState(
+false
+);
 
 console.error(
 "Restoran durum hatası:",
@@ -4995,65 +5705,20 @@ button.textContent =
 "⏳ Güncelleniyor...";
 
 
-const token =
-await user.getIdToken(
-true
-);
-
-
 const nextStatus =
 !adminRestaurantIsOpen;
 
 
-const response =
-await fetch(
-
-RESTAURANT_API_BASE +
-"/api/admin/restaurant/status",
-
-{
-
-method:
-"PATCH",
-
-headers: {
-
-"Content-Type":
-"application/json",
-
-"Authorization":
-"Bearer " + token
-
-},
-
-body:
-JSON.stringify({
-
-isOpen:
-nextStatus
-
-})
-
-}
-
-);
-
-
 const result =
-await response.json();
-
-
-if (
-!response.ok ||
-result?.success !== true
-) {
-
-throw new Error(
-result?.message ||
-"Restoran durumu değiştirilemedi."
-);
-
+await adminApiRequest(
+"/api/admin/restaurant/status",
+{
+method: "PATCH",
+body: JSON.stringify({
+isOpen: nextStatus
+})
 }
+);
 
 
 adminRestaurantIsOpen =
@@ -5117,21 +5782,6 @@ changeAdminRestaurantStatus
 }
 
 
-/* =====================================================
-   ADMIN GİRİŞİNDE DURUMU YÜKLE
-===================================================== */
-
-auth.onAuthStateChanged(
-function (user) {
-
-if (user) {
-
-loadAdminRestaurantStatus();
-
-}
-
-}
-);
 </script>
 
 </body>

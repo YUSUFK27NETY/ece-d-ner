@@ -36,6 +36,7 @@ function loadFrontendScript() {
             }
         },
         window: {},
+        AbortController,
         setTimeout,
         clearTimeout
     };
@@ -160,6 +161,75 @@ test("WhatsApp URL'sini güvenli biçimde kodlar", () => {
     assert.equal(
         context.whatsAppUrl,
         "https://api.whatsapp.com/send?phone=905315006996&text=Ayran%20%26%20D%C3%B6ner%20%3D%20120%E2%82%BA"
+    );
+});
+
+test("WhatsApp özetine sunucunun sipariş numarasını ekler", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            globalThis.message = createWhatsAppMessage(
+                "Yusuf Kaya",
+                "05315006996",
+                "Paket Sipariş",
+                "",
+                "Adres",
+                "",
+                [{ name: "Ayran", price: 30, quantity: 1 }],
+                30,
+                "ECE-ABC12345"
+            );
+        `,
+        context
+    );
+
+    assert.match(context.message, /ECE-ABC12345/);
+});
+
+test("menü fiyatı değiştiğinde sepeti günceller", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            cart = [{
+                productId: "product-1",
+                name: "Ayran",
+                price: 30,
+                quantity: 2
+            }];
+            reconcileCartWithProducts(new Map([
+                ["product-1", { name: "Ayran", price: 35 }]
+            ]));
+            globalThis.cartSnapshot = JSON.parse(JSON.stringify(cart));
+        `,
+        context
+    );
+
+    assert.equal(context.cartSnapshot[0].price, 35);
+    assert.equal(context.cartSnapshot[0].quantity, 2);
+});
+
+test("tekrar anahtarını yalnız backend desteği doğrulanınca gönderir", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `
+            orderIdempotencySupported = false;
+            globalThis.legacyHeaders = getOrderRequestHeaders("key");
+            orderIdempotencySupported = true;
+            globalThis.modernHeaders = getOrderRequestHeaders("key");
+        `,
+        context
+    );
+
+    assert.equal(
+        context.legacyHeaders["Idempotency-Key"],
+        undefined
+    );
+    assert.equal(
+        context.modernHeaders["Idempotency-Key"],
+        "key"
     );
 });
 

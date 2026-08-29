@@ -1,6 +1,6 @@
 # QR Menü Pro
 
-Profesyonel QR Menü sistemi.
+Ece Döner için mobil QR menü, güvenli sipariş API'si ve yönetim paneli.
 
 ## Ece Döner
 
@@ -13,10 +13,22 @@ Mobil uyumlu dijital menü ve WhatsApp üzerinden sipariş sistemi.
 - 🛒 Sepet sistemi
 - ➕➖ Ürün miktarı kontrolü
 - 📝 Sipariş notu
-- 💬 WhatsApp üzerinden sipariş
+- 💬 Sunucuda kaydedildikten sonra WhatsApp'ta onay özeti
 - 🔎 Ürün arama
-- 🏷️ İndirimli ürünler
 - ❤️ Favoriler
+- 🔒 Sunucu tarafında ürün/fiyat doğrulama
+- 🔁 Tekrarlanan gönderimleri engelleyen sipariş anahtarı
+- 📦 Silme yerine geri alınabilir ürün ve sipariş arşivi
+- 🔔 Yeni sipariş ses/tarayıcı bildirimi
+
+## Yerel kontroller
+
+```bash
+npm ci
+npm run ci
+```
+
+Ortam değişkenleri için `.env.example` dosyasını temel alın. Servis hesabı dosyasını repoya eklemeyin.
 
 ## Yönetici güvenlik kurulumu
 
@@ -34,5 +46,4 @@ Ardından Firestore kurallarını dağıtın:
 firebase deploy --only firestore:rules --project ece-2e44c
 ```
 
-Servis hesabı dosyasını repoya eklemeyin. Yetki verildikten sonra
-yönetici çıkış yapıp tekrar giriş yapmalıdır.
+Yetki verildikten sonra yönetici çıkış yapıp tekrar giriş yapmalıdır. Yayın ve geri dönüş sırası için `OPERATIONS.md` belgesini izleyin.

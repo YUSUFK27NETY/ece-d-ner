@@ -72,6 +72,29 @@ function checkDuplicateIds(fileName) {
     }
 }
 
+function checkHtmlSafety(fileName) {
+    const html = read(fileName);
+
+    if (/\bsrc\s*=\s*(["'])\s*\1/i.test(html)) {
+        throw new Error(
+            `${fileName}: boş src özelliği ağ isteğine neden olabilir.`
+        );
+    }
+
+    const hiddenDialogPattern =
+        /<[^>]+role\s*=\s*(["'])dialog\1[^>]+aria-hidden\s*=\s*(["'])true\2[^>]*>/gi;
+
+    let match;
+
+    while ((match = hiddenDialogPattern.exec(html)) !== null) {
+        if (!/\binert\b/i.test(match[0])) {
+            throw new Error(
+                `${fileName}: gizli dialog inert olmalıdır.`
+            );
+        }
+    }
+}
+
 function checkBalancedBraces(fileName) {
     const source = read(fileName);
     let balance = 0;
@@ -141,6 +164,8 @@ function checkBalancedBraces(fileName) {
     "order-pricing.js",
     "cors-policy.js",
     "order-request.js",
+    "order-idempotency.js",
+    "http-error.js",
     "admin-auth.js",
     "order-identifier.js",
     "scripts/set-admin-claim.js"
@@ -154,6 +179,7 @@ function checkBalancedBraces(fileName) {
 ].forEach(fileName => {
     checkInlineScripts(fileName);
     checkDuplicateIds(fileName);
+    checkHtmlSafety(fileName);
 });
 
 checkBalancedBraces("style.css");

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const admin = require("firebase-admin");
 const rateLimit = require("express-rate-limit");
+const crypto = require("node:crypto");
 const {
     normalizeRequestedItems,
     priceRequestedItems
@@ -19,6 +20,14 @@ const {
     normalizeOrderIdentifier,
     createOrderNumber
 } = require("./order-identifier");
+const {
+    normalizeIdempotencyKey,
+    createIdempotentOrderId,
+    createRequestHash
+} = require("./order-idempotency");
+const {
+    classifyHttpError
+} = require("./http-error");
 
 const app = express();
 
@@ -35,14 +44,28 @@ app.set("trust proxy", 1);
 app.use(
     (req, res, next) => {
 
+        req.requestId =
+            crypto.randomUUID();
+
         res.set({
             "X-Content-Type-Options":
                 "nosniff",
             "Referrer-Policy":
                 "no-referrer",
             "Permissions-Policy":
-                "camera=(), microphone=(), geolocation=()"
+                "camera=(), microphone=(), geolocation=()",
+            "Content-Security-Policy":
+                "default-src 'none'; frame-ancestors 'none'",
+            "X-Request-Id":
+                req.requestId
         });
+
+        if (req.secure) {
+            res.set(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains"
+            );
+        }
 
         next();
     }
@@ -69,7 +92,8 @@ app.use(
 
         allowedHeaders: [
             "Content-Type",
-            "Authorization"
+            "Authorization",
+            "Idempotency-Key"
         ]
     })
 );
@@ -91,7 +115,11 @@ app.use(
 const generalLimiter =
     rateLimit({
         windowMs: 15 * 60 * 1000,
-        max: 300,
+        max: 600,
+
+        skip: req =>
+            req.method === "GET" &&
+            req.path === "/restaurant/status",
 
         standardHeaders: true,
         legacyHeaders: false,
@@ -125,7 +153,7 @@ app.use(
 const orderCreateLimiter =
     rateLimit({
         windowMs: 10 * 60 * 1000,
-        max: 20,
+        max: 60,
 
         standardHeaders: true,
         legacyHeaders: false,
@@ -143,6 +171,7 @@ const orderCreateLimiter =
 ========================================== */
 
 const SERVICE_ACCOUNT_PATH =
+    process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
     "/etc/secrets/firebase-service-account.json";
 
 try {
@@ -236,6 +265,13 @@ const settingsCollection =
 
 const restaurantSettingsRef =
     settingsCollection.doc("restaurant");
+
+const RESTAURANT_STATUS_CACHE_MS = 10000;
+
+let restaurantStatusCache = {
+    isOpen: false,
+    expiresAt: 0
+};
 
 
 async function findOrderDocument(
@@ -350,7 +386,7 @@ async function requireAdmin(
         const decodedToken =
             await admin
                 .auth()
-                .verifyIdToken(idToken);
+                .verifyIdToken(idToken, true);
 
         if (!hasAdminClaim(decodedToken)) {
 
@@ -404,6 +440,39 @@ function cleanString(
         .slice(0, maxLength);
 }
 
+function sendOrderResponse(
+    res,
+    docId,
+    order,
+    created
+) {
+    const {
+        requestHash,
+        ...publicOrder
+    } = order;
+
+    return res.status(created ? 201 : 200).json({
+        success: true,
+        duplicate: !created,
+        message:
+            created
+                ? "Sipariş başarıyla oluşturuldu."
+                : "Sipariş daha önce oluşturulmuş; aynı kayıt döndürüldü.",
+        order: {
+            firestoreId: docId,
+            ...publicOrder
+        }
+    });
+}
+
+function sendIdempotencyConflict(res) {
+    return res.status(409).json({
+        success: false,
+        message:
+            "Bu sipariş anahtarı farklı bilgilerle daha önce kullanılmış. Sayfayı yenileyip tekrar deneyin."
+    });
+}
+
 
 /* ==========================================
    RESTORAN DURUMU
@@ -418,6 +487,13 @@ function cleanString(
 
 async function getRestaurantStatus() {
 
+    if (
+        restaurantStatusCache.expiresAt >
+        Date.now()
+    ) {
+        return restaurantStatusCache.isOpen;
+    }
+
     const snapshot =
         await restaurantSettingsRef.get();
 
@@ -427,12 +503,27 @@ async function getRestaurantStatus() {
             "Restoran ayarı bulunamadı; güvenli varsayılan KAPALI."
         );
 
+        restaurantStatusCache = {
+            isOpen: false,
+            expiresAt:
+                Date.now() +
+                RESTAURANT_STATUS_CACHE_MS
+        };
+
         return false;
     }
 
-    return (
-        snapshot.data().isOpen === true
-    );
+    const isOpen =
+        snapshot.data().isOpen === true;
+
+    restaurantStatusCache = {
+        isOpen,
+        expiresAt:
+            Date.now() +
+            RESTAURANT_STATUS_CACHE_MS
+    };
+
+    return isOpen;
 }
 
 
@@ -459,6 +550,11 @@ app.get(
                     isOpen
                         ? "open"
                         : "closed",
+
+                features: {
+                    orderIdempotency: true,
+                    softArchive: true
+                },
 
                 message:
                     isOpen
@@ -535,6 +631,13 @@ app.patch(
                 merge: true
             });
 
+            restaurantStatusCache = {
+                isOpen,
+                expiresAt:
+                    Date.now() +
+                    RESTAURANT_STATUS_CACHE_MS
+            };
+
 
             console.log(
                 `RESTORAN DURUMU: ${
@@ -604,8 +707,33 @@ app.get(
                 "ok",
 
             service:
-                "qr-menu-pro"
+                "qr-menu-pro",
 
+            features: {
+                orderIdempotency: true,
+                softArchive: true
+            }
+
+        });
+    }
+);
+
+app.get(
+    "/healthz",
+    (req, res) => {
+        res.set(
+            "Cache-Control",
+            "no-store"
+        );
+
+        res.json({
+            success: true,
+            status: "ok",
+            service: "qr-menu-pro",
+            features: {
+                orderIdempotency: true,
+                softArchive: true
+            }
         });
     }
 );
@@ -689,6 +817,105 @@ app.post(
 
         try {
 
+            const orderData =
+                req.body;
+
+            const orderRequestResult =
+                validateOrderRequest(
+                    orderData
+                );
+
+            if (!orderRequestResult.ok) {
+
+                return res
+                    .status(orderRequestResult.status)
+                    .json({
+                        success: false,
+                        message:
+                            orderRequestResult.message
+                    });
+            }
+
+            const requestedItemsResult =
+                normalizeRequestedItems(
+                    orderData.items
+                );
+
+            if (!requestedItemsResult.ok) {
+
+                return res
+                    .status(requestedItemsResult.status)
+                    .json({
+                        success: false,
+                        message:
+                            requestedItemsResult.message
+                    });
+            }
+
+            const rawIdempotencyKey =
+                req.get("Idempotency-Key");
+
+            const idempotencyKey =
+                rawIdempotencyKey === undefined
+                    ? null
+                    : normalizeIdempotencyKey(
+                        rawIdempotencyKey
+                    );
+
+            if (
+                rawIdempotencyKey !== undefined &&
+                !idempotencyKey
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message:
+                        "Geçersiz sipariş tekrar anahtarı."
+                });
+            }
+
+            const requestHash =
+                createRequestHash(
+                    orderRequestResult.details,
+                    requestedItemsResult.items
+                );
+
+            const docRef =
+                idempotencyKey
+                    ? ordersCollection.doc(
+                        createIdempotentOrderId(
+                            idempotencyKey
+                        )
+                    )
+                    : ordersCollection.doc();
+
+            if (idempotencyKey) {
+
+                const existingSnapshot =
+                    await docRef.get();
+
+                if (existingSnapshot.exists) {
+
+                    const existingOrder =
+                        existingSnapshot.data();
+
+                    if (
+                        existingOrder.requestHash !==
+                        requestHash
+                    ) {
+                        return sendIdempotencyConflict(
+                            res
+                        );
+                    }
+
+                    return sendOrderResponse(
+                        res,
+                        docRef.id,
+                        existingOrder,
+                        false
+                    );
+                }
+            }
+
             /*
                ==================================
                KRİTİK KONTROL
@@ -715,29 +942,6 @@ app.post(
             }
 
 
-            const orderData =
-                req.body;
-
-
-            const orderRequestResult =
-                validateOrderRequest(
-                    orderData
-                );
-
-            if (!orderRequestResult.ok) {
-
-                return res
-                    .status(orderRequestResult.status)
-                    .json({
-
-                        success: false,
-
-                        message:
-                            orderRequestResult.message
-
-                    });
-            }
-
             const {
                 customerName,
                 phone,
@@ -746,26 +950,6 @@ app.post(
                 tableNumber,
                 note
             } = orderRequestResult.details;
-
-
-            const requestedItemsResult =
-                normalizeRequestedItems(
-                    orderData.items
-                );
-
-            if (!requestedItemsResult.ok) {
-
-                return res
-                    .status(requestedItemsResult.status)
-                    .json({
-
-                        success: false,
-
-                        message:
-                            requestedItemsResult.message
-
-                    });
-            }
 
 
             /* --------------------------
@@ -832,15 +1016,14 @@ app.post(
                SİPARİŞ NUMARASI
             -------------------------- */
 
-            const docRef =
-                ordersCollection.doc();
-
             const id =
                 docRef.id;
 
             const orderNumber =
                 createOrderNumber(
-                    docRef.id
+                    idempotencyKey
+                        ? docRef.id.slice(5)
+                        : docRef.id
                 );
 
 
@@ -873,6 +1056,13 @@ app.post(
                 status:
                     "new",
 
+                archived:
+                    false,
+
+                ...(idempotencyKey
+                    ? { requestHash }
+                    : {}),
+
                 createdAt:
                     new Date()
                         .toISOString()
@@ -884,16 +1074,71 @@ app.post(
                FIRESTORE
             -------------------------- */
 
-            await docRef.set(
-                newOrder
-            );
+            let created = true;
+            let persistedOrder = newOrder;
+
+            if (idempotencyKey) {
+
+                const transactionResult =
+                    await db.runTransaction(
+                        async transaction => {
+
+                            const existingSnapshot =
+                                await transaction.get(
+                                    docRef
+                                );
+
+                            if (existingSnapshot.exists) {
+
+                                const existingOrder =
+                                    existingSnapshot.data();
+
+                                return {
+                                    created: false,
+                                    conflict:
+                                        existingOrder.requestHash !==
+                                        requestHash,
+                                    order: existingOrder
+                                };
+                            }
+
+                            transaction.set(
+                                docRef,
+                                newOrder
+                            );
+
+                            return {
+                                created: true,
+                                conflict: false,
+                                order: newOrder
+                            };
+                        }
+                    );
+
+                if (transactionResult.conflict) {
+                    return sendIdempotencyConflict(
+                        res
+                    );
+                }
+
+                created = transactionResult.created;
+                persistedOrder = transactionResult.order;
+
+            } else {
+
+                await docRef.set(
+                    newOrder
+                );
+            }
 
 
             console.log("");
 
             console.log(
-                "Yeni sipariş:",
-                orderNumber
+                created
+                    ? "Yeni sipariş:"
+                    : "Tekrarlanan sipariş:",
+                persistedOrder.orderNumber
             );
 
             console.log(
@@ -903,30 +1148,19 @@ app.post(
 
             console.log(
                 "Toplam:",
-                total + "₺"
+                persistedOrder.total + "₺"
             );
 
             console.log("");
 
 
 
-            res.status(201).json({
-
-                success: true,
-
-                message:
-                    "Sipariş başarıyla oluşturuldu.",
-
-                order: {
-
-                    firestoreId:
-                        docRef.id,
-
-                    ...newOrder
-
-                }
-
-            });
+            return sendOrderResponse(
+                res,
+                docRef.id,
+                persistedOrder,
+                created
+            );
 
         } catch (error) {
 
@@ -974,7 +1208,9 @@ app.patch(
 
                 "ready",
 
-                "completed"
+                "completed",
+
+                "cancelled"
 
             ];
 
@@ -1033,7 +1269,13 @@ app.patch(
 
             await doc.ref.update({
 
-                status
+                status,
+
+                statusUpdatedAt:
+                    new Date().toISOString(),
+
+                statusUpdatedBy:
+                    req.user?.uid || null
 
             });
 
@@ -1083,7 +1325,7 @@ app.patch(
 
 
 /* ==========================================
-   SİPARİŞ SİL
+   SİPARİŞ ARŞİVLE
    SADECE ADMIN
 ========================================== */
 
@@ -1129,7 +1371,19 @@ app.delete(
                 orderLookup.doc;
 
 
-            await doc.ref.delete();
+            await doc.ref.update({
+
+                archived: true,
+
+                archivedAt:
+                    new Date().toISOString(),
+
+                archivedBy:
+                    req.user?.uid || null,
+
+                status: "cancelled"
+
+            });
 
 
             res.json({
@@ -1137,14 +1391,14 @@ app.delete(
                 success: true,
 
                 message:
-                    "Sipariş başarıyla silindi."
+                    "Sipariş başarıyla arşivlendi."
 
             });
 
         } catch (error) {
 
             console.error(
-                "Sipariş silme hatası:",
+                "Sipariş arşivleme hatası:",
                 error.message
             );
 
@@ -1153,7 +1407,7 @@ app.delete(
                 success: false,
 
                 message:
-                    "Sipariş silinemedi."
+                    "Sipariş arşivlenemedi."
 
             });
         }
@@ -1188,29 +1442,27 @@ app.use(
 app.use(
     (error, req, res, next) => {
 
+        if (res.headersSent) {
+            return next(error);
+        }
+
         console.error(
             "Sunucu hatası:",
             error.message
         );
 
-        const isCorsError =
-            error?.message ===
-            "CORS engellendi.";
+        const {
+            status,
+            message
+        } = classifyHttpError(error);
 
         res
-            .status(
-                isCorsError
-                    ? 403
-                    : 500
-            )
+            .status(status)
             .json({
 
                 success: false,
 
-                message:
-                    isCorsError
-                        ? "İstek kaynağına izin verilmiyor."
-                        : "Sunucu hatası oluştu."
+                message
 
             });
 
@@ -1222,7 +1474,7 @@ app.use(
    SUNUCU
 ========================================== */
 
-app.listen(
+const server = app.listen(
     PORT,
     "0.0.0.0",
     () => {
@@ -1276,5 +1528,52 @@ app.listen(
         console.log("");
 
     }
+);
+
+function shutdown(signal) {
+    console.log(
+        `${signal} alındı; sunucu güvenli biçimde kapatılıyor.`
+    );
+
+    const forceExitTimer =
+        setTimeout(
+            () => process.exit(1),
+            10000
+        );
+
+    forceExitTimer.unref();
+
+    server.close(async error => {
+        clearTimeout(forceExitTimer);
+
+        if (error) {
+            console.error(
+                "Sunucu kapatma hatası:",
+                error.message
+            );
+            process.exit(1);
+        }
+
+        try {
+            await admin.app().delete();
+        } catch (firebaseError) {
+            console.error(
+                "Firebase kapanış hatası:",
+                firebaseError.message
+            );
+        }
+
+        process.exit(0);
+    });
+}
+
+process.once(
+    "SIGTERM",
+    () => shutdown("SIGTERM")
+);
+
+process.once(
+    "SIGINT",
+    () => shutdown("SIGINT")
 );
 

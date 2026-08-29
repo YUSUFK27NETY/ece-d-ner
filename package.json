@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "QR Menü Pro - Ece Döner Backend",
   "main": "server.js",
+  "engines": {
+    "node": ">=22 <25"
+  },
   "scripts": {
     "start": "node server.js",
     "check": "node scripts/check-static-assets.js",

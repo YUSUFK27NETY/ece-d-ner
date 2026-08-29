@@ -59,6 +59,12 @@ const WHATSAPP_NUMBER =
 const RESTAURANT_STATUS_URL =
     `${API_BASE_URL}/api/restaurant/status`;
 const RESTAURANT_STATUS_REFRESH_MS =
+    120000;
+
+const STATUS_REQUEST_TIMEOUT_MS =
+    10000;
+
+const ORDER_REQUEST_TIMEOUT_MS =
     30000;
 
 let restaurantIsOpen =
@@ -76,6 +82,9 @@ let restaurantStatusRequestInFlight =
 let restaurantStatusPollTimer =
     null;
 
+let orderIdempotencySupported =
+    false;
+
 
 // ==========================================
 // GLOBAL DEĞİŞKENLER
@@ -88,6 +97,12 @@ let currentCategory =
 
 let isSendingOrder =
     false;
+
+let pendingOrderKey =
+    null;
+
+let pendingOrderFingerprint =
+    null;
 
 let productsUnsubscribe =
     null;
@@ -228,6 +243,30 @@ function canPlaceOrder() {
     );
 }
 
+async function fetchWithTimeout(
+    url,
+    options = {},
+    timeoutMs = 10000
+) {
+    const controller =
+        new AbortController();
+
+    const timer =
+        setTimeout(
+            () => controller.abort(),
+            timeoutMs
+        );
+
+    try {
+        return await fetch(url, {
+            ...options,
+            signal: controller.signal
+        });
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 
 function getRestaurantUnavailableMessage() {
 
@@ -346,12 +385,13 @@ async function loadRestaurantStatus() {
     try {
 
         const response =
-            await fetch(
+            await fetchWithTimeout(
                 RESTAURANT_STATUS_URL,
                 {
                     cache:
                         "no-store"
-                }
+                },
+                STATUS_REQUEST_TIMEOUT_MS
             );
 
 
@@ -379,6 +419,11 @@ async function loadRestaurantStatus() {
 
         restaurantStatusError =
             false;
+
+        orderIdempotencySupported =
+            result?.features
+                ?.orderIdempotency ===
+            true;
 
         updateRestaurantStatusUI();
 
@@ -981,10 +1026,9 @@ function createProductCard(product, documentId) {
     const image =
         getProductImage(product);
 
-    const discount =
+    const originalPrice =
         Number(
-            product.discount ??
-            product.indirim ??
+            product.originalPrice ??
             0
         );
 
@@ -1004,9 +1048,16 @@ function createProductCard(product, documentId) {
     let badgeHTML = "";
 
     if (
-        Number.isFinite(discount) &&
-        discount > 0
+        Number.isFinite(originalPrice) &&
+        originalPrice > price &&
+        price > 0
     ) {
+
+        const discount =
+            Math.round(
+                (1 - price / originalPrice) *
+                100
+            );
 
         badgeHTML = `
             <span class="badge">
@@ -1167,6 +1218,10 @@ function loadProductsFromFirebase() {
                         snapshot.empty
                     ) {
 
+                        reconcileCartWithProducts(
+                            new Map()
+                        );
+
                         menuGrid.innerHTML = `
 
                             <div
@@ -1208,6 +1263,9 @@ function loadProductsFromFirebase() {
                     let visibleCount =
                         0;
 
+                    const currentProducts =
+                        new Map();
+
 
                     snapshot.forEach(
                         doc => {
@@ -1230,6 +1288,40 @@ function loadProductsFromFirebase() {
                                 return;
                             }
 
+                            const productName =
+                                String(
+                                    product.name ||
+                                    product.productName ||
+                                    product.title ||
+                                    ""
+                                ).trim();
+
+                            const productPrice =
+                                Number(
+                                    product.price ??
+                                    product.fiyat
+                                );
+
+                            if (
+                                !productName ||
+                                !Number.isFinite(
+                                    productPrice
+                                ) ||
+                                productPrice <= 0
+                            ) {
+                                console.warn(
+                                    "Geçersiz ürün menüden gizlendi:",
+                                    doc.id
+                                );
+
+                                return;
+                            }
+
+                            currentProducts.set(
+                                doc.id,
+                                product
+                            );
+
 
                             const card =
                                 createProductCard(
@@ -1245,6 +1337,10 @@ function loadProductsFromFirebase() {
 
                             visibleCount++;
                         }
+                    );
+
+                    reconcileCartWithProducts(
+                        currentProducts
                     );
 
 
@@ -1458,6 +1554,66 @@ function getBackendOrderItems() {
     );
 }
 
+function reconcileCartWithProducts(
+    productsById
+) {
+    if (!cart.length) {
+        return;
+    }
+
+    let changed = false;
+
+    cart = cart.filter(item => {
+        const product =
+            productsById.get(
+                item.productId
+            );
+
+        if (!product) {
+            changed = true;
+            return false;
+        }
+
+        const name =
+            product.name ||
+            product.productName ||
+            product.title ||
+            item.name;
+
+        const price = Number(
+            product.price ??
+            product.fiyat
+        );
+
+        if (
+            !Number.isFinite(price) ||
+            price <= 0
+        ) {
+            changed = true;
+            return false;
+        }
+
+        if (
+            item.name !== name ||
+            item.price !== price
+        ) {
+            item.name = String(name);
+            item.price = price;
+            changed = true;
+        }
+
+        return true;
+    });
+
+    if (changed) {
+        clearPendingOrderKey();
+        updateCart();
+        showToast(
+            "Sepet güncel menü ve fiyatlara göre yenilendi."
+        );
+    }
+}
+
 
 function addToCart(
     productId,
@@ -1475,6 +1631,14 @@ function addToCart(
 
 
     if (existing) {
+
+        if (existing.quantity >= 99) {
+            showToast(
+                "Bir üründen en fazla 99 adet eklenebilir."
+            );
+
+            return;
+        }
 
         existing.quantity++;
 
@@ -1530,8 +1694,19 @@ function changeQty(
     }
 
 
-    cart[index].quantity +=
-        delta;
+    const nextQuantity =
+        cart[index].quantity + delta;
+
+    if (nextQuantity > 99) {
+        showToast(
+            "Bir üründen en fazla 99 adet eklenebilir."
+        );
+
+        return;
+    }
+
+    cart[index].quantity =
+        nextQuantity;
 
 
     if (
@@ -2079,12 +2254,22 @@ function setupCategories() {
                             btn.classList.remove(
                                 "active"
                             );
+
+                            btn.setAttribute(
+                                "aria-pressed",
+                                "false"
+                            );
                         }
                     );
 
 
                     button.classList.add(
                         "active"
+                    );
+
+                    button.setAttribute(
+                        "aria-pressed",
+                        "true"
                     );
 
 
@@ -2293,6 +2478,9 @@ function openOrderModal(
     lastFocusedElement =
         document.activeElement;
 
+    orderModal.removeAttribute(
+        "inert"
+    );
 
     orderModal.classList.add(
         "show"
@@ -2351,6 +2539,11 @@ function closeModal() {
 
         lastFocusedElement.focus();
     }
+
+    orderModal.setAttribute(
+        "inert",
+        ""
+    );
 
     lastFocusedElement =
         null;
@@ -2768,7 +2961,9 @@ function createWhatsAppMessage(
 
     confirmedItems,
 
-    confirmedTotal
+    confirmedTotal,
+
+    orderNumber = ""
 
 ) {
 
@@ -2790,6 +2985,12 @@ function createWhatsAppMessage(
 
     message +=
         "\n\n━━━━━━━━━━━━━━";
+
+    if (orderNumber) {
+        message +=
+            "\n🔖 *Sipariş No:* " +
+            orderNumber;
+    }
 
 
     message +=
@@ -3033,13 +3234,96 @@ function openWhatsApp(
 // BACKEND
 // ==========================================
 
-async function sendOrderToBackend(
+function createIdempotencyKey() {
+    if (
+        window.crypto &&
+        typeof window.crypto.randomUUID ===
+            "function"
+    ) {
+        return window.crypto.randomUUID();
+    }
+
+    return [
+        Date.now().toString(36),
+        Math.random().toString(36).slice(2),
+        Math.random().toString(36).slice(2)
+    ].join("-");
+}
+
+function setupCartShortcut() {
+    const shortcut =
+        document.getElementById(
+            "cartShortcut"
+        );
+
+    const cartBox =
+        document.querySelector(
+            ".cart-box"
+        );
+
+    if (!shortcut || !cartBox) {
+        return;
+    }
+
+    shortcut.addEventListener(
+        "click",
+        () => {
+            cartBox.scrollIntoView({
+                behavior: "smooth",
+                block: "start"
+            });
+        }
+    );
+}
+
+function getOrderIdempotencyKey(
     orderData
+) {
+    const fingerprint =
+        JSON.stringify(orderData);
+
+    if (
+        !pendingOrderKey ||
+        pendingOrderFingerprint !== fingerprint
+    ) {
+        pendingOrderKey =
+            createIdempotencyKey();
+
+        pendingOrderFingerprint =
+            fingerprint;
+    }
+
+    return pendingOrderKey;
+}
+
+function clearPendingOrderKey() {
+    pendingOrderKey = null;
+    pendingOrderFingerprint = null;
+}
+
+function getOrderRequestHeaders(
+    idempotencyKey
+) {
+    return {
+        "Content-Type":
+            "application/json",
+        ...(orderIdempotencySupported
+            ? {
+                "Idempotency-Key":
+                    idempotencyKey
+            }
+            : {})
+    };
+}
+
+async function sendOrderToBackend(
+    orderData,
+    idempotencyKey
 ) {
 
     const response =
 
-        await fetch(
+        await fetchWithTimeout(
 
             ORDER_API_URL,
 
@@ -3049,12 +3333,10 @@ async function sendOrderToBackend(
                     "POST",
 
 
-                headers: {
-
-                    "Content-Type":
-                        "application/json"
-
-                },
+                headers:
+                    getOrderRequestHeaders(
+                        idempotencyKey
+                    ),
 
 
                 body:
@@ -3062,7 +3344,8 @@ async function sendOrderToBackend(
                     JSON.stringify(
                         orderData
                     )
-            }
+            },
+            ORDER_REQUEST_TIMEOUT_MS
         );
 
 
@@ -3336,6 +3619,11 @@ function setupOrderForm() {
                 items
             };
 
+            const idempotencyKey =
+                getOrderIdempotencyKey(
+                    orderData
+                );
+
 
             const preparedWhatsAppWindow =
                 prepareWhatsAppWindow();
@@ -3384,8 +3672,9 @@ function setupOrderForm() {
 
                 const result =
                     await sendOrderToBackend(
-                    orderData
-                );
+                        orderData,
+                        idempotencyKey
+                    );
 
 
                 const message =
@@ -3405,7 +3694,9 @@ function setupOrderForm() {
 
                         result?.order?.items,
 
-                        result?.order?.total
+                        result?.order?.total,
+
+                        result?.order?.orderNumber
 
                     );
 
@@ -3426,6 +3717,8 @@ function setupOrderForm() {
 
                 cart =
                     [];
+
+                clearPendingOrderKey();
 
 
                 updateCart();
@@ -3451,8 +3744,10 @@ function setupOrderForm() {
 
 
                 showToast(
-                    error?.message ||
-                    "Sipariş gönderilemedi. Tekrar deneyin. ❌"
+                    error?.name === "AbortError"
+                        ? "Sunucu yanıtı gecikti. Aynı siparişi güvenle tekrar deneyebilirsiniz."
+                        : error?.message ||
+                            "Sipariş gönderilemedi. Tekrar deneyin. ❌"
                 );
 
             } finally {
@@ -3508,6 +3803,8 @@ function initializeApp() {
 
 
     setupSearch();
+
+    setupCartShortcut();
 
 
     setupModal();
