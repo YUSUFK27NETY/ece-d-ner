@@ -23,13 +23,19 @@ jobs:
             https://yusufk27nety.github.io/ece-d-ner/ \
             > /dev/null
 
-      - name: Check backend health
+      - name: Check backend health and hardening headers
         run: |
-          BODY="$(curl --fail --silent --show-error --location \
+          curl --fail --silent --show-error --location \
             --retry 2 --retry-delay 5 \
             --max-time 30 \
-            https://ece-d-ner-1.onrender.com/)"
+            --dump-header /tmp/ece-backend-headers.txt \
+            --output /tmp/ece-backend-body.json \
+            https://ece-d-ner-1.onrender.com/
 
+          grep -qi '^content-security-policy:' /tmp/ece-backend-headers.txt
+          grep -qi '^x-request-id:' /tmp/ece-backend-headers.txt
+
+          BODY="$(cat /tmp/ece-backend-body.json)"
           export BODY
 
           node -e '
