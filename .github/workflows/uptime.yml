@@ -28,6 +28,8 @@ jobs:
             --max-time 30 \
             https://ece-d-ner-1.onrender.com/)"
 
+          export BODY
+
           node -e '
             const body = process.env.BODY;
             const parsed = JSON.parse(body);
@@ -35,5 +37,3 @@ jobs:
               throw new Error(`Unexpected backend health response: ${body}`);
             }
           '
-        env:
-          BODY: ${{ env.BODY }}
