@@ -1,4 +1,4 @@
-name: Uptime smoke checks
+name: Uptime and security smoke checks
 
 on:
   push:
@@ -10,20 +10,26 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: live-uptime-monitor
+  cancel-in-progress: true
+
 jobs:
   smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 7
     steps:
-      - name: Check public site
-        run: |
-          curl --fail --silent --show-error --location \
-            --retry 2 --retry-delay 5 \
-            --max-time 20 \
-            https://yusufk27nety.github.io/ece-d-ner/ \
-            > /dev/null
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
-      - name: Check backend health and hardening headers
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+
+      - name: Wait for backend deploy and verify hardening headers
         run: |
           for attempt in $(seq 1 10); do
             rm -f /tmp/ece-backend-headers.txt /tmp/ece-backend-body.json
@@ -58,3 +64,6 @@ jobs:
           echo "Backend hardening verification failed. Last response headers:"
           cat /tmp/ece-backend-headers.txt || true
           exit 1
+
+      - name: Check customer site, backend and Firestore status
+        run: node scripts/check-live-endpoints.js

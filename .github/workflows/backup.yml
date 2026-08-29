@@ -1,0 +1,38 @@
+name: Repository backup
+
+on:
+  schedule:
+    - cron: "41 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: repository-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout complete history
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify repository and create bundle
+        run: |
+          git fsck --full
+          mkdir backup
+          git bundle create backup/ece-doner.bundle --all
+          git bundle verify backup/ece-doner.bundle
+          sha256sum backup/ece-doner.bundle > backup/ece-doner.bundle.sha256
+      - name: Store Actions artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ece-doner-repository-backup-${{ github.run_id }}
+          path: backup/
+          retention-days: 30
+          if-no-files-found: error

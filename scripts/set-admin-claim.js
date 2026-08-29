@@ -1,7 +1,13 @@
 "use strict";
 
 const path = require("node:path");
-const admin = require("firebase-admin");
+const {
+    initializeApp,
+    cert
+} = require("firebase-admin/app");
+const {
+    getAuth
+} = require("firebase-admin/auth");
 
 const serviceAccountPath =
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
@@ -26,14 +32,12 @@ async function main() {
     const serviceAccount =
         require(resolvedServiceAccountPath);
 
-    if (!admin.apps.length) {
-        admin.initializeApp({
-            credential:
-                admin.credential.cert(serviceAccount)
-        });
-    }
+    const firebaseApp = initializeApp({
+        credential:
+            cert(serviceAccount)
+    });
 
-    const auth = admin.auth();
+    const auth = getAuth(firebaseApp);
 
     const user = adminUid
         ? await auth.getUser(adminUid)

@@ -1,0 +1,53 @@
+name: Rollback readiness drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Rollback branch, tag or commit
+        required: true
+        default: backup/pre-security-v1-2026-08-29
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout rollback target
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.ref }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Verify rollback target
+        run: |
+          git fsck --full
+          npm ci
+          npm run ci
+          npm audit --omit=dev --audit-level=high
+      - name: Build non-production rollback artifact
+        run: |
+          mkdir rollback-site
+          for file in index.html admin.html style.css script.js hero.jpg logo.jpg robots.txt sitemap.xml; do
+            if [ -f "$file" ]; then cp "$file" rollback-site/; fi
+          done
+          tar -czf ece-doner-rollback-site.tar.gz -C rollback-site .
+          sha256sum ece-doner-rollback-site.tar.gz > ece-doner-rollback-site.tar.gz.sha256
+      - name: Store rollback drill artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ece-doner-rollback-drill-${{ github.run_id }}
+          path: |
+            ece-doner-rollback-site.tar.gz
+            ece-doner-rollback-site.tar.gz.sha256
+          retention-days: 7
+          if-no-files-found: error
