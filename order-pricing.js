@@ -25,6 +25,7 @@ function normalizeProductId(value) {
         productId.includes("/") ||
         productId === "." ||
         productId === ".." ||
+        /^__.*__$/.test(productId) ||
         /[\u0000-\u001f]/.test(productId)
     ) {
         return null;
@@ -34,7 +35,11 @@ function normalizeProductId(value) {
 }
 
 function normalizeQuantity(value) {
-    const quantity = Number(value);
+    if (typeof value !== "number") {
+        return null;
+    }
+
+    const quantity = value;
 
     if (
         !Number.isInteger(quantity) ||
@@ -45,6 +50,22 @@ function normalizeQuantity(value) {
     }
 
     return quantity;
+}
+
+function normalizeClientPrice(value) {
+    if (value === undefined) {
+        return undefined;
+    }
+
+    if (
+        typeof value !== "number" ||
+        !Number.isFinite(value) ||
+        value <= 0
+    ) {
+        return null;
+    }
+
+    return Math.round(value * 100) / 100;
 }
 
 function normalizeRequestedItems(rawItems) {
@@ -69,13 +90,25 @@ function normalizeRequestedItems(rawItems) {
 
         const productId = normalizeProductId(rawItem.productId);
         const quantity = normalizeQuantity(rawItem.quantity);
+        const clientPrice = normalizeClientPrice(rawItem.price);
 
-        if (!productId || quantity === null) {
+        if (
+            !productId ||
+            quantity === null ||
+            clientPrice === null
+        ) {
             return failure("Geçersiz ürün bilgisi.");
         }
 
-        const previousQuantity =
-            mergedItems.get(productId)?.quantity || 0;
+        const previousItem = mergedItems.get(productId);
+        const previousQuantity = previousItem?.quantity || 0;
+
+        if (
+            previousItem &&
+            previousItem.clientPrice !== clientPrice
+        ) {
+            return failure("Aynı ürün için çelişkili fiyat gönderildi.");
+        }
 
         const mergedQuantity = previousQuantity + quantity;
 
@@ -85,7 +118,10 @@ function normalizeRequestedItems(rawItems) {
 
         mergedItems.set(productId, {
             productId,
-            quantity: mergedQuantity
+            quantity: mergedQuantity,
+            ...(clientPrice === undefined
+                ? {}
+                : { clientPrice })
         });
     }
 
@@ -155,6 +191,16 @@ function priceRequestedItems(requestedItems, productsById) {
         if (!name || price === null) {
             return failure(
                 "Sepetteki bir ürünün güncel bilgisi geçersiz. Lütfen işletmeye bildirin.",
+                409
+            );
+        }
+
+        if (
+            requestedItem.clientPrice !== undefined &&
+            requestedItem.clientPrice !== price
+        ) {
+            return failure(
+                `${name} ürününün fiyatı değişti. Menüyü yenileyip siparişi tekrar onaylayın.`,
                 409
             );
         }

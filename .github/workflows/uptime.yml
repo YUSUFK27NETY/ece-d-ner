@@ -1,0 +1,39 @@
+name: Uptime smoke checks
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check public site
+        run: |
+          curl --fail --silent --show-error --location \
+            --retry 2 --retry-delay 5 \
+            --max-time 20 \
+            https://yusufk27nety.github.io/ece-d-ner/ \
+            > /dev/null
+
+      - name: Check backend health
+        run: |
+          BODY="$(curl --fail --silent --show-error --location \
+            --retry 2 --retry-delay 5 \
+            --max-time 30 \
+            https://ece-d-ner-1.onrender.com/)"
+
+          export BODY
+
+          node -e '
+            const body = process.env.BODY;
+            const parsed = JSON.parse(body);
+            if (parsed?.success !== true || parsed?.status !== "ok") {
+              throw new Error(`Unexpected backend health response: ${body}`);
+            }
+          '

@@ -65,6 +65,35 @@ test("rastgele sipariş türünü reddeder", () => {
     assert.match(result.message, /sipariş türü/i);
 });
 
+test("nesne ve dizi biçimindeki metin alanlarını reddeder", () => {
+    const invalidName = validateOrderRequest({
+        customerName: { value: "Yusuf" },
+        phone: "05315006996",
+        orderType: PACKAGE_ORDER,
+        address: "Adres"
+    });
+
+    const invalidNote = validateOrderRequest({
+        customerName: "Yusuf Kaya",
+        phone: "05315006996",
+        orderType: PACKAGE_ORDER,
+        address: "Adres",
+        note: ["özel", "not"]
+    });
+
+    const tooLongNote = validateOrderRequest({
+        customerName: "Yusuf Kaya",
+        phone: "05315006996",
+        orderType: PACKAGE_ORDER,
+        address: "Adres",
+        note: "x".repeat(501)
+    });
+
+    assert.equal(invalidName.ok, false);
+    assert.equal(invalidNote.ok, false);
+    assert.equal(tooLongNote.ok, false);
+});
+
 test("geçerli siparişi temizlenmiş müşteri bilgileriyle döndürür", () => {
     const result = validateOrderRequest({
         customerName: "  Yusuf Kaya  ",

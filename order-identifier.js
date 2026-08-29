@@ -9,6 +9,7 @@ function normalizeOrderIdentifier(value) {
         identifier.includes("/") ||
         identifier === "." ||
         identifier === ".." ||
+        /^__.*__$/.test(identifier) ||
         /[\u0000-\u001f]/.test(identifier)
     ) {
         return null;

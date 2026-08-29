@@ -13,6 +13,22 @@
         content="#111111"
     >
 
+    <meta
+        name="description"
+        content="Ece Döner güncel menüsünü inceleyin, sepetinizi oluşturun ve siparişinizi güvenle iletin."
+    >
+
+    <link
+        rel="canonical"
+        href="https://yusufk27nety.github.io/ece-d-ner/"
+    >
+
+    <meta property="og:title" content="Ece Döner | QR Menü">
+    <meta property="og:description" content="Güncel menü ve güvenli sipariş özeti.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://yusufk27nety.github.io/ece-d-ner/">
+    <meta property="og:image" content="https://yusufk27nety.github.io/ece-d-ner/hero.jpg">
+
     <title>Ece Döner | QR Menü Pro</title>
 
     <!-- FIREBASE -->
@@ -53,8 +69,10 @@
         </div>
 
 
-        <div
+        <button
             class="cart"
+            id="cartShortcut"
+            type="button"
             aria-label="Sepet"
         >
             🛒
@@ -62,7 +80,7 @@
             <span id="cartCount">
                 0
             </span>
-        </div>
+        </button>
 
     </header>
 
@@ -160,6 +178,7 @@
                 class="active"
                 data-category="all"
                 type="button"
+                aria-pressed="true"
             >
                 Tümü
             </button>
@@ -168,6 +187,7 @@
             <button
                 data-category="doner"
                 type="button"
+                aria-pressed="false"
             >
                 Döner
             </button>
@@ -176,6 +196,7 @@
             <button
                 data-category="menu"
                 type="button"
+                aria-pressed="false"
             >
                 Menüler
             </button>
@@ -184,6 +205,7 @@
             <button
                 data-category="drink"
                 type="button"
+                aria-pressed="false"
             >
                 İçecekler
             </button>
@@ -192,6 +214,7 @@
             <button
                 data-category="dessert"
                 type="button"
+                aria-pressed="false"
             >
                 Tatlılar
             </button>
@@ -213,6 +236,7 @@
             placeholder="🔍 Ürün Ara..."
             autocomplete="off"
             aria-label="Ürün ara"
+            maxlength="80"
         >
 
     </section>
@@ -302,6 +326,7 @@
         aria-modal="true"
         aria-labelledby="orderModalTitle"
         aria-hidden="true"
+        inert
     >
 
         <div class="order-modal-content">
@@ -376,6 +401,7 @@
                     placeholder="Adınız ve soyadınız"
                     autocomplete="name"
                     minlength="2"
+                    maxlength="100"
                     required
                 >
 
@@ -394,6 +420,7 @@
                     placeholder="05XX XXX XX XX"
                     autocomplete="tel"
                     inputmode="tel"
+                    maxlength="24"
                     required
                 >
 
@@ -440,6 +467,7 @@
                     name="tableNumber"
                     placeholder="Masa numarası"
                     inputmode="numeric"
+                    maxlength="30"
                     hidden
                 >
 
@@ -460,6 +488,7 @@
                     placeholder="Teslimat adresiniz"
                     rows="3"
                     autocomplete="street-address"
+                    maxlength="500"
                     required
                 ></textarea>
 
@@ -476,6 +505,7 @@
                     name="orderNote"
                     placeholder="Örn: Soğansız olsun..."
                     rows="3"
+                    maxlength="500"
                 ></textarea>
 
 
@@ -484,6 +514,8 @@
                     yalnızca siparişin alınması, hazırlanması,
                     teslimi ve sizinle iletişim için kullanılır.
                     Sipariş notuna gereksiz özel bilgi yazmayın.
+                    Sipariş önce güvenli biçimde kaydedilir, ardından
+                    onaylanan özet WhatsApp'ta açılır.
                 </p>
 
 
@@ -494,7 +526,7 @@
                     class="send-order-btn"
                     disabled
                 >
-                    📲 WhatsApp'tan Sipariş Ver
+                    ✅ Siparişi Onayla ve WhatsApp'ı Aç
                 </button>
 
             </form>

@@ -7,18 +7,37 @@ service cloud.firestore {
         && request.auth.token.admin == true;
     }
 
+    function isValidProduct(data) {
+      return data.name is string
+        && data.name.size() > 0
+        && data.name.size() <= 150
+        && data.category in ['doner', 'menu', 'drink', 'dessert']
+        && data.price is number
+        && data.price > 0
+        && data.price <= 100000
+        && (!('description' in data)
+          || (data.description is string && data.description.size() <= 500))
+        && data.available is bool
+        && (!('archived' in data) || data.archived is bool)
+        && (!('imageData' in data)
+          || (data.imageData is string && data.imageData.size() <= 850000));
+    }
+
     match /products/{productId} {
       allow read: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update: if isAdmin()
+        && isValidProduct(request.resource.data);
+      allow delete: if false;
     }
 
     match /orders/{orderId} {
-      allow read, update, delete: if isAdmin();
-      allow create: if false;
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
     }
 
     match /settings/{settingId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin();
+      allow write: if false;
     }
 
     match /{document=**} {
