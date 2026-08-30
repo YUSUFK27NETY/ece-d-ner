@@ -18,7 +18,7 @@
     "grant-admin": "node scripts/set-admin-claim.js"
   },
   "dependencies": {
-    "@google-cloud/firestore": "8.7.1",
+    "@google-cloud/firestore": "9.0.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
