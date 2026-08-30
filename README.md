@@ -18,7 +18,8 @@ Mobil uyumlu dijital menü ve WhatsApp üzerinden sipariş sistemi.
 - ❤️ Favoriler
 - 🔒 Sunucu tarafında ürün/fiyat doğrulama
 - 🔁 Tekrarlanan gönderimleri engelleyen sipariş anahtarı
-- 📦 Silme yerine geri alınabilir ürün ve sipariş arşivi
+- 📦 Geri alınabilir ürün ve sipariş arşivi
+- 🗑️ Yönetici onaylı kalıcı sipariş silme
 - 🔔 Yeni sipariş ses/tarayıcı bildirimi
 
 ## Yerel kontroller
