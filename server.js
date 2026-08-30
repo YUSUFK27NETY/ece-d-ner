@@ -1,8 +1,18 @@
 const express = require("express");
 const cors = require("cors");
-const admin = require("firebase-admin");
 const rateLimit = require("express-rate-limit");
 const crypto = require("node:crypto");
+const {
+    initializeApp,
+    cert,
+    deleteApp
+} = require("firebase-admin/app");
+const {
+    getAuth
+} = require("firebase-admin/auth");
+const {
+    getFirestore
+} = require("firebase-admin/firestore");
 const {
     normalizeRequestedItems,
     priceRequestedItems
@@ -28,6 +38,11 @@ const {
 const {
     classifyHttpError
 } = require("./http-error");
+const {
+    requireJsonRequest,
+    createSafeRequestLogger,
+    configureServerTimeouts
+} = require("./http-security");
 
 const app = express();
 
@@ -71,6 +86,10 @@ app.use(
     }
 );
 
+app.use(
+    createSafeRequestLogger()
+);
+
 /* ==========================================
    CORS
 ========================================== */
@@ -103,8 +122,14 @@ app.use(
 ========================================== */
 
 app.use(
+    "/api",
+    requireJsonRequest
+);
+
+app.use(
     express.json({
-        limit: "100kb"
+        limit: "32kb",
+        strict: true
     })
 );
 
@@ -165,6 +190,21 @@ const orderCreateLimiter =
         }
     });
 
+const adminMutationLimiter =
+    rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 120,
+
+        standardHeaders: true,
+        legacyHeaders: false,
+
+        message: {
+            success: false,
+            message:
+                "Çok fazla yönetim isteği gönderildi. Lütfen biraz bekleyin."
+        }
+    });
+
 
 /* ==========================================
    FIREBASE ADMIN
@@ -174,14 +214,16 @@ const SERVICE_ACCOUNT_PATH =
     process.env.FIREBASE_SERVICE_ACCOUNT_PATH ||
     "/etc/secrets/firebase-service-account.json";
 
+let firebaseApp;
+
 try {
 
     const serviceAccount =
         require(SERVICE_ACCOUNT_PATH);
 
-    admin.initializeApp({
+    firebaseApp = initializeApp({
         credential:
-            admin.credential.cert(serviceAccount)
+            cert(serviceAccount)
     });
 
     console.log(
@@ -244,7 +286,10 @@ try {
 ========================================== */
 
 const db =
-    admin.firestore();
+    getFirestore(firebaseApp);
+
+const firebaseAuth =
+    getAuth(firebaseApp);
 
 const ordersCollection =
     db.collection("orders");
@@ -384,8 +429,7 @@ async function requireAdmin(
         }
 
         const decodedToken =
-            await admin
-                .auth()
+            await firebaseAuth
                 .verifyIdToken(idToken, true);
 
         if (!hasAdminClaim(decodedToken)) {
@@ -590,6 +634,7 @@ app.get(
 
 app.patch(
     "/api/admin/restaurant/status",
+    adminMutationLimiter,
     requireAdmin,
     async (req, res) => {
 
@@ -1189,6 +1234,7 @@ app.post(
 
 app.patch(
     "/api/orders/:id/status",
+    adminMutationLimiter,
     requireAdmin,
     async (req, res) => {
 
@@ -1331,6 +1377,7 @@ app.patch(
 
 app.delete(
     "/api/orders/:id",
+    adminMutationLimiter,
     requireAdmin,
     async (req, res) => {
 
@@ -1447,8 +1494,19 @@ app.use(
         }
 
         console.error(
-            "Sunucu hatası:",
-            error.message
+            JSON.stringify({
+                level: "error",
+                event: "unhandled_http_error",
+                requestId: req.requestId,
+                method: req.method,
+                path: req.path,
+                errorName:
+                    error?.name || "Error",
+                errorType:
+                    error?.type || null,
+                message:
+                    error?.message || "Bilinmeyen hata"
+            })
         );
 
         const {
@@ -1530,6 +1588,8 @@ const server = app.listen(
     }
 );
 
+configureServerTimeouts(server);
+
 function shutdown(signal) {
     console.log(
         `${signal} alındı; sunucu güvenli biçimde kapatılıyor.`
@@ -1555,7 +1615,7 @@ function shutdown(signal) {
         }
 
         try {
-            await admin.app().delete();
+            await deleteApp(firebaseApp);
         } catch (firebaseError) {
             console.error(
                 "Firebase kapanış hatası:",
