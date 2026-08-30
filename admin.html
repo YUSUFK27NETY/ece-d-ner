@@ -724,6 +724,22 @@ border-color: #633333;
 color: #ff7777;
 }
 
+.archive-order-btn {
+border-color: #66581f;
+color: #facc15;
+}
+
+.permanent-delete-btn {
+border-color: #7f1d1d;
+background: #321616;
+color: #fca5a5;
+}
+
+.order-controls button:disabled {
+opacity: .55;
+cursor: wait;
+}
+
 
 /* =========================
           ORDERS
@@ -4940,16 +4956,35 @@ ordersHTML.push(`
                            <button
                                class="
                                    small-btn
-                                   delete-btn
+                                   archive-order-btn
                                "
                                onclick="
-                                   deleteOrder(
-                                       '${doc.id}'
+                                   archiveOrder(
+                                       '${doc.id}',
+                                       this
                                    )
                                "
                                type="button"
                            >
                                📦 Arşivle
+                           </button>
+
+
+                           <button
+                               class="
+                                   small-btn
+                                   permanent-delete-btn
+                               "
+                               onclick="
+                                   permanentlyDeleteOrder(
+                                       '${doc.id}',
+                                       this
+                                   )
+                               "
+                               type="button"
+                               title="Siparişi kalıcı olarak sil"
+                           >
+                               🗑️ Siparişi Sil
                            </button>
 
                        </div>
@@ -5118,9 +5153,10 @@ showToast(
   ARCHIVE ORDER
 ===================================================== */
 
-window.deleteOrder =
+window.archiveOrder =
 async function (
-docId
+docId,
+button
 ) {
 
 if (
@@ -5148,6 +5184,14 @@ return;
 }
 
 
+if (button) {
+
+button.disabled =
+true;
+
+}
+
+
 try {
 
 await adminApiRequest(
@@ -5167,6 +5211,13 @@ showToast(
 
 catch (error) {
 
+if (button) {
+
+button.disabled =
+false;
+
+}
+
 console.error(
 error
 );
@@ -5175,6 +5226,112 @@ error
 showToast(
 error?.message ||
 "Sipariş arşivlenemedi.",
+"error"
+);
+
+}
+
+};
+
+
+/* =====================================================
+  PERMANENTLY DELETE ORDER
+===================================================== */
+
+window.permanentlyDeleteOrder =
+async function (
+docId,
+button
+) {
+
+if (
+adminBackendCapabilities.permanentOrderDelete !==
+true
+) {
+
+showToast(
+"Kalıcı silme servisi henüz hazır değil. Biraz sonra tekrar deneyin.",
+"error"
+);
+
+return;
+
+}
+
+
+const confirmation =
+prompt(
+"Bu işlem geri alınamaz ve sipariş kaydı tamamen silinir. Onaylamak için SİL yazın."
+);
+
+
+if (confirmation === null) {
+
+return;
+
+}
+
+
+if (
+confirmation
+.trim()
+.toLocaleUpperCase("tr-TR") !==
+"SİL"
+) {
+
+showToast(
+"Silme iptal edildi: SİL onayı verilmedi.",
+"error"
+);
+
+return;
+
+}
+
+
+if (button) {
+
+button.disabled =
+true;
+
+}
+
+
+try {
+
+await adminApiRequest(
+"/api/orders/" +
+encodeURIComponent(docId) +
+"/permanent",
+{
+method: "DELETE"
+}
+);
+
+
+showToast(
+"Sipariş kalıcı olarak silindi."
+);
+
+}
+
+catch (error) {
+
+if (button) {
+
+button.disabled =
+false;
+
+}
+
+console.error(
+error
+);
+
+
+showToast(
+error?.message ||
+"Sipariş silinemedi.",
 "error"
 );
 

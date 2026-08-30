@@ -597,7 +597,8 @@ app.get(
 
                 features: {
                     orderIdempotency: true,
-                    softArchive: true
+                    softArchive: true,
+                    permanentOrderDelete: true
                 },
 
                 message:
@@ -756,7 +757,8 @@ app.get(
 
             features: {
                 orderIdempotency: true,
-                softArchive: true
+                softArchive: true,
+                permanentOrderDelete: true
             }
 
         });
@@ -777,7 +779,8 @@ app.get(
             service: "qr-menu-pro",
             features: {
                 orderIdempotency: true,
-                softArchive: true
+                softArchive: true,
+                permanentOrderDelete: true
             }
         });
     }
@@ -1363,6 +1366,82 @@ app.patch(
 
                 message:
                     "Sipariş durumu güncellenemedi."
+
+            });
+        }
+    }
+);
+
+
+/* ==========================================
+   SİPARİŞİ KALICI OLARAK SİL
+   SADECE ADMIN
+========================================== */
+
+app.delete(
+    "/api/orders/:id/permanent",
+    adminMutationLimiter,
+    requireAdmin,
+    async (req, res) => {
+
+        try {
+
+            const orderLookup =
+                await findOrderDocument(
+                    req.params.id
+                );
+
+            if (!orderLookup.valid) {
+
+                return res.status(400).json({
+
+                    success: false,
+
+                    message:
+                        "Geçersiz sipariş ID."
+
+                });
+            }
+
+
+            if (!orderLookup.doc) {
+
+                return res.status(404).json({
+
+                    success: false,
+
+                    message:
+                        "Sipariş bulunamadı."
+
+                });
+            }
+
+
+            await orderLookup.doc.ref.delete();
+
+
+            res.json({
+
+                success: true,
+
+                message:
+                    "Sipariş kalıcı olarak silindi."
+
+            });
+
+        } catch (error) {
+
+            console.error(
+                "Sipariş silme hatası:",
+                error.message
+            );
+
+            res.status(500).json({
+
+                success: false,
+
+                message:
+                    "Sipariş silinemedi."
 
             });
         }
