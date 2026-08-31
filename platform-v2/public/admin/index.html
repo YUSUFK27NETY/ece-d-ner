@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#111827">
+    <title>Platform V2 | Merkezi Yönetim</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/admin/config.js"></script>
+    <script defer src="/admin/admin.js"></script>
+</head>
+<body>
+    <div id="login-view" class="center-shell">
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">Platform V2</p>
+            <h1>Merkezi Yönetim</h1>
+            <p class="muted">Tüm işletmeleri tek yerden yönet.</p>
+            <label>
+                E-posta
+                <input id="login-email" type="email" autocomplete="username" required>
+            </label>
+            <label>
+                Şifre
+                <input id="login-password" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p id="login-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="app-view" class="app hidden">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">Platform V2</p>
+                <h1>İşletmeler</h1>
+            </div>
+            <div class="top-actions">
+                <span id="session-user" class="muted"></span>
+                <button id="refresh-button" type="button" class="secondary">Yenile</button>
+                <button id="logout-button" type="button" class="danger-ghost">Çıkış</button>
+            </div>
+        </header>
+
+        <main class="layout">
+            <aside class="panel sidebar">
+                <div class="section-title">
+                    <div>
+                        <h2>Tenant listesi</h2>
+                        <p id="tenant-count" class="muted">0 işletme</p>
+                    </div>
+                    <button id="new-tenant-button" type="button" class="primary compact">+ Yeni</button>
+                </div>
+                <input id="tenant-search" type="search" placeholder="İşletme ara..." autocomplete="off">
+                <div id="tenant-list" class="tenant-list"></div>
+            </aside>
+
+            <section class="panel content-panel">
+                <div id="empty-state" class="empty-state">
+                    <h2>Bir işletme seç</h2>
+                    <p class="muted">Mevcut tenantı düzenle veya yeni işletme oluştur.</p>
+                </div>
+
+                <form id="tenant-form" class="hidden" novalidate>
+                    <div class="section-title">
+                        <div>
+                            <p id="form-mode" class="eyebrow">İşletme</p>
+                            <h2 id="form-title">Yeni işletme</h2>
+                        </div>
+                        <span id="tenant-status-badge" class="badge hidden"></span>
+                    </div>
+
+                    <div class="grid two">
+                        <label>
+                            Tenant ID
+                            <input id="tenant-id" name="tenantId" placeholder="ornek-isletme" required>
+                            <small>Kalıcı kimlik. Sonradan değiştirilmez.</small>
+                        </label>
+                        <label>
+                            İşletme adı
+                            <input id="display-name" name="displayName" maxlength="120" required>
+                        </label>
+                        <label>
+                            Sektör
+                            <input id="sector" name="sector" placeholder="restaurant" required>
+                        </label>
+                        <label>
+                            Paket
+                            <input id="plan" name="plan" value="starter" required>
+                        </label>
+                        <label id="status-field" class="hidden">
+                            Durum
+                            <select id="status" name="status">
+                                <option value="provisioning">Provisioning</option>
+                                <option value="active">Active</option>
+                                <option value="suspended">Suspended</option>
+                                <option value="archived">Archived</option>
+                            </select>
+                        </label>
+                    </div>
+
+                    <fieldset>
+                        <legend>Marka ve iletişim</legend>
+                        <div class="grid two">
+                            <label>Marka adı<input id="brand-name" maxlength="120"></label>
+                            <label>Telefon<input id="phone" maxlength="32"></label>
+                            <label>WhatsApp<input id="whatsapp" maxlength="32"></label>
+                            <label>E-posta<input id="contact-email" type="email" maxlength="254"></label>
+                            <label>Web sitesi<input id="website" type="url" placeholder="https://..."></label>
+                            <label>Custom domain<input id="custom-domain" placeholder="menu.ornek.com"></label>
+                            <label>Logo URL<input id="logo-url" type="url" placeholder="https://..."></label>
+                            <label>Ana renk<input id="primary-color" placeholder="#111827" maxlength="7"></label>
+                            <label>Saat dilimi<input id="timezone" value="Europe/Istanbul" maxlength="64"></label>
+                            <label class="span-two">Adres<textarea id="address" rows="3" maxlength="500"></textarea></label>
+                        </div>
+                    </fieldset>
+
+                    <fieldset>
+                        <legend>Özellikler</legend>
+                        <div id="feature-grid" class="feature-grid">
+                            <label><input type="checkbox" data-feature="catalog"> Katalog</label>
+                            <label><input type="checkbox" data-feature="orders"> Sipariş</label>
+                            <label><input type="checkbox" data-feature="appointments"> Randevu</label>
+                            <label><input type="checkbox" data-feature="reservations"> Rezervasyon</label>
+                            <label><input type="checkbox" data-feature="whatsapp"> WhatsApp</label>
+                            <label><input type="checkbox" data-feature="inventory"> Stok</label>
+                            <label><input type="checkbox" data-feature="quotes"> Teklif</label>
+                            <label><input type="checkbox" data-feature="fleet"> Filo</label>
+                            <label><input type="checkbox" data-feature="gallery"> Galeri</label>
+                        </div>
+                    </fieldset>
+
+                    <div class="form-actions">
+                        <button id="cancel-button" type="button" class="secondary">Vazgeç</button>
+                        <button id="save-button" type="submit" class="primary">Kaydet</button>
+                    </div>
+                    <p id="form-message" class="message" role="status"></p>
+                </form>
+            </section>
+        </main>
+    </div>
+</body>
+</html>

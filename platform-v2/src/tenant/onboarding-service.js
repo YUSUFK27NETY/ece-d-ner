@@ -37,6 +37,7 @@ function createTenantOnboardingService({ tenantRegistry, auditWriter = null }) {
                         tenantId: tenant.tenantId,
                         action: "tenant.created",
                         actorId: tenant.createdBy,
+                        requestId: input?.requestId || null,
                         metadata: {
                             sector: tenant.sector,
                             plan: tenant.plan

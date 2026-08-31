@@ -1,5 +1,6 @@
 const { requireTenantId } = require("./tenant-id");
 const { createFeatureFlags } = require("./feature-catalog");
+const { createTenantProfile } = require("./tenant-profile");
 
 const TENANT_STATUSES = new Set([
     "provisioning",
@@ -35,6 +36,7 @@ function createTenantRecord({
     plan = "starter",
     status = "provisioning",
     features = {},
+    profile = {},
     createdBy = null,
     now = new Date()
 }) {
@@ -56,9 +58,11 @@ function createTenantRecord({
         plan: requireSimpleId(plan, "Paket"),
         status: normalizedStatus,
         features: createFeatureFlags(features),
+        profile: createTenantProfile(profile),
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
-        createdBy: createdBy ? String(createdBy) : null
+        createdBy: createdBy ? String(createdBy) : null,
+        updatedBy: createdBy ? String(createdBy) : null
     });
 }
 
