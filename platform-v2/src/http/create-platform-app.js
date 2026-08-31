@@ -207,7 +207,8 @@ function createPlatformApp({
 
             const tenant = await onboarding.onboard({
                 ...req.body,
-                createdBy: req.platformActor.uid
+                createdBy: req.platformActor.uid,
+                requestId: req.requestId
             });
 
             return res.status(201).json({
