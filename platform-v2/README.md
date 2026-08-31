@@ -1,4 +1,4 @@
-# Platform V2 Foundation
+# Platform V2 — Merkezi Multi-Tenant Platform
 
 Bu klasör, Ece Döner V1'den izole merkezi multi-tenant platform temelidir.
 
@@ -11,6 +11,31 @@ Bu klasör, Ece Döner V1'den izole merkezi multi-tenant platform temelidir.
 5. **Fail-closed:** Tenant kimliği yoksa veya geçersizse veri yolu üretilmez.
 6. **Merkezi operasyon:** Onboarding, yetki, backup, monitoring ve audit merkezi platformdan yönetilir.
 7. **Ölçek hedefi:** 5. ve 500. müşterinin onboarding akışı aynı kalmalıdır.
+
+## Merkezi çalışma modeli
+
+```text
+Platform Admin /admin/
+        |
+        v
+Platform V2 Admin API
+        |
+        +--> platformTenants/{tenantId}
+        +--> tenants/{tenantId}/...
+        +--> tenant audit kayıtları
+        +--> provider adapterları
+```
+
+Yeni işletme eklemek bir deployment işi değildir. Hedef akış:
+
+```text
+Yeni işletme oluştur
+ -> tenantId
+ -> işletme/sektör/paket
+ -> marka + iletişim + domain
+ -> feature flagler
+ -> active
+```
 
 ## Firestore V2 sözleşmesi
 
@@ -31,7 +56,33 @@ Merkezi tenant registry metadata'sı:
 platformTenants/{tenantId}
 ```
 
-Platform geneli config ileride ayrı bir global collection altında tutulur; tenant iş verisi hiçbir zaman global `products`, `orders` veya `settings` koleksiyonunda tutulmaz.
+Tenant iş verisi hiçbir zaman global `products`, `orders` veya `settings` koleksiyonunda tutulmaz.
+
+## Tenant registry yönetimi
+
+Merkezi registry aşağıdaki alanları taşır:
+
+- kalıcı `tenantId`
+- işletme adı ve sektör
+- paket
+- durum (`provisioning`, `active`, `suspended`, `archived`)
+- merkezi feature flagler
+- marka/iletişim/domain profili
+- created/updated metadata
+
+`tenantId` ve sektör onboarding sonrasında normal panel güncellemesiyle değiştirilemez. Böyle yapısal değişiklikler migration prosedürü gerektirir.
+
+## Merkezi Admin API
+
+```text
+GET   /health
+GET   /api/platform/tenants
+GET   /api/platform/tenants/:tenantId
+POST  /api/platform/tenants
+PATCH /api/platform/tenants/:tenantId
+```
+
+Platform endpointleri yalnız Firebase ID tokenında `platformAdmin: true` claim bulunan kullanıcıları kabul eder.
 
 ## Backup anahtar sözleşmesi
 
@@ -41,6 +92,22 @@ backups/{tenantId}/firestore/YYYY/MM/DD/<timestamp>.json.gz.enc
 
 Storage provider değişse bile bu mantıksal anahtar formatı korunur.
 
-## İlk kapsam
+## Deployment
 
-Foundation; tenant kimliği, izolasyon, provider ve backup sözleşmelerini tanımlar. Phase 2 merkezi tenant registry/onboarding katmanını ekler. Ece Döner V1 migration'ı, canlı deployment, Cloudflare R2 credential'ları ve production veri taşıma ayrı kontrollü fazlardır.
+Runtime:
+
+```text
+node platform-v2/server.js
+```
+
+Merkezi panel:
+
+```text
+/admin/
+```
+
+Production/staging environment sözleşmesi için `DEPLOYMENT.md` dosyasına bak.
+
+## Ece Döner V1
+
+Ece Döner V1 mevcut haliyle canlı/stabil kalır. V2 hazır olmadan V1 veri yolları otomatik olarak değiştirilmez. Gelecekteki kontrollü migration prosedürü `MIGRATION-ECE-V1.md` içinde tanımlıdır.
