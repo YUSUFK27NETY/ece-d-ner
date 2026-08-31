@@ -5,6 +5,16 @@ const { createRequirePlatformAdmin } = require("../auth/require-platform-admin")
 const { createTenantOnboardingService } = require("../tenant/onboarding-service");
 const { requireTenantId } = require("../tenant/tenant-id");
 
+function normalizeApiListLimit(value = 100) {
+    const limit = Number(value);
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+        throw new TypeError("Tenant liste limiti 1-200 arasında olmalı.");
+    }
+
+    return limit;
+}
+
 function createPlatformApp({ auth, tenantRegistry, auditWriter = null }) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function" ||
         typeof tenantRegistry.list !== "function" ||
@@ -32,6 +42,14 @@ function createPlatformApp({ auth, tenantRegistry, auditWriter = null }) {
             "X-Request-Id": req.requestId,
             "Cache-Control": "no-store"
         });
+
+        if (req.secure) {
+            res.set(
+                "Strict-Transport-Security",
+                "max-age=31536000; includeSubDomains"
+            );
+        }
+
         next();
     });
 
@@ -63,9 +81,9 @@ function createPlatformApp({ auth, tenantRegistry, auditWriter = null }) {
 
     app.get("/api/platform/tenants", async (req, res) => {
         try {
-            const limit = req.query.limit === undefined
-                ? 100
-                : Number(req.query.limit);
+            const limit = normalizeApiListLimit(
+                req.query.limit === undefined ? 100 : req.query.limit
+            );
             const tenants = await tenantRegistry.list({ limit });
 
             return res.json({
@@ -169,6 +187,7 @@ function sendPlatformError(res, error) {
 }
 
 module.exports = {
+    normalizeApiListLimit,
     createPlatformApp,
     sendPlatformError
 };
