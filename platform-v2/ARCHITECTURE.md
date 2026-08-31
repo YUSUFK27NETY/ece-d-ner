@@ -40,17 +40,25 @@ Tenant kimliği ileride custom domain, subdomain veya güvenilir authenticated c
 
 Public endpointlerde tenant çözümleme sonucu server tarafında doğrulanır. Admin endpointlerde authenticated kullanıcının tenant üyeliği ve rolü doğrulanır.
 
+`platform_admin` platform seviyesinde çalışabildiği için tenantId taşımak zorunda değildir. Tenant rolleri ise açık ve doğrulanmış tenantId olmadan oluşturulamaz.
+
 ## 4. Veri izolasyonu
 
-V2 iş verisi yalnızca aşağıdaki root altında tutulur:
+Tenant iş verisi yalnızca aşağıdaki root altında tutulur:
 
 ```text
 tenants/{tenantId}/...
 ```
 
-Böylece sorgu, backup, audit ve ileride shard/migration işlemleri tenant sınırına göre yapılabilir.
+Merkezi tenant registry ayrı bir global collection kullanır:
 
-Platform global metadata tenant iş verisinden ayrıdır.
+```text
+platformTenants/{tenantId}
+```
+
+Registry; işletme adı, sektör, paket, durum, feature flags ve platform metadata'sını tutar. Ürün, sipariş ve müşteri verisi registry içine yazılmaz.
+
+Bu ayrım sorgu, backup, audit ve ileride shard/migration işlemlerinin tenant sınırına göre yapılmasını sağlar.
 
 ## 5. Yetkilendirme
 
@@ -62,9 +70,26 @@ Minimum roller:
 - `staff`: operasyonel yetkiler
 - `viewer`: salt okunur yönetim görünümü
 
-RBAC daha sonra permission tabanlı modele genişletilebilir. Rol kontrolü tek başına yeterli değildir; her işlem tenant sınırını da doğrulamalıdır.
+Her işlemde hem permission hem tenant scope doğrulanır. Tenant rolü başka tenantın verisine geçemez. `platform_admin` yalnızca platform kimliği doğrulandıktan sonra tenantlar arası işlem yapabilir.
 
-## 6. Provider bağımsızlığı
+## 6. Merkezi onboarding
+
+Yeni işletme creation akışı domain seviyesinde `TenantOnboardingService` üzerinden yapılır. Service:
+
+1. tenant kaydını validate eder,
+2. aynı tenantId'nin mevcut olmadığını doğrular,
+3. merkezi registry'ye atomik create uygular,
+4. kritik işlemi audit katmanına gönderir.
+
+İleride panel ve API aynı service'i kullanacaktır; müşteri başına ayrı onboarding kodu yazılmayacaktır.
+
+## 7. Feature flags ve sektörler
+
+Sektör adı tenant metadata'sıdır; özellik davranışı feature flags üzerinden yönetilir. Böylece restoran, berber, güzellik salonu veya başka sektörler aynı core'u kullanabilir.
+
+Yeni sektör eklemek mevcut tenant kayıt modelini değiştirmemelidir. Özellikler merkezi katalogdan açılıp kapanır.
+
+## 8. Provider bağımsızlığı
 
 Dış servisler doğrudan domain koduna gömülmez. Örnek:
 
@@ -77,7 +102,7 @@ ObjectStorageProvider
 
 Provider değişimi domain modelini veya tenant veri yapısını değiştirmemelidir.
 
-## 7. Backup
+## 9. Backup
 
 Her backup açık tenant kimliği taşır ve başka tenantın prefix'ine yazamaz.
 
@@ -87,13 +112,13 @@ backups/{tenantId}/firestore/YYYY/MM/DD/<timestamp>.json.gz.enc
 
 Production restore doğrudan canlı verinin üstüne uygulanmaz. Restore önce izole test hedefinde doğrulanır, kayıt sayıları ve kritik örnekler kontrol edilir.
 
-## 8. Ölçekleme yolu
+## 10. Ölçekleme yolu
 
 Başlangıçta tenantlar aynı platform servislerini ve veri altyapısını paylaşabilir. Büyük tenantlar gerektiğinde shard veya ayrı database/project altyapısına taşınabilir; tenant routing katmanı sayesinde istemci ve iş mantığı değişmeden kalmalıdır.
 
 Bu nedenle tenantId uygulama seviyesinde birinci sınıf kimliktir; fiziksel database konumu değildir.
 
-## 9. Operasyon kuralları
+## 11. Operasyon kuralları
 
 - Production'a doğrudan deneysel değişiklik yok.
 - Her değişiklik PR + test üzerinden ilerler.
@@ -102,6 +127,6 @@ Bu nedenle tenantId uygulama seviyesinde birinci sınıf kimliktir; fiziksel dat
 - Audit kayıtları kritik admin mutation işlemlerinde zorunlu hale getirilecektir.
 - Monitoring tenantId ve requestId ile korelasyon yapabilmelidir.
 
-## 10. V1 sınırı
+## 12. V1 sınırı
 
-Ece Döner V1 şu an ayrı ve stabil kalır. V2 foundation hazır olmadan V1 veri yolları `tenants/{tenantId}` modeline taşınmaz. Migration ayrı plan, ayrı test ve rollback prosedürü ile yapılır.
+Ece Döner V1 şu an ayrı ve stabil kalır. V2 yeterince hazır olmadan V1 veri yolları `tenants/{tenantId}` modeline taşınmaz. Migration ayrı plan, ayrı test ve rollback prosedürü ile yapılır.
