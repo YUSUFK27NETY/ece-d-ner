@@ -1,4 +1,5 @@
 const { createTenantRecord } = require("./tenant-record");
+const { createAuditEvent } = require("../audit/audit-event");
 
 function assertTenantRegistry(registry) {
     for (const method of ["getById", "create"]) {
@@ -31,15 +32,17 @@ function createTenantOnboardingService({ tenantRegistry, auditWriter = null }) {
             await registry.create(tenant);
 
             if (auditWriter) {
-                await auditWriter.write({
-                    tenantId: tenant.tenantId,
-                    action: "tenant.created",
-                    actorId: tenant.createdBy,
-                    metadata: {
-                        sector: tenant.sector,
-                        plan: tenant.plan
-                    }
-                });
+                await auditWriter.write(
+                    createAuditEvent({
+                        tenantId: tenant.tenantId,
+                        action: "tenant.created",
+                        actorId: tenant.createdBy,
+                        metadata: {
+                            sector: tenant.sector,
+                            plan: tenant.plan
+                        }
+                    })
+                );
             }
 
             return tenant;
