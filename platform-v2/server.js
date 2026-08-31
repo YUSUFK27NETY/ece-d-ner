@@ -2,15 +2,27 @@ const { createPlatformFirebase } = require("./src/firebase/create-platform-fireb
 const { createFirestoreTenantRegistry } = require("./src/firestore/firestore-tenant-registry");
 const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-writer");
 const { createPlatformApp } = require("./src/http/create-platform-app");
+const {
+    normalizeFirebaseWebConfig,
+    normalizeAllowedOrigins
+} = require("./src/config/platform-web-config");
 
 function startPlatformServer() {
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
     const auditWriter = createFirestoreAuditWriter({ db });
+    const webConfig = normalizeFirebaseWebConfig(
+        process.env.PLATFORM_FIREBASE_WEB_CONFIG_JSON
+    );
+    const allowedOrigins = normalizeAllowedOrigins(
+        process.env.PLATFORM_ALLOWED_ORIGINS
+    );
     const app = createPlatformApp({
         auth,
         tenantRegistry,
-        auditWriter
+        auditWriter,
+        webConfig,
+        allowedOrigins
     });
 
     const port = Number(process.env.PLATFORM_PORT || process.env.PORT || 3100);
