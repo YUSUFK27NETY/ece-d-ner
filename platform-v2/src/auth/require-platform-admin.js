@@ -24,8 +24,16 @@ function createRequirePlatformAdmin({ auth }) {
             }
 
             const decodedToken = await auth.verifyIdToken(idToken, true);
+            const uid = String(decodedToken?.uid || "").trim();
 
-            if (decodedToken?.platformAdmin !== true) {
+            if (!uid) {
+                return res.status(401).json({
+                    success: false,
+                    message: "Geçersiz kullanıcı kimliği."
+                });
+            }
+
+            if (decodedToken.platformAdmin !== true) {
                 return res.status(403).json({
                     success: false,
                     message: "Platform yöneticisi yetkisi gerekli."
@@ -33,7 +41,7 @@ function createRequirePlatformAdmin({ auth }) {
             }
 
             req.platformActor = Object.freeze({
-                uid: String(decodedToken.uid || ""),
+                uid,
                 role: "platform_admin"
             });
 
