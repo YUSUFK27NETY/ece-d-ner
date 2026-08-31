@@ -60,6 +60,21 @@ function createFirestoreTenantRegistry({
             const tenantId = requireTenantId(tenant?.tenantId);
             await collection.doc(tenantId).create({ ...tenant });
             return tenant;
+        },
+
+        async update(rawTenantId, tenant) {
+            const tenantId = requireTenantId(rawTenantId);
+
+            if (!tenant || typeof tenant !== "object" || Array.isArray(tenant)) {
+                throw new TypeError("Güncellenecek tenant nesnesi gerekli.");
+            }
+
+            if (requireTenantId(tenant.tenantId) !== tenantId) {
+                throw new TypeError("Tenant kimliği güncelleme sırasında değiştirilemez.");
+            }
+
+            await collection.doc(tenantId).update({ ...tenant });
+            return tenant;
         }
     });
 }
