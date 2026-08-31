@@ -13,6 +13,7 @@ const ADMIN_CSP = [
     "style-src 'self'",
     "img-src 'self' data: https:",
     "connect-src 'self' https://*.googleapis.com https://securetoken.googleapis.com https://identitytoolkit.googleapis.com",
+    "frame-src https://*.firebaseapp.com https://*.web.app",
     "object-src 'none'",
     "base-uri 'none'",
     "frame-ancestors 'none'",
