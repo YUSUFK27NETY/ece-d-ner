@@ -31,9 +31,18 @@
 
     <title>Ece Döner | QR Menü Pro</title>
 
-    <!-- FIREBASE -->
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    <!-- PERFORMANS -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
+    <link rel="preconnect" href="https://ece-d-ner-1.onrender.com" crossorigin>
+    <link rel="dns-prefetch" href="//www.gstatic.com">
+    <link rel="dns-prefetch" href="//firestore.googleapis.com">
+    <link rel="dns-prefetch" href="//ece-d-ner-1.onrender.com">
+    <link rel="preload" as="image" href="hero.jpg" fetchpriority="high">
+
+    <!-- FIREBASE: HTML parse işlemini bloklamadan sırayla yüklenir -->
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
     <!-- CSS -->
     <link
@@ -62,6 +71,7 @@
             <img
                 src="logo.jpg"
                 alt="Ece Döner Logo"
+                decoding="async"
             >
 
             <h2>ECE DÖNER</h2>
@@ -99,6 +109,8 @@
                 src="logo.jpg"
                 alt="Ece Döner"
                 class="logo"
+                decoding="async"
+                fetchpriority="high"
             >
 
             <h1>
@@ -259,6 +271,7 @@
         <div
             class="menu-grid"
             id="menuGrid"
+            aria-busy="true"
         >
 
             <!--
@@ -538,7 +551,7 @@
 
     <!-- JAVASCRIPT -->
 
-    <script src="script.js"></script>
+    <script defer src="script.js"></script>
 
 </body>
 </html>
