@@ -33,7 +33,7 @@ test("kalıcı sipariş silme endpointi limiter ve admin yetkisi ister", () => {
     );
 });
 
-test("panel arşivlemenin yanına yazılı onaylı kalıcı silme ekler", () => {
+test("panel arşivlemenin yanına tek onaylı kalıcı silme ekler", () => {
     const adminSource = compact(readProjectFile("admin.html"));
     const archiveButton = adminSource.indexOf("📦 Arşivle");
     const permanentButton = adminSource.indexOf("🗑️ Siparişi Sil");
@@ -47,8 +47,9 @@ test("panel arşivlemenin yanına yazılı onaylı kalıcı silme ekler", () => 
     );
     assert.match(
         adminSource,
-        /Onaylamak için SİL yazın\./
+        /confirm\( "Bu sipariş kalıcı olarak silinsin mi\? Bu işlem geri alınamaz\." \)/
     );
+    assert.doesNotMatch(adminSource, /Onaylamak için SİL yazın/);
     assert.match(
         adminSource,
         /encodeURIComponent\(docId\) \+ "\/permanent"/

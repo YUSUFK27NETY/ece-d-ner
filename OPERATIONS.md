@@ -78,7 +78,7 @@ Bu sıra, eski admin sayfasıyla yeni Firestore kuralları arasında kısa süre
 - Yeni sipariş admin panelinde beliriyor; bildirim izni verilmişse ses/tarayıcı bildirimi çalışıyor.
 - Tamamlanan ciro yalnız `completed` durumundaki aktif siparişlerden hesaplanıyor.
 - Sipariş ve ürün arşivleme veriyi kalıcı olarak silmiyor.
-- `Siparişi Sil` yalnız yönetici oturumunda ve `SİL` yazılı onayından sonra kaydı kalıcı olarak kaldırıyor; bu işlem geri alınamıyor.
+- `Siparişi Sil` yalnız yönetici oturumunda ve onay penceresindeki `Tamam` seçiminden sonra kaydı kalıcı olarak kaldırıyor; bu işlem geri alınamıyor.
 
 Canlı ortamda deneme siparişi oluşturulursa hemen `cancelled` yapılıp arşivlenmeli ve gerçek sipariş olmadığı not edilmelidir.
 

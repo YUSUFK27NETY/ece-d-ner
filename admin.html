@@ -5259,30 +5259,11 @@ return;
 }
 
 
-const confirmation =
-prompt(
-"Bu işlem geri alınamaz ve sipariş kaydı tamamen silinir. Onaylamak için SİL yazın."
-);
-
-
-if (confirmation === null) {
-
-return;
-
-}
-
-
 if (
-confirmation
-.trim()
-.toLocaleUpperCase("tr-TR") !==
-"SİL"
+!confirm(
+"Bu sipariş kalıcı olarak silinsin mi? Bu işlem geri alınamaz."
+)
 ) {
-
-showToast(
-"Silme iptal edildi: SİL onayı verilmedi.",
-"error"
-);
 
 return;
 
