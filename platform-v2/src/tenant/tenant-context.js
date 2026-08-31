@@ -8,13 +8,17 @@ const ALLOWED_ROLES = new Set([
     "viewer"
 ]);
 
-function createTenantContext({ tenantId, actorId = null, role = "viewer" }) {
-    const normalizedTenantId = requireTenantId(tenantId);
+function createTenantContext({ tenantId = null, actorId = null, role = "viewer" }) {
     const normalizedRole = String(role ?? "").trim();
 
     if (!ALLOWED_ROLES.has(normalizedRole)) {
         throw new TypeError("Geçersiz tenant rolü.");
     }
+
+    const normalizedTenantId =
+        normalizedRole === "platform_admin" && !tenantId
+            ? null
+            : requireTenantId(tenantId);
 
     return Object.freeze({
         tenantId: normalizedTenantId,
