@@ -14,6 +14,8 @@ Bu klasör, Ece Döner V1'den izole merkezi multi-tenant platform temelidir.
 
 ## Firestore V2 sözleşmesi
 
+Tenant iş verisi:
+
 ```text
 tenants/{tenantId}
 tenants/{tenantId}/products/{productId}
@@ -23,14 +25,13 @@ tenants/{tenantId}/members/{uid}
 tenants/{tenantId}/audit/{eventId}
 ```
 
-Global metadata yalnızca platform seviyesinde tutulur:
+Merkezi tenant registry metadata'sı:
 
 ```text
-platform/tenants/{tenantId}
-platform/config/{configId}
+platformTenants/{tenantId}
 ```
 
-Tenant iş verisi hiçbir zaman global `products`, `orders` veya `settings` koleksiyonunda tutulmaz.
+Platform geneli config ileride ayrı bir global collection altında tutulur; tenant iş verisi hiçbir zaman global `products`, `orders` veya `settings` koleksiyonunda tutulmaz.
 
 ## Backup anahtar sözleşmesi
 
@@ -42,4 +43,4 @@ Storage provider değişse bile bu mantıksal anahtar formatı korunur.
 
 ## İlk kapsam
 
-Bu foundation yalnızca sözleşmeleri ve güvenli temel yardımcılarını oluşturur. Ece Döner V1 migration'ı, canlı deployment, Cloudflare R2 credential'ları ve production veri taşıma bu branch'te yapılmaz.
+Foundation; tenant kimliği, izolasyon, provider ve backup sözleşmelerini tanımlar. Phase 2 merkezi tenant registry/onboarding katmanını ekler. Ece Döner V1 migration'ı, canlı deployment, Cloudflare R2 credential'ları ve production veri taşıma ayrı kontrollü fazlardır.
