@@ -47,17 +47,20 @@ function authorizeTenantAction({ context, tenantId, permission }) {
     }
 
     const targetTenantId = requireTenantId(tenantId);
-    const contextTenantId = requireTenantId(context.tenantId);
     const normalizedPermission = String(permission ?? "").trim();
 
     if (!normalizedPermission) {
         throw new TypeError("Permission gerekli.");
     }
 
-    if (context.role !== "platform_admin" && contextTenantId !== targetTenantId) {
-        const error = new Error("Tenant sınırı ihlali.");
-        error.code = "TENANT_SCOPE_MISMATCH";
-        throw error;
+    if (context.role !== "platform_admin") {
+        const contextTenantId = requireTenantId(context.tenantId);
+
+        if (contextTenantId !== targetTenantId) {
+            const error = new Error("Tenant sınırı ihlali.");
+            error.code = "TENANT_SCOPE_MISMATCH";
+            throw error;
+        }
     }
 
     if (!hasPermission(context.role, normalizedPermission)) {
