@@ -2,6 +2,16 @@ const { requireTenantId } = require("../tenant/tenant-id");
 
 const DEFAULT_TENANT_REGISTRY_COLLECTION = "platformTenants";
 
+function normalizeListLimit(value = 100) {
+    const limit = Number(value);
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
+        throw new TypeError("Tenant liste limiti 1-200 arasında olmalı.");
+    }
+
+    return limit;
+}
+
 function createFirestoreTenantRegistry({
     db,
     collectionName = DEFAULT_TENANT_REGISTRY_COLLECTION
@@ -33,6 +43,19 @@ function createFirestoreTenantRegistry({
             };
         },
 
+        async list({ limit = 100 } = {}) {
+            const safeLimit = normalizeListLimit(limit);
+            const snapshot = await collection
+                .orderBy("createdAt", "desc")
+                .limit(safeLimit)
+                .get();
+
+            return snapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+        },
+
         async create(tenant) {
             const tenantId = requireTenantId(tenant?.tenantId);
             await collection.doc(tenantId).create({ ...tenant });
@@ -43,5 +66,6 @@ function createFirestoreTenantRegistry({
 
 module.exports = {
     DEFAULT_TENANT_REGISTRY_COLLECTION,
+    normalizeListLimit,
     createFirestoreTenantRegistry
 };
