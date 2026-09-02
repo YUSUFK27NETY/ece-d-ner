@@ -25,6 +25,10 @@ function normalizeMigration(migration) {
         throw new TypeError("Migration id geçersiz.");
     }
 
+    if (migration.idempotent !== true) {
+        throw new TypeError("Migration idempotent: true sözleşmesini açıkça tanımlamalı.");
+    }
+
     if (typeof migration.up !== "function" || typeof migration.verify !== "function") {
         throw new TypeError("Migration up ve verify fonksiyonlarını uygulamalı.");
     }
@@ -41,6 +45,7 @@ function normalizeMigration(migration) {
         ...migration,
         version,
         id,
+        idempotent: true,
         description: String(migration.description ?? "").trim(),
         forwardFix: String(migration.forwardFix ?? "").trim() || null
     });
