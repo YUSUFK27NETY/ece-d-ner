@@ -258,10 +258,11 @@ test("restore varsayılan dry-run; apply açık doğrulama olmadan yazmaz", asyn
     assert.equal(snapshots.restored.length, 1);
 });
 
-test("migration plan eksik sıra ve verify failure durumunda fail-closed olur", async () => {
+test("migration plan yalnız açık idempotent sözleşmeyle çalışır ve eksik sırada fail-closed olur", async () => {
     const migration1 = {
         version: 1,
         id: "001-init",
+        idempotent: true,
         forwardFix: "Yeni forward-fix migration yayınla.",
         async up(context) { context.value = 1; },
         async verify(context) { return context.value === 1; }
@@ -269,6 +270,7 @@ test("migration plan eksik sıra ve verify failure durumunda fail-closed olur", 
     const migration2 = {
         version: 2,
         id: "002-next",
+        idempotent: true,
         forwardFix: "Yeni forward-fix migration yayınla.",
         async up(context) { context.value = 2; },
         async verify(context) { return context.value === 2; }
@@ -282,6 +284,14 @@ test("migration plan eksik sıra ve verify failure durumunda fail-closed olur", 
     assert.throws(
         () => createMigrationPlan({ currentVersion: 0, targetVersion: 2, migrations: [migration2] }),
         /1 sürümü eksik/
+    );
+    assert.throws(
+        () => createMigrationPlan({
+            currentVersion: 0,
+            targetVersion: 1,
+            migrations: [{ ...migration1, idempotent: false }]
+        }),
+        /idempotent/
     );
 });
 
