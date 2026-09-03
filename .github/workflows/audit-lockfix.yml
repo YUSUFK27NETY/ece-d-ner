@@ -62,7 +62,8 @@ jobs:
       - name: Verify minimal diff
         shell: bash
         run: |
-          git diff --check
+          test "$(git diff --name-only | wc -l | tr -d ' ')" = "1"
+          test "$(git diff --name-only)" = "package-lock.json"
           test "$(git diff --numstat -- package-lock.json | awk '{print $1}')" = "3"
           test "$(git diff --numstat -- package-lock.json | awk '{print $2}')" = "3"
           git diff -- package-lock.json
@@ -81,6 +82,7 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add package-lock.json
-          git diff --cached --check
+          test "$(git diff --cached --numstat -- package-lock.json | awk '{print $1}')" = "3"
+          test "$(git diff --cached --numstat -- package-lock.json | awk '{print $2}')" = "3"
           git commit -m "fix: update qs lockfile to 6.16.0"
           git push origin HEAD:audit-production-2026-09-03
