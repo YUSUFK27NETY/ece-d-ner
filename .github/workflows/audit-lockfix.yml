@@ -1,0 +1,86 @@
+name: Temporary audited qs lockfile remediation
+
+on:
+  push:
+    branches:
+      - audit-production-2026-09-03
+    paths:
+      - .github/workflows/audit-lockfix.yml
+
+permissions:
+  contents: write
+
+jobs:
+  remediate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout audit branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: audit-production-2026-09-03
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Patch only vulnerable qs lock entry
+        shell: bash
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = 'package-lock.json';
+          const before = fs.readFileSync(path, 'utf8');
+          const marker = '"node_modules/qs": {';
+          const markerIndex = before.indexOf(marker);
+          if (markerIndex < 0) throw new Error('qs lock entry not found');
+
+          const nextEntry = before.indexOf('\n    "node_modules/', markerIndex + marker.length);
+          if (nextEntry < 0) throw new Error('qs lock entry boundary not found');
+
+          const block = before.slice(markerIndex, nextEntry);
+          if (!block.includes('"version": "6.15.3"')) throw new Error('unexpected qs version');
+          if (!block.includes('https://registry.npmjs.org/qs/-/qs-6.15.3.tgz')) throw new Error('unexpected qs resolved URL');
+          if (!block.includes('sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==')) throw new Error('unexpected qs integrity');
+
+          const patchedBlock = block
+            .replace('"version": "6.15.3"', '"version": "6.16.0"')
+            .replace('https://registry.npmjs.org/qs/-/qs-6.15.3.tgz', 'https://registry.npmjs.org/qs/-/qs-6.16.0.tgz')
+            .replace(
+              'sha512-O9gl3zCl5h5blw1KGUzQKhA5oUXSl8rwUIM5o0S3nCXMliSvy5Dzx7/DJcI+SwgICv+IneSZwhBh1oSyEHA71A==',
+              'sha512-h6fhOIaRrID2CbEY2fqs+7t+UXZo+MLAnU5gRIq85uFtdiUPCdsApMlHhXogKVM4HM2DVbIjGNTTYH2OcmP1vA=='
+            );
+
+          if (patchedBlock === block) throw new Error('qs block was not patched');
+          const after = before.slice(0, markerIndex) + patchedBlock + before.slice(nextEntry);
+          fs.writeFileSync(path, after, 'utf8');
+          NODE
+
+      - name: Verify minimal diff
+        shell: bash
+        run: |
+          git diff --check
+          test "$(git diff --numstat -- package-lock.json | awk '{print $1}')" = "3"
+          test "$(git diff --numstat -- package-lock.json | awk '{print $2}')" = "3"
+          git diff -- package-lock.json
+
+      - name: Install exact lockfile
+        run: npm ci
+
+      - name: Run full CI and production dependency audit
+        run: |
+          npm run ci
+          npm run security:dependencies
+
+      - name: Commit verified lockfile fix
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git diff --cached --check
+          git commit -m "fix: update qs lockfile to 6.16.0"
+          git push origin HEAD:audit-production-2026-09-03
