@@ -40,6 +40,17 @@ Tenant registry kimliği restore sırasında payload'dan körlemesine alınmaz; 
 
 Restore çağrılarının varsayılanı `dry-run`dır. Dry-run doğrulama yapar fakat veri yazmaz. Apply için hedef tenantId ikinci kez confirmation olarak verilmelidir. `replace` modu kernelde ayrıca feature gate arkasındadır ve ilk sürüm Firestore snapshot provider yalnız `merge` uygular.
 
+Staging apply drill bunun üzerinde ek fail-closed kapılar uygular:
+
+- tenant kimliği `backup-drill-` prefix'i ile başlamalıdır,
+- `PLATFORM_BACKUP_DRILL_APPLY` tam olarak `true` olmalıdır,
+- `PLATFORM_BACKUP_DRILL_ENVIRONMENT` tam olarak `staging` olmalıdır,
+- `PLATFORM_BACKUP_DRILL_CONFIRM_TENANT_ID` hedef tenant ile birebir aynı olmalıdır,
+- `PLATFORM_BACKUP_DRILL_STAGING_CONFIRMATION` değeri `staging:{tenantId}:restore-apply` biçiminde hedef tenant'a bağlı olmalıdır,
+- restore mode kod içinde sabit olarak `merge` gönderilir; `replace` kullanılmaz.
+
+Apply flag tanımsız, boş veya `false` ise script yalnız encrypted backup, verify ve restore dry-run yapar; Firestore marker oluşturmaz veya restore yazması yapmaz. Tanınmayan apply flag değerleri sessizce dry-run'a düşmez, hata ile kapanır. Bu kapılar yalnız dedicated staging test tenantını hedefler; production müşteri tenantına apply drill uygulanmaz ve production'da destructive restore yoktur.
+
 Production müşteri verisine restore uygulanmadan önce aynı backup veya eşdeğer test snapshotı staging/test tenantında restore edilip doğrulanmalıdır. Acil durum dışında production restore doğrudan denenmez.
 
 ## Firestore snapshot kapsamı
@@ -80,14 +91,36 @@ Operasyon logları JSON satırı olarak timestamp, level, event, requestId, tena
 
 1. Object storage provider ve least-privilege credential yalnız staging'e eklenir.
 2. Backup encryption key staging secret store'a eklenir.
-3. Test tenant backup alınır.
-4. Object tekrar okunur; GCM + SHA-256 + manifest doğrulanır.
-5. Restore dry-run çalıştırılır; sıfır yazma doğrulanır.
-6. Ayrı test tenant/izole staging hedefinde kontrollü restore apply yapılır.
-7. Registry/collection sayıları ve audit log kontrol edilir.
-8. Tampered object ve wrong-tenant negatif testleri uygulanır.
-9. Sonuç Issue #32'ye kaydedilir.
-10. Ancak bundan sonra production schedule açılır.
+3. Dedicated `backup-drill-*` tenant içindeki `settings/phase5-backup-restore-drill` marker belgesi backup kaynak değeriyle `merge` yazılır ve tekrar okunur.
+4. Encrypted tenant backup alınır.
+5. Object tekrar okunur; AES-256-GCM + SHA-256 + manifest doğrulanır.
+6. Restore dry-run çalıştırılır; restore yazması olmadığı doğrulanır.
+7. Marker kontrollü olarak `mutated-after-backup` değerine değiştirilir ve Firestore'dan tekrar okunur.
+8. Tüm staging/apply/tenant onayları açıkken `apply: true`, exact `confirmationTenantId` ve `mode: merge` ile restore uygulanır.
+9. Marker Firestore'dan yeniden okunur; backup içindeki `backup-source` değerine döndüğü doğrulanır. Marker ve verified R2 backup audit kanıtı olarak korunur.
+10. Wrong tenant, tampered container, tampered manifest/checksum, wrong encryption key, cross-tenant reference, confirmation mismatch, apply gate, prefix guard ve replace-disabled negatif testleri çalıştırılır.
+11. `/health` 200; sağlıklı dependency ile `/ready` 200, Firestore arızasında detay sızdırmadan `/ready` 503 davranışı doğrulanır.
+12. Sonuç Issue #32'ye kaydedilir. Ancak bu kanıtlardan sonra production backup schedule değerlendirilir.
+
+Dry-run (varsayılan, Firestore marker/restore yazması yok):
+
+```bash
+node platform-v2/scripts/run-staging-backup-drill.js
+```
+
+Dedicated staging tenant için tek seferlik kontrollü apply drill komutu:
+
+```bash
+PLATFORM_BACKUP_DRILL_APPLY=true PLATFORM_BACKUP_DRILL_ENVIRONMENT=staging PLATFORM_BACKUP_DRILL_CONFIRM_TENANT_ID=backup-drill-staging PLATFORM_BACKUP_DRILL_STAGING_CONFIRMATION=staging:backup-drill-staging:restore-apply node platform-v2/scripts/run-staging-backup-drill.js
+```
+
+Render Build Command üzerinden bağımlılık kurulumu ile birlikte tek sefer çalıştırılacaksa:
+
+```bash
+npm ci && PLATFORM_BACKUP_DRILL_APPLY=true PLATFORM_BACKUP_DRILL_ENVIRONMENT=staging PLATFORM_BACKUP_DRILL_CONFIRM_TENANT_ID=backup-drill-staging PLATFORM_BACKUP_DRILL_STAGING_CONFIRMATION=staging:backup-drill-staging:restore-apply node platform-v2/scripts/run-staging-backup-drill.js
+```
+
+Başarılı apply kanıtında secret içermeyen `BACKUP_APPLY_DRILL_OK=true`, `RESTORE_APPLY_OK=true` ve `MARKER_RESTORED_OK=true` satırlarının üçü de görülmelidir. Komut sonrasında Render Build Command tekrar normal `npm ci` değerine döndürülür. Script hata durumunda yalnız kontrollü hata kodunu loglar; request body, credential veya encryption key loglamaz.
 
 ## Dış altyapı seçim kriteri
 

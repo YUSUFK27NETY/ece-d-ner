@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const { once } = require("node:events");
 const express = require("express");
 const { attachReadinessEndpoint } = require("../src/observability/attach-readiness-endpoint");
+const { createReadinessChecker } = require("../src/observability/readiness-check");
 
 async function withServer(checkReadiness, run) {
     const app = express();
@@ -50,5 +51,27 @@ test("ready endpoint dependency arızasında 503 ve secret içermeyen cevap dön
         assert.equal(body.success, false);
         assert.equal(body.status, "not_ready");
         assert.equal(JSON.stringify(body).includes("password"), false);
+    });
+});
+
+test("Firestore check exception mesajı ready 503 response içine sızmaz", async () => {
+    const secretDetail = "private-key-body-must-not-leak";
+    const checkReadiness = createReadinessChecker({
+        checks: {
+            firestore: async () => {
+                throw Object.assign(new Error(secretDetail), { code: "FIRESTORE_UNAVAILABLE" });
+            }
+        }
+    });
+
+    await withServer(checkReadiness, async baseUrl => {
+        const response = await fetch(`${baseUrl}/ready`);
+        const rawBody = await response.text();
+        const body = JSON.parse(rawBody);
+
+        assert.equal(response.status, 503);
+        assert.equal(body.status, "not_ready");
+        assert.equal(body.checks.firestore.code, "FIRESTORE_UNAVAILABLE");
+        assert.equal(rawBody.includes(secretDetail), false);
     });
 });

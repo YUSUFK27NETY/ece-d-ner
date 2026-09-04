@@ -140,3 +140,24 @@ test("Firestore snapshot provider replace restore'u varsayılan olarak uygulamaz
         error => error.code === "UNSAFE_RESTORE_MODE"
     );
 });
+
+test("restore içindeki cross-tenant DocumentReference hiçbir batch yazmadan reddedilir", async () => {
+    const db = createFakeDb();
+    const provider = createFirestoreTenantSnapshotProvider({ db });
+    const snapshot = await provider.exportTenant({ tenantId: "tenant-a" });
+    snapshot.collections.settings[0].data.reference = {
+        __platformV2Type: "document-reference",
+        path: "tenants/tenant-b/orders/o1"
+    };
+
+    await assert.rejects(
+        provider.restoreTenant({
+            tenantId: "tenant-a",
+            snapshot,
+            schemaVersion: 1,
+            mode: "merge"
+        }),
+        error => error.code === "TENANT_BOUNDARY_VIOLATION"
+    );
+    assert.equal(db.writes.length, 0);
+});

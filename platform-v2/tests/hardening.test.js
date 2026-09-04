@@ -258,6 +258,134 @@ test("restore varsayılan dry-run; apply açık doğrulama olmadan yazmaz", asyn
     assert.equal(snapshots.restored.length, 1);
 });
 
+test("backup service wrong-tenant restore'u apply öncesinde fail-closed engeller", async () => {
+    const storage = createMemoryStorage();
+    const snapshots = createSnapshotProvider();
+    const keyring = createBackupKeyring({
+        activeKeyId: "key-a",
+        keys: { "key-a": crypto.randomBytes(32).toString("base64") }
+    });
+    const service = createTenantBackupService({ storageProvider: storage, snapshotProvider: snapshots, keyring });
+    const manifest = await service.createBackup({ tenantId: "tenant-a" });
+
+    await assert.rejects(
+        service.restoreBackup({
+            tenantId: "tenant-b",
+            objectKey: manifest.objectKey,
+            apply: true,
+            confirmationTenantId: "tenant-b"
+        }),
+        /farklı tenant/
+    );
+    assert.equal(snapshots.restored.length, 0);
+});
+
+test("tampered encrypted container ve manifest checksum restore'u fail-closed durdurur", async () => {
+    const storage = createMemoryStorage();
+    const snapshots = createSnapshotProvider();
+    const keyring = createBackupKeyring({
+        activeKeyId: "key-a",
+        keys: { "key-a": crypto.randomBytes(32).toString("base64") }
+    });
+    const service = createTenantBackupService({ storageProvider: storage, snapshotProvider: snapshots, keyring });
+    const first = await service.createBackup({
+        tenantId: "tenant-a",
+        now: new Date("2026-09-04T10:00:00.000Z")
+    });
+    const tamperedBody = Buffer.from(storage.objects.get(first.objectKey));
+    tamperedBody[tamperedBody.length - 1] ^= 0xff;
+    storage.objects.set(first.objectKey, tamperedBody);
+
+    await assert.rejects(
+        service.restoreBackup({
+            tenantId: "tenant-a",
+            objectKey: first.objectKey,
+            apply: true,
+            confirmationTenantId: "tenant-a"
+        }),
+        /bütünlüğü uyuşmuyor/
+    );
+    assert.equal(snapshots.restored.length, 0);
+
+    const second = await service.createBackup({
+        tenantId: "tenant-a",
+        now: new Date("2026-09-04T10:01:00.000Z")
+    });
+    const manifest = JSON.parse(storage.objects.get(second.manifestKey).toString("utf8"));
+    manifest.plaintextSha256 = "0".repeat(64);
+    storage.objects.set(second.manifestKey, Buffer.from(JSON.stringify(manifest), "utf8"));
+
+    await assert.rejects(
+        service.restoreBackup({
+            tenantId: "tenant-a",
+            objectKey: second.objectKey,
+            apply: true,
+            confirmationTenantId: "tenant-a"
+        }),
+        /metadata ile manifest uyuşmuyor/
+    );
+    assert.equal(snapshots.restored.length, 0);
+});
+
+test("wrong encryption key restore sırasında authenticated decrypt'i durdurur", async () => {
+    const storage = createMemoryStorage();
+    const snapshots = createSnapshotProvider();
+    const sourceService = createTenantBackupService({
+        storageProvider: storage,
+        snapshotProvider: snapshots,
+        keyring: createBackupKeyring({
+            activeKeyId: "key-a",
+            keys: { "key-a": crypto.randomBytes(32).toString("base64") }
+        })
+    });
+    const manifest = await sourceService.createBackup({ tenantId: "tenant-a" });
+    const wrongKeyService = createTenantBackupService({
+        storageProvider: storage,
+        snapshotProvider: snapshots,
+        keyring: createBackupKeyring({
+            activeKeyId: "key-a",
+            keys: { "key-a": crypto.randomBytes(32).toString("base64") }
+        })
+    });
+
+    await assert.rejects(
+        wrongKeyService.restoreBackup({
+            tenantId: "tenant-a",
+            objectKey: manifest.objectKey,
+            apply: true,
+            confirmationTenantId: "tenant-a"
+        }),
+        /kimlik doğrulaması başarısız/
+    );
+    assert.equal(snapshots.restored.length, 0);
+});
+
+test("backup service replace restore'u provider çağrısından önce reddeder", async () => {
+    const storage = createMemoryStorage();
+    const snapshots = createSnapshotProvider();
+    const service = createTenantBackupService({
+        storageProvider: storage,
+        snapshotProvider: snapshots,
+        keyring: createBackupKeyring({
+            activeKeyId: "key-a",
+            keys: { "key-a": crypto.randomBytes(32).toString("base64") }
+        }),
+        allowReplaceRestore: false
+    });
+
+    await assert.rejects(
+        service.restoreBackup({
+            tenantId: "tenant-a",
+            objectKey: "backups/tenant-a/firestore/2026/09/04/example.enc",
+            apply: true,
+            confirmationTenantId: "tenant-a",
+            mode: "replace"
+        }),
+        error => error.code === "REPLACE_RESTORE_DISABLED"
+    );
+    assert.equal(snapshots.restored.length, 0);
+});
+
 test("migration plan yalnız açık idempotent sözleşmeyle çalışır ve eksik sırada fail-closed olur", async () => {
     const migration1 = {
         version: 1,
@@ -293,6 +421,32 @@ test("migration plan yalnız açık idempotent sözleşmeyle çalışır ve eksi
         }),
         /idempotent/
     );
+});
+
+test("migration verify başarısızsa version ilerlemez ve applied kaydı yazılmaz", async () => {
+    const applied = [];
+    const plan = createMigrationPlan({
+        currentVersion: 0,
+        targetVersion: 1,
+        migrations: [{
+            version: 1,
+            id: "001-verify-failure",
+            idempotent: true,
+            forwardFix: "Yeni forward-fix migration yayınla.",
+            async up(context) { context.changed = true; },
+            async verify() { return false; }
+        }]
+    });
+
+    await assert.rejects(
+        applyMigrationPlan({
+            plan,
+            context: {},
+            async onApplied(event) { applied.push(event); }
+        }),
+        error => error.code === "MIGRATION_VERIFY_FAILED"
+    );
+    assert.deepEqual(applied, []);
 });
 
 test("readiness dependency hata durumunda not_ready ve güvenli metadata döner", async () => {
