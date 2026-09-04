@@ -23,7 +23,7 @@ function platformContext() {
     return { role: "platform_admin", actorId: "platform-admin-1" };
 }
 
-async function createFixture() {
+async function createFixture({ includeTelemetryBackup = true, backupEvidenceProvider = null } = {}) {
     const config = loadPlatformGuardrailsConfig(JSON.stringify({
         plans: {
             starter: {
@@ -87,6 +87,7 @@ async function createFixture() {
         entitlementService,
         finOpsService,
         securitySignals,
+        backupEvidenceProvider,
         checkReadiness: async () => ({ ready: true, checks: { firestore: { status: "ok" } } }),
         signalListLimit: 10
     });
@@ -101,13 +102,13 @@ async function createFixture() {
         errorCount: 1,
         latencyMs: 80,
         firestoreReads: 8,
-        backup: {
+        backup: includeTelemetryBackup ? {
             sizeBytes: 4096,
             objectCount: 2,
             verifiedAt: at,
             restoreDrillAt: at,
             restoreDrillStatus: "passed"
-        }
+        } : null
     });
     await securitySignals.emit({
         tenantId: "tenant-a",
@@ -144,6 +145,78 @@ test("tenant operations overview health, usage, cost, plan, backup ve security �
     assert.equal(overview.backup.restoreDrillStatus, "passed");
     assert.equal(overview.security.byType.quota_warning, 1);
     assert.equal(typeof overview.cost.estimatedMonthlyTechnicalCost, "number");
+});
+
+test("admin operations response gerçek backup evidence özetini döndürür; provider alanlarını sızdırmaz", async () => {
+    const verifiedAt = "2026-09-04T10:00:10.000Z";
+    const restoreDrillAt = "2026-09-04T10:01:00.000Z";
+    const fixture = await createFixture({
+        includeTelemetryBackup: false,
+        backupEvidenceProvider: {
+            async getStatus({ tenantId }) {
+                assert.equal(tenantId, "tenant-a");
+                return {
+                    sizeBytes: 8192,
+                    objectCount: 1,
+                    verifiedAt,
+                    restoreDrillAt,
+                    restoreDrillStatus: "passed",
+                    objectKey: "must-not-leak",
+                    keyId: "must-not-leak",
+                    credential: "must-not-leak"
+                };
+            }
+        }
+    });
+    const app = createPlatformApp({
+        auth: {
+            async verifyIdToken() {
+                return { uid: "platform-admin-1", platformAdmin: true };
+            }
+        },
+        tenantRegistry: fixture.tenantRegistry,
+        tenantOperations: fixture.tenantOperations,
+        finOpsService: fixture.finOpsService
+    });
+    const server = app.listen(0, "127.0.0.1");
+    await once(server, "listening");
+
+    try {
+        const response = await fetch(
+            `http://127.0.0.1:${server.address().port}/api/platform/tenants/tenant-a/operations`,
+            { headers: { Authorization: "Bearer token" } }
+        );
+        const body = await response.json();
+
+        assert.equal(response.status, 200);
+        assert.deepEqual(body.overview.backup, {
+            sizeBytes: 8192,
+            objectCount: 1,
+            verifiedAt,
+            restoreDrillAt,
+            restoreDrillStatus: "passed"
+        });
+        assert.doesNotMatch(JSON.stringify(body), /must-not-leak|objectKey|keyId|credential/i);
+    } finally {
+        server.close();
+        await once(server, "close");
+    }
+});
+
+test("admin operations response backup kanıtı yoksa unknown kalır", async () => {
+    const fixture = await createFixture({ includeTelemetryBackup: false });
+    const overview = await fixture.tenantOperations.getOverview({
+        context: platformContext(),
+        tenantId: "tenant-a"
+    });
+
+    assert.deepEqual(overview.backup, {
+        sizeBytes: 0,
+        objectCount: 0,
+        verifiedAt: null,
+        restoreDrillAt: null,
+        restoreDrillStatus: "unknown"
+    });
 });
 
 test("cross-tenant operations ve cost görünürlüğü fail-closed reddedilir", async () => {

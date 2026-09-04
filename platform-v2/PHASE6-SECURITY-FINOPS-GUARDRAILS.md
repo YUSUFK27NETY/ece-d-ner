@@ -160,6 +160,16 @@ GET /api/platform/finops/top-tenants?limit=10
 
 Tenant operations response'u health/readiness scope, latency, usage, cost, entitlement, backup/DR ve security özetlerini döndürür. Admin paneli seçilen tenant için bu endpointi çağırır ve mevcut create/update formunu bozmadan altı sade kart gösterir. Response request body, token, secret veya provider credential içermez.
 
+Backup/DR kartı Phase 5'in kalıcı kanıtını doğrudan kullanır. Adapter yalnız
+`backups/{tenantId}/firestore/` prefix'indeki doğrulanmış manifestleri ve
+`tenants/{tenantId}/settings/phase5-backup-restore-drill` belgesini okur. Son verify
+zamanı geçerli manifestlerden seçilir. Restore drill yalnız marker tekrar
+`backup-source` durumuna dönmüşse ve Firestore belge `updateTime` değeri korele
+edilen manifestin `verifiedAt` değerinden sonraysa `passed` sayılır; eksik veya
+uyuşmayan kanıt `unknown` kalır. Operations response object key, key id, checksum,
+backup body veya provider credential döndürmez. R2 backup config'i runtime'da hiç
+yoksa adapter pasif kalır; kısmi/geçersiz config startup sırasında fail-closed olur.
+
 ## Provider sınırı ve dış operasyonlar
 
 Bu faz gerçek billing API entegrasyonu, budget oluşturma veya WAF policy mutationı yapmaz. Production öncesinde kullanıcı/operasyon ekibinin ayrıca yapması gerekenler:

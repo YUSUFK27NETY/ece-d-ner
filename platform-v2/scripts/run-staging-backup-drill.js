@@ -8,9 +8,9 @@ const { createBackupKeyringFromEnv } = require("../src/backup/backup-keyring");
 const { createTenantBackupService } = require("../src/backup/tenant-backup-service");
 const { loadR2BackupConfig } = require("../src/config/r2-backup-config");
 const { createR2ObjectStorageProvider } = require("../src/storage/r2-object-storage-provider");
+const { DRILL_MARKER_ID } = require("../src/backup/backup-operations-evidence");
 
 const DRILL_TENANT_PREFIX = "backup-drill-";
-const DRILL_MARKER_ID = "phase5-backup-restore-drill";
 
 function createDrillError(message, code) {
     const error = new Error(message);

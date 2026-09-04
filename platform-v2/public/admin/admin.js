@@ -168,7 +168,9 @@
             : `${formatNumber(plan.usage, 0)} / ${formatNumber(plan.softLimit, 0)} · otomatik kapatma yok`;
         elements.operationsBackup.textContent = `${formatNumber(backup.objectCount, 0)} obje`;
         elements.operationsDrill.textContent =
-            `Verify: ${formatTimestamp(backup.verifiedAt)} · Drill: ${backup.restoreDrillStatus || "unknown"}`;
+            `Verify: ${formatTimestamp(backup.verifiedAt)} · ` +
+            `Drill: ${backup.restoreDrillStatus || "unknown"}` +
+            (backup.restoreDrillAt ? ` · ${formatTimestamp(backup.restoreDrillAt)}` : "");
         elements.operationsSecurity.textContent = `${formatNumber(security.total, 0)} sinyal`;
         elements.operationsSecurityDetail.textContent =
             `En yüksek seviye: ${security.highestSeverity || "none"}`;

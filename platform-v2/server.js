@@ -22,6 +22,31 @@ const { createEntitlementService } = require("./src/entitlements/entitlement-ser
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
 const { createFinOpsService } = require("./src/finops/finops-service");
 const { createTenantOperationsService } = require("./src/operations/tenant-operations-service");
+const { loadR2BackupConfig } = require("./src/config/r2-backup-config");
+const { createR2ObjectStorageProvider } = require("./src/storage/r2-object-storage-provider");
+const {
+    createBackupOperationsEvidenceProvider
+} = require("./src/backup/backup-operations-evidence");
+
+const R2_BACKUP_CONFIG_KEYS = Object.freeze([
+    "PLATFORM_BACKUP_R2_ENDPOINT",
+    "PLATFORM_BACKUP_R2_BUCKET",
+    "PLATFORM_BACKUP_R2_ACCESS_KEY_ID",
+    "PLATFORM_BACKUP_R2_SECRET_ACCESS_KEY"
+]);
+
+function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
+    const configured = R2_BACKUP_CONFIG_KEYS.filter(key =>
+        String(env[key] ?? "").trim().length > 0
+    );
+
+    if (configured.length === 0) {
+        return null;
+    }
+
+    const storageProvider = createR2ObjectStorageProvider(loadR2BackupConfig(env));
+    return createBackupOperationsEvidenceProvider({ storageProvider, db });
+}
 
 function startPlatformServer() {
     const guardrailsConfig = loadPlatformGuardrailsConfig();
@@ -67,12 +92,14 @@ function startPlatformServer() {
         tenantRegistry,
         securitySignals
     });
+    const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
     const tenantOperations = createTenantOperationsService({
         tenantRegistry,
         usageTelemetry,
         entitlementService,
         finOpsService,
         securitySignals,
+        backupEvidenceProvider,
         checkReadiness,
         signalListLimit: guardrailsConfig.security.signalListLimit
     });
@@ -108,5 +135,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    R2_BACKUP_CONFIG_KEYS,
+    createConfiguredBackupEvidenceProvider,
     startPlatformServer
 };

@@ -22,12 +22,58 @@ function summarizeSignals(signals) {
     });
 }
 
+const BACKUP_DRILL_STATUSES = new Set(["passed", "failed", "dry_run", "unknown"]);
+
+function normalizeBackupSummary(input) {
+    const backup = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+    const sizeBytes = Number(backup.sizeBytes);
+    const objectCount = Number(backup.objectCount);
+    const verifiedAt = backup.verifiedAt && !Number.isNaN(new Date(backup.verifiedAt).getTime())
+        ? new Date(backup.verifiedAt).toISOString()
+        : null;
+    const restoreDrillAt = backup.restoreDrillAt &&
+        !Number.isNaN(new Date(backup.restoreDrillAt).getTime())
+        ? new Date(backup.restoreDrillAt).toISOString()
+        : null;
+    const status = String(backup.restoreDrillStatus ?? "unknown").trim().toLowerCase();
+
+    return Object.freeze({
+        sizeBytes: Number.isInteger(sizeBytes) && sizeBytes >= 0 ? sizeBytes : 0,
+        objectCount: Number.isInteger(objectCount) && objectCount >= 0 ? objectCount : 0,
+        verifiedAt,
+        restoreDrillAt,
+        restoreDrillStatus: BACKUP_DRILL_STATUSES.has(status) ? status : "unknown"
+    });
+}
+
+function mergeBackupSummaries(telemetryBackup, evidenceBackup) {
+    const telemetry = normalizeBackupSummary(telemetryBackup);
+    const evidence = normalizeBackupSummary(evidenceBackup);
+    const verifiedAt = [telemetry.verifiedAt, evidence.verifiedAt]
+        .filter(Boolean)
+        .sort()
+        .at(-1) || null;
+    const drillCandidates = [telemetry, evidence]
+        .filter(item => item.restoreDrillAt)
+        .sort((a, b) => a.restoreDrillAt.localeCompare(b.restoreDrillAt));
+    const latestDrill = drillCandidates.at(-1) || null;
+
+    return Object.freeze({
+        sizeBytes: evidence.objectCount > 0 ? evidence.sizeBytes : telemetry.sizeBytes,
+        objectCount: evidence.objectCount > 0 ? evidence.objectCount : telemetry.objectCount,
+        verifiedAt,
+        restoreDrillAt: latestDrill?.restoreDrillAt || null,
+        restoreDrillStatus: latestDrill?.restoreDrillStatus || "unknown"
+    });
+}
+
 function createTenantOperationsService({
     tenantRegistry,
     usageTelemetry,
     entitlementService,
     finOpsService,
     securitySignals,
+    backupEvidenceProvider = null,
     checkReadiness = null,
     signalListLimit = 20
 }) {
@@ -46,6 +92,10 @@ function createTenantOperationsService({
     if (!securitySignals || typeof securitySignals.listTenant !== "function") {
         throw new TypeError("Tenant operations security signal service gerekli.");
     }
+    if (backupEvidenceProvider !== null &&
+        typeof backupEvidenceProvider?.getStatus !== "function") {
+        throw new TypeError("Tenant operations backup evidence provider geçersiz.");
+    }
 
     return Object.freeze({
         async getOverview({ context, tenantId, at = new Date() }) {
@@ -63,7 +113,7 @@ function createTenantOperationsService({
                 throw error;
             }
 
-            const [dailyUsage, monthlyUsage, cost, signals, readiness] = await Promise.all([
+            const [dailyUsage, monthlyUsage, cost, signals, readiness, backupEvidence] = await Promise.all([
                 usageTelemetry.getAggregate({ context, tenantId: safeTenantId, period: "daily", at }),
                 usageTelemetry.getAggregate({ context, tenantId: safeTenantId, period: "monthly", at }),
                 finOpsService.getTenantEstimate({ context, tenantId: safeTenantId, at }),
@@ -74,6 +124,11 @@ function createTenantOperationsService({
                 }),
                 checkReadiness
                     ? Promise.resolve().then(checkReadiness).catch(() => ({ ready: false, checks: {} }))
+                    : Promise.resolve(null),
+                backupEvidenceProvider
+                    ? Promise.resolve()
+                        .then(() => backupEvidenceProvider.getStatus({ tenantId: safeTenantId }))
+                        .catch(() => null)
                     : Promise.resolve(null)
             ]);
             const featureEntitlements = {};
@@ -121,13 +176,7 @@ function createTenantOperationsService({
                     autoDisabled: false,
                     usedDefaultPlanPolicy: entitlement.usedDefaultPlanPolicy
                 }),
-                backup: monthlyUsage.backup || Object.freeze({
-                    sizeBytes: 0,
-                    objectCount: 0,
-                    verifiedAt: null,
-                    restoreDrillAt: null,
-                    restoreDrillStatus: "unknown"
-                }),
+                backup: mergeBackupSummaries(monthlyUsage.backup, backupEvidence),
                 security: summarizeSignals(signals)
             });
         }
@@ -136,5 +185,7 @@ function createTenantOperationsService({
 
 module.exports = {
     createTenantOperationsService,
-    summarizeSignals
+    summarizeSignals,
+    normalizeBackupSummary,
+    mergeBackupSummaries
 };
