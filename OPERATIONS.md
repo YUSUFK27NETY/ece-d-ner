@@ -50,7 +50,7 @@ Bu sıra, eski admin sayfasıyla yeni Firestore kuralları arasında kısa süre
 
 ## İzleme
 
-- `uptime.yml` her saat müşteri sayfasını, `/healthz` cevabını ve Firestore'a bağlı `/api/restaurant/status` cevabını birlikte kontrol eder.
+- `uptime.yml` her 15 dakikada müşteri sayfasını, `/healthz` cevabını ve Firestore'a bağlı `/api/restaurant/status` cevabını birlikte kontrol eder.
 - Başarısız çalışma GitHub Actions'ta kırmızı görünür ve GitHub bildirim ayarları açıksa hesap sahibine bildirilir.
 - Backend her isteği gövde, IP ve token kaydetmeden; istek kimliği, yol, durum ve süre ile JSON log olarak Render'a yazar.
 - İstemci destek talebinde `X-Request-Id` başlığını paylaşabilir; bu değer Render logundaki kayıtla eşleştirilir.
