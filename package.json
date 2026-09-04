@@ -11,7 +11,7 @@
     "check": "node scripts/check-static-assets.js",
     "test": "node --test",
     "security:secrets": "node scripts/scan-secrets.js --history",
-    "security:dependencies": "npm audit --omit=dev --omit=optional --audit-level=moderate",
+    "security:dependencies": "npm ls --omit=dev --omit=optional && npm audit --omit=dev --omit=optional --audit-level=moderate",
     "security": "npm run security:secrets && npm run security:dependencies",
     "healthcheck": "node scripts/check-live-endpoints.js",
     "ci": "npm run check && npm test && npm run security:secrets",
