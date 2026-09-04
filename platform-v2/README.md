@@ -78,11 +78,15 @@ Merkezi registry aşağıdaki alanları taşır:
 GET   /health
 GET   /api/platform/tenants
 GET   /api/platform/tenants/:tenantId
+GET   /api/platform/tenants/:tenantId/operations
+GET   /api/platform/finops/top-tenants?limit=10
 POST  /api/platform/tenants
 PATCH /api/platform/tenants/:tenantId
 ```
 
 Platform endpointleri yalnız Firebase ID tokenında `platformAdmin: true` claim bulunan kullanıcıları kabul eder.
+
+Phase 6 telemetry, entitlement, tenant-scoped rate limiting, security signal ve FinOps sözleşmeleri için `PHASE6-SECURITY-FINOPS-GUARDRAILS.md` dosyasına bak.
 
 ## Backup anahtar sözleşmesi
 

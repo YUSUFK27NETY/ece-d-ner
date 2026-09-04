@@ -23,6 +23,7 @@ PLATFORM_FIREBASE_SERVICE_ACCOUNT_PATH=/secure/path/platform-service-account.jso
 PLATFORM_FIREBASE_WEB_CONFIG_JSON={"apiKey":"...","authDomain":"...","projectId":"...","appId":"..."}
 PLATFORM_ALLOWED_ORIGINS=https://admin.example.com
 PLATFORM_PORT=3100
+PLATFORM_GUARDRAILS_CONFIG_JSON={"plans":{"starter":{"allowedFeatures":"*","softRequestLimit":100000,"warningThreshold":0.8,"dedicatedReviewThreshold":1,"monthlyRevenueReference":2000}}}
 ```
 
 `PLATFORM_PORT` verilmezse hosting sağlayıcısının `PORT` değeri kullanılır.
@@ -32,6 +33,8 @@ PLATFORM_PORT=3100
 - `PLATFORM_FIREBASE_SERVICE_ACCOUNT_PATH` ile gösterilen service account JSON **secret** kabul edilir ve repository'ye commit edilmez.
 - Firebase web config tarayıcı tarafından kullanılacağı için gizli credential değildir; yine de ortam bazlı yönetilir ve yalnız gerekli alanlar `/admin/config.js` üzerinden yayınlanır.
 - `PLATFORM_ALLOWED_ORIGINS` yalnız ek browser originleri içindir. Aynı origin üzerindeki `/admin/` paneli otomatik kabul edilir.
+- `PLATFORM_GUARDRAILS_CONFIG_JSON` secret değildir; rate-limit, entitlement ve maliyet tahmin policylerini taşır. Geçersiz değer startup'ı fail-closed durdurur ve raw config loglanmaz.
+- Provider billing credentialları bu JSON içine konmaz. Phase 6 varsayılan rate-card değerleri sıfırdır ve gerçek billing adapterı zorunlu değildir.
 
 ## Firebase sınırı
 
@@ -114,5 +117,8 @@ Aynı tenant kimliği staging ve production'da bulunabilir ancak veritabanları 
 - [ ] audit kayıtlarının tenant bazlı doğrulanması
 - [ ] monitoring/alerting
 - [ ] tenant-aware backup/restore provider entegrasyonu
+- [ ] guardrails config validation + tenant telemetry izolasyon testi
+- [ ] tenant operations ve top-N FinOps admin endpoint smoke testi
+- [ ] budget alarmı ve WAF politikasının staging üzerinde bağımsız doğrulanması
 
 Bu kontroller tamamlanmadan Ece Döner V1 otomatik olarak V2'ye taşınmaz.

@@ -6,6 +6,8 @@ const { createRequirePlatformAdmin } = require("../auth/require-platform-admin")
 const { createTenantOnboardingService } = require("../tenant/onboarding-service");
 const { createTenantManagementService } = require("../tenant/tenant-management-service");
 const { requireTenantId } = require("../tenant/tenant-id");
+const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
+const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
 
 const ADMIN_CSP = [
     "default-src 'self'",
@@ -25,6 +27,16 @@ function normalizeApiListLimit(value = 100) {
 
     if (!Number.isInteger(limit) || limit < 1 || limit > 200) {
         throw new TypeError("Tenant liste limiti 1-200 arasında olmalı.");
+    }
+
+    return limit;
+}
+
+function normalizeTopTenantLimit(value = 10) {
+    const limit = Number(value);
+
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) {
+        throw new TypeError("FinOps liste limiti 1-100 arasında olmalı.");
     }
 
     return limit;
@@ -69,7 +81,14 @@ function createPlatformApp({
     tenantRegistry,
     auditWriter = null,
     webConfig = null,
-    allowedOrigins = []
+    allowedOrigins = [],
+    usageTelemetry = null,
+    tenantRateLimiter = null,
+    tenantRateLimitPolicy = null,
+    securitySignals = null,
+    abuseMonitor = null,
+    tenantOperations = null,
+    finOpsService = null
 }) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function" ||
         typeof tenantRegistry.list !== "function" ||
@@ -79,7 +98,14 @@ function createPlatformApp({
     }
 
     const app = express();
-    const requirePlatformAdmin = createRequirePlatformAdmin({ auth });
+    if (tenantOperations && typeof tenantOperations.getOverview !== "function") {
+        throw new TypeError("Tenant operations service geçersiz.");
+    }
+    if (finOpsService && typeof finOpsService.getTopTenants !== "function") {
+        throw new TypeError("FinOps service geçersiz.");
+    }
+
+    const requirePlatformAdmin = createRequirePlatformAdmin({ auth, abuseMonitor });
     const onboarding = createTenantOnboardingService({
         tenantRegistry,
         auditWriter
@@ -159,6 +185,27 @@ function createPlatformApp({
 
     app.use("/api/platform", platformCors, adminLimiter, requirePlatformAdmin);
 
+    const tenantMiddlewares = [];
+    if (usageTelemetry) {
+        tenantMiddlewares.push(createTenantTelemetryMiddleware({
+            telemetry: usageTelemetry
+        }));
+    }
+    if (tenantRateLimiter || tenantRateLimitPolicy) {
+        if (!tenantRateLimiter || !tenantRateLimitPolicy) {
+            throw new TypeError("Tenant rate limiter ve policy birlikte gerekli.");
+        }
+        tenantMiddlewares.push(createTenantRateLimitMiddleware({
+            limiter: tenantRateLimiter,
+            policy: tenantRateLimitPolicy,
+            scope: "admin_tenant",
+            securitySignals
+        }));
+    }
+    if (tenantMiddlewares.length > 0) {
+        app.use("/api/platform/tenants/:tenantId", ...tenantMiddlewares);
+    }
+
     app.get("/api/platform/tenants", async (req, res) => {
         try {
             const limit = normalizeApiListLimit(
@@ -195,6 +242,50 @@ function createPlatformApp({
             return sendPlatformError(res, error);
         }
     });
+
+    if (tenantOperations) {
+        app.get("/api/platform/tenants/:tenantId/operations", async (req, res) => {
+            try {
+                const overview = await tenantOperations.getOverview({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    tenantId: req.params.tenantId
+                });
+
+                return res.json({
+                    success: true,
+                    overview
+                });
+            } catch (error) {
+                return sendPlatformError(res, error);
+            }
+        });
+    }
+
+    if (finOpsService) {
+        app.get("/api/platform/finops/top-tenants", async (req, res) => {
+            try {
+                const result = await finOpsService.getTopTenants({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    limit: normalizeTopTenantLimit(
+                        req.query.limit === undefined ? 10 : req.query.limit
+                    )
+                });
+
+                return res.json({
+                    success: true,
+                    finops: result
+                });
+            } catch (error) {
+                return sendPlatformError(res, error);
+            }
+        });
+    }
 
     app.post("/api/platform/tenants", async (req, res) => {
         try {
@@ -285,6 +376,18 @@ function sendPlatformError(res, error) {
         });
     }
 
+    if (new Set([
+        "ENTITLEMENT_DENIED",
+        "PERMISSION_DENIED",
+        "TENANT_SCOPE_MISMATCH",
+        "TENANT_BOUNDARY_VIOLATION"
+    ]).has(error?.code)) {
+        return res.status(403).json({
+            success: false,
+            message: "Bu veri veya işlem için yetki yok."
+        });
+    }
+
     if (error instanceof TypeError) {
         return res.status(400).json({
             success: false,
@@ -302,6 +405,7 @@ function sendPlatformError(res, error) {
 module.exports = {
     ADMIN_CSP,
     normalizeApiListLimit,
+    normalizeTopTenantLimit,
     createPlatformCorsMiddleware,
     createPlatformApp,
     sendPlatformError

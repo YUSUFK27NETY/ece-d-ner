@@ -41,6 +41,20 @@
         timezone: document.getElementById("timezone"),
         address: document.getElementById("address"),
         featureGrid: document.getElementById("feature-grid"),
+        operationsPanel: document.getElementById("operations-panel"),
+        operationsHealth: document.getElementById("operations-health"),
+        operationsLatency: document.getElementById("operations-latency"),
+        operationsUsage: document.getElementById("operations-usage"),
+        operationsErrors: document.getElementById("operations-errors"),
+        operationsCost: document.getElementById("operations-cost"),
+        operationsCostStatus: document.getElementById("operations-cost-status"),
+        operationsPlan: document.getElementById("operations-plan"),
+        operationsQuota: document.getElementById("operations-quota"),
+        operationsBackup: document.getElementById("operations-backup"),
+        operationsDrill: document.getElementById("operations-drill"),
+        operationsSecurity: document.getElementById("operations-security"),
+        operationsSecurityDetail: document.getElementById("operations-security-detail"),
+        operationsMessage: document.getElementById("operations-message"),
         saveButton: document.getElementById("save-button"),
         cancelButton: document.getElementById("cancel-button")
     };
@@ -117,6 +131,70 @@
         setMessage(elements.formMessage);
     }
 
+    function formatNumber(value, maximumFractionDigits = 1) {
+        const number = Number(value);
+        if (!Number.isFinite(number)) return "—";
+        return new Intl.NumberFormat("tr-TR", { maximumFractionDigits }).format(number);
+    }
+
+    function formatTimestamp(value) {
+        if (!value) return "henüz yok";
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? "bilinmiyor" : date.toLocaleString("tr-TR");
+    }
+
+    function renderOverview(overview) {
+        const daily = overview.usage?.daily || {};
+        const monthly = overview.usage?.monthly || {};
+        const cost = overview.cost || {};
+        const plan = overview.plan || {};
+        const backup = overview.backup || {};
+        const security = overview.security || {};
+
+        elements.operationsHealth.textContent = overview.health?.readiness || "unknown";
+        elements.operationsLatency.textContent =
+            `Ort. ${formatNumber(overview.health?.latencyAverageMs)} ms · maks. ${formatNumber(overview.health?.latencyMaxMs)} ms`;
+        elements.operationsUsage.textContent = `${formatNumber(monthly.requestCount, 0)} aylık istek`;
+        elements.operationsErrors.textContent =
+            `${formatNumber(monthly.errorCount, 0)} hata · bugün ${formatNumber(daily.requestCount, 0)} istek`;
+        elements.operationsCost.textContent =
+            `${formatNumber(cost.estimatedMonthlyTechnicalCost, 2)} ${cost.currency || ""}`.trim();
+        elements.operationsCostStatus.textContent = cost.infraRevenueRatio === null || cost.infraRevenueRatio === undefined
+            ? cost.status || "unknown"
+            : `${cost.status} · gelirin %${formatNumber(cost.infraRevenueRatio * 100, 2)}`;
+        elements.operationsPlan.textContent = `${plan.plan || "default"} · ${plan.limitStatus || "unknown"}`;
+        elements.operationsQuota.textContent = plan.softLimit === null || plan.softLimit === undefined
+            ? "Soft limit sınırsız"
+            : `${formatNumber(plan.usage, 0)} / ${formatNumber(plan.softLimit, 0)} · otomatik kapatma yok`;
+        elements.operationsBackup.textContent = `${formatNumber(backup.objectCount, 0)} obje`;
+        elements.operationsDrill.textContent =
+            `Verify: ${formatTimestamp(backup.verifiedAt)} · ` +
+            `Drill: ${backup.restoreDrillStatus || "unknown"}` +
+            (backup.restoreDrillAt ? ` · ${formatTimestamp(backup.restoreDrillAt)}` : "");
+        elements.operationsSecurity.textContent = `${formatNumber(security.total, 0)} sinyal`;
+        elements.operationsSecurityDetail.textContent =
+            `En yüksek seviye: ${security.highestSeverity || "none"}`;
+        setMessage(elements.operationsMessage);
+    }
+
+    async function loadOverview(tenantId) {
+        setMessage(elements.operationsMessage, "Operasyon verileri yükleniyor...");
+
+        try {
+            const body = await apiRequest(
+                `/api/platform/tenants/${encodeURIComponent(tenantId)}/operations`
+            );
+
+            if (state.selectedTenantId === tenantId && body?.overview) {
+                renderOverview(body.overview);
+            }
+        } catch (error) {
+            if (state.selectedTenantId === tenantId) {
+                setMessage(elements.operationsMessage, error.message, "error");
+            }
+        }
+    }
+
     function showCreateForm() {
         state.mode = "create";
         state.selectedTenantId = null;
@@ -129,6 +207,7 @@
         elements.sector.disabled = false;
         elements.statusField.classList.add("hidden");
         elements.statusBadge.classList.add("hidden");
+        elements.operationsPanel.classList.add("hidden");
         renderTenantList();
         elements.tenantId.focus();
     }
@@ -150,6 +229,7 @@
         elements.statusField.classList.remove("hidden");
         elements.statusBadge.classList.remove("hidden");
         elements.statusBadge.textContent = tenant.status || "provisioning";
+        elements.operationsPanel.classList.remove("hidden");
 
         const profile = tenant.profile || {};
         elements.brandName.value = profile.brandName || "";
@@ -165,12 +245,14 @@
         setFeatureFlags(tenant.features || {});
         setMessage(elements.formMessage);
         renderTenantList();
+        loadOverview(tenant.tenantId);
     }
 
     function showEmpty() {
         state.mode = "none";
         state.selectedTenantId = null;
         elements.tenantForm.classList.add("hidden");
+        elements.operationsPanel.classList.add("hidden");
         elements.emptyState.classList.remove("hidden");
         renderTenantList();
     }

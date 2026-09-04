@@ -130,3 +130,11 @@ Bu nedenle tenantId uygulama seviyesinde birinci sınıf kimliktir; fiziksel dat
 ## 12. V1 sınırı
 
 Ece Döner V1 şu an ayrı ve stabil kalır. V2 yeterince hazır olmadan V1 veri yolları `tenants/{tenantId}` modeline taşınmaz. Migration ayrı plan, ayrı test ve rollback prosedürü ile yapılır.
+
+## 13. Security ve FinOps kontrol düzlemi
+
+Phase 6, tenant iş servislerinin önüne provider-neutral telemetry, entitlement ve tenant-scoped rate-limit contractları ekler. Günlük/aylık usage ile security signal kayıtları yalnız `tenants/{tenantId}` altında tutulur; tenant context olmadan okunmaz. Platform seviyesinde bağlanamayan auth sinyalleri tenant verisinden ayrı kalır.
+
+Maliyet modeli gerçek provider billing SDK'sına değil `CostProvider` interface'ine bağlıdır. Firestore, compute, R2 ve backup usage birimleri tenant-attributable maliyete çevrilir; shared maliyet deterministik request payıyla dağıtılır. Rate-card, revenue referansı ve warning/critical thresholdlar merkezi doğrulanmış config'ten gelir.
+
+Platform Admin operations görünümü health/readiness, usage, entitlement, cost, backup/DR ve security özetlerini salt okunur olarak birleştirir. Bu kontrol düzlemi tenant create/update API sözleşmelerini veya Phase 5 backup/migration güvenlik kapılarını değiştirmez.

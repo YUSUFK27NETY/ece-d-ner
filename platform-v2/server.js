@@ -9,8 +9,47 @@ const {
 const { createReadinessChecker } = require("./src/observability/readiness-check");
 const { createFirestoreReadinessCheck } = require("./src/observability/firestore-readiness");
 const { attachReadinessEndpoint } = require("./src/observability/attach-readiness-endpoint");
+const { loadPlatformGuardrailsConfig } = require("./src/config/platform-guardrails-config");
+const { createFirestoreUsageStore } = require("./src/firestore/firestore-usage-store");
+const { createUsageTelemetryService } = require("./src/usage/usage-telemetry");
+const {
+    createFirestoreSecuritySignalStore
+} = require("./src/firestore/firestore-security-signal-store");
+const { createSecuritySignalService } = require("./src/security/security-signal");
+const { createAbuseMonitor } = require("./src/security/abuse-monitor");
+const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
+const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const { createConfigCostProvider } = require("./src/finops/cost-provider");
+const { createFinOpsService } = require("./src/finops/finops-service");
+const { createTenantOperationsService } = require("./src/operations/tenant-operations-service");
+const { loadR2BackupConfig } = require("./src/config/r2-backup-config");
+const { createR2ObjectStorageProvider } = require("./src/storage/r2-object-storage-provider");
+const {
+    createBackupOperationsEvidenceProvider
+} = require("./src/backup/backup-operations-evidence");
+
+const R2_BACKUP_CONFIG_KEYS = Object.freeze([
+    "PLATFORM_BACKUP_R2_ENDPOINT",
+    "PLATFORM_BACKUP_R2_BUCKET",
+    "PLATFORM_BACKUP_R2_ACCESS_KEY_ID",
+    "PLATFORM_BACKUP_R2_SECRET_ACCESS_KEY"
+]);
+
+function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
+    const configured = R2_BACKUP_CONFIG_KEYS.filter(key =>
+        String(env[key] ?? "").trim().length > 0
+    );
+
+    if (configured.length === 0) {
+        return null;
+    }
+
+    const storageProvider = createR2ObjectStorageProvider(loadR2BackupConfig(env));
+    return createBackupOperationsEvidenceProvider({ storageProvider, db });
+}
 
 function startPlatformServer() {
+    const guardrailsConfig = loadPlatformGuardrailsConfig();
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
     const auditWriter = createFirestoreAuditWriter({ db });
@@ -29,12 +68,54 @@ function startPlatformServer() {
             firestore: createFirestoreReadinessCheck({ db })
         }
     });
+    const usageTelemetry = createUsageTelemetryService({
+        store: createFirestoreUsageStore({ db })
+    });
+    const securitySignals = createSecuritySignalService({
+        store: createFirestoreSecuritySignalStore({ db })
+    });
+    const abuseMonitor = createAbuseMonitor({
+        securitySignals,
+        windowMs: guardrailsConfig.security.authFailureWindowMs,
+        threshold: guardrailsConfig.security.authFailureThreshold
+    });
+    const entitlementService = createEntitlementService({
+        config: guardrailsConfig,
+        securitySignals
+    });
+    const finOpsService = createFinOpsService({
+        config: guardrailsConfig,
+        costProvider: createConfigCostProvider({
+            finopsConfig: guardrailsConfig.finops
+        }),
+        usageTelemetry,
+        tenantRegistry,
+        securitySignals
+    });
+    const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const tenantOperations = createTenantOperationsService({
+        tenantRegistry,
+        usageTelemetry,
+        entitlementService,
+        finOpsService,
+        securitySignals,
+        backupEvidenceProvider,
+        checkReadiness,
+        signalListLimit: guardrailsConfig.security.signalListLimit
+    });
     const app = createPlatformApp({
         auth,
         tenantRegistry,
         auditWriter,
         webConfig,
-        allowedOrigins
+        allowedOrigins,
+        usageTelemetry,
+        tenantRateLimiter: createTenantRateLimiter(),
+        tenantRateLimitPolicy: guardrailsConfig.rateLimits.adminTenant,
+        securitySignals,
+        abuseMonitor,
+        tenantOperations,
+        finOpsService
     });
     attachReadinessEndpoint({ app, checkReadiness });
 
@@ -54,5 +135,7 @@ if (require.main === module) {
 }
 
 module.exports = {
+    R2_BACKUP_CONFIG_KEYS,
+    createConfiguredBackupEvidenceProvider,
     startPlatformServer
 };
