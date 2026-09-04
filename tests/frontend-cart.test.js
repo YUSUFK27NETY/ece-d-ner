@@ -146,6 +146,17 @@ test("restoran durumu doğrulanmadan sipariş düğmesini etkinleştirmez", () =
     assert.equal(context.disabledOnStatusError, true);
 });
 
+test("restoran durum isteğine 18 saniye süre tanır", () => {
+    const context = loadFrontendScript();
+
+    vm.runInContext(
+        `globalThis.statusRequestTimeout = STATUS_REQUEST_TIMEOUT_MS;`,
+        context
+    );
+
+    assert.equal(context.statusRequestTimeout, 18000);
+});
+
 test("WhatsApp URL'sini güvenli biçimde kodlar", () => {
     const context = loadFrontendScript();
 
