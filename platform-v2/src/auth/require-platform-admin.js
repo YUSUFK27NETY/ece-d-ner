@@ -1,6 +1,24 @@
-function createRequirePlatformAdmin({ auth }) {
+function createRequirePlatformAdmin({ auth, abuseMonitor = null }) {
     if (!auth || typeof auth.verifyIdToken !== "function") {
         throw new TypeError("Firebase Auth adapter gerekli.");
+    }
+
+    if (abuseMonitor && typeof abuseMonitor.recordDenied !== "function") {
+        throw new TypeError("Platform admin abuse monitor geçersiz.");
+    }
+
+    async function recordDenied(req, statusCode) {
+        if (!abuseMonitor) return;
+
+        try {
+            await abuseMonitor.recordDenied({
+                requestId: req.requestId || null,
+                operation: "platform.admin.auth",
+                statusCode
+            });
+        } catch {
+            console.error("Platform admin auth security signal yazılamadı.");
+        }
     }
 
     return async function requirePlatformAdmin(req, res, next) {
@@ -8,6 +26,7 @@ function createRequirePlatformAdmin({ auth }) {
             const authorization = String(req.headers.authorization || "");
 
             if (!authorization.startsWith("Bearer ")) {
+                await recordDenied(req, 401);
                 return res.status(401).json({
                     success: false,
                     message: "Yetkilendirme gerekli."
@@ -17,6 +36,7 @@ function createRequirePlatformAdmin({ auth }) {
             const idToken = authorization.slice(7).trim();
 
             if (!idToken) {
+                await recordDenied(req, 401);
                 return res.status(401).json({
                     success: false,
                     message: "Geçersiz yetkilendirme."
@@ -27,6 +47,7 @@ function createRequirePlatformAdmin({ auth }) {
             const uid = String(decodedToken?.uid || "").trim();
 
             if (!uid) {
+                await recordDenied(req, 401);
                 return res.status(401).json({
                     success: false,
                     message: "Geçersiz kullanıcı kimliği."
@@ -34,6 +55,7 @@ function createRequirePlatformAdmin({ auth }) {
             }
 
             if (decodedToken.platformAdmin !== true) {
+                await recordDenied(req, 403);
                 return res.status(403).json({
                     success: false,
                     message: "Platform yöneticisi yetkisi gerekli."
@@ -46,8 +68,9 @@ function createRequirePlatformAdmin({ auth }) {
             });
 
             return next();
-        } catch (error) {
-            console.error("Platform admin token doğrulama hatası:", error.message);
+        } catch {
+            await recordDenied(req, 401);
+            console.error("Platform admin token doğrulaması başarısız.");
 
             return res.status(401).json({
                 success: false,

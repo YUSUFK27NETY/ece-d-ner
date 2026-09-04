@@ -9,7 +9,11 @@ const ROLE_PERMISSIONS = Object.freeze({
         "orders.manage",
         "members.manage",
         "settings.manage",
-        "audit.read"
+        "audit.read",
+        "tenant.telemetry.read",
+        "tenant.cost.read",
+        "tenant.security.read",
+        "tenant.operations.read"
     ]),
     tenant_admin: Object.freeze([
         "tenant.read",
@@ -17,7 +21,11 @@ const ROLE_PERMISSIONS = Object.freeze({
         "catalog.manage",
         "orders.manage",
         "settings.manage",
-        "audit.read"
+        "audit.read",
+        "tenant.telemetry.read",
+        "tenant.cost.read",
+        "tenant.security.read",
+        "tenant.operations.read"
     ]),
     staff: Object.freeze([
         "tenant.read",

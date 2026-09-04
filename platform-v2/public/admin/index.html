@@ -132,6 +132,43 @@
                         </div>
                     </fieldset>
 
+                    <fieldset id="operations-panel" class="hidden">
+                        <legend>Operasyon görünürlüğü</legend>
+                        <div class="operations-grid">
+                            <article class="metric-card">
+                                <span>Tenant Health</span>
+                                <strong id="operations-health">—</strong>
+                                <small id="operations-latency">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Tenant Usage</span>
+                                <strong id="operations-usage">—</strong>
+                                <small id="operations-errors">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Tenant Cost</span>
+                                <strong id="operations-cost">—</strong>
+                                <small id="operations-cost-status">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Plan / Entitlement</span>
+                                <strong id="operations-plan">—</strong>
+                                <small id="operations-quota">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Backup / DR</span>
+                                <strong id="operations-backup">—</strong>
+                                <small id="operations-drill">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Security</span>
+                                <strong id="operations-security">—</strong>
+                                <small id="operations-security-detail">—</small>
+                            </article>
+                        </div>
+                        <p id="operations-message" class="message" role="status"></p>
+                    </fieldset>
+
                     <div class="form-actions">
                         <button id="cancel-button" type="button" class="secondary">Vazgeç</button>
                         <button id="save-button" type="submit" class="primary">Kaydet</button>
