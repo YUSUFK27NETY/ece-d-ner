@@ -10,6 +10,7 @@ const { createReadinessChecker } = require("./src/observability/readiness-check"
 const { createFirestoreReadinessCheck } = require("./src/observability/firestore-readiness");
 const { attachReadinessEndpoint } = require("./src/observability/attach-readiness-endpoint");
 const { loadPlatformGuardrailsConfig } = require("./src/config/platform-guardrails-config");
+const { loadPlatformScalabilityConfig } = require("./src/config/platform-scalability-config");
 const { createFirestoreUsageStore } = require("./src/firestore/firestore-usage-store");
 const { createUsageTelemetryService } = require("./src/usage/usage-telemetry");
 const {
@@ -27,6 +28,14 @@ const { createR2ObjectStorageProvider } = require("./src/storage/r2-object-stora
 const {
     createBackupOperationsEvidenceProvider
 } = require("./src/backup/backup-operations-evidence");
+const { createCapacitySloService } = require("./src/capacity/capacity-slo-service");
+const { createFirestorePlacementRegistry } = require("./src/firestore/firestore-placement-registry");
+const { createTenantRoutingService } = require("./src/routing/tenant-routing-service");
+const { createTenantJobQueue } = require("./src/queue/tenant-job-queue");
+const { createTenantCache } = require("./src/cache/tenant-cache");
+const { createInMemoryRolloutStore } = require("./src/rollout/in-memory-rollout-store");
+const { createTenantReleaseRolloutService } = require("./src/rollout/tenant-release-rollout");
+const { createDependencyResilienceService } = require("./src/resilience/dependency-resilience");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -50,6 +59,7 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
 
 function startPlatformServer() {
     const guardrailsConfig = loadPlatformGuardrailsConfig();
+    const scalabilityConfig = loadPlatformScalabilityConfig();
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
     const auditWriter = createFirestoreAuditWriter({ db });
@@ -62,10 +72,15 @@ function startPlatformServer() {
     const readinessTimeoutMs = process.env.PLATFORM_READINESS_TIMEOUT_MS === undefined
         ? 3000
         : Number(process.env.PLATFORM_READINESS_TIMEOUT_MS);
+    const resilienceService = createDependencyResilienceService({ config: scalabilityConfig });
+    const firestoreReadiness = createFirestoreReadinessCheck({ db });
     const checkReadiness = createReadinessChecker({
         timeoutMs: readinessTimeoutMs,
         checks: {
-            firestore: createFirestoreReadinessCheck({ db })
+            firestore: () => resilienceService.execute({
+                dependency: "firestore",
+                operation: firestoreReadiness
+            })
         }
     });
     const usageTelemetry = createUsageTelemetryService({
@@ -93,6 +108,18 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const capacityService = createCapacitySloService({ config: scalabilityConfig });
+    const routingService = createTenantRoutingService({
+        registry: createFirestorePlacementRegistry({ db }),
+        auditWriter,
+        cacheTtlMs: scalabilityConfig.routing.cacheTtlMs
+    });
+    const jobQueue = createTenantJobQueue({ config: scalabilityConfig });
+    const tenantCache = createTenantCache({ config: scalabilityConfig });
+    const rolloutService = createTenantReleaseRolloutService({
+        store: createInMemoryRolloutStore(),
+        auditWriter
+    });
     const tenantOperations = createTenantOperationsService({
         tenantRegistry,
         usageTelemetry,
@@ -101,6 +128,12 @@ function startPlatformServer() {
         securitySignals,
         backupEvidenceProvider,
         checkReadiness,
+        capacityService,
+        routingService,
+        jobQueue,
+        tenantCache,
+        rolloutService,
+        resilienceService,
         signalListLimit: guardrailsConfig.security.signalListLimit
     });
     const app = createPlatformApp({
