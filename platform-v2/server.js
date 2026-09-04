@@ -6,6 +6,9 @@ const {
     normalizeFirebaseWebConfig,
     normalizeAllowedOrigins
 } = require("./src/config/platform-web-config");
+const { createReadinessChecker } = require("./src/observability/readiness-check");
+const { createFirestoreReadinessCheck } = require("./src/observability/firestore-readiness");
+const { attachReadinessEndpoint } = require("./src/observability/attach-readiness-endpoint");
 
 function startPlatformServer() {
     const { auth, db } = createPlatformFirebase();
@@ -17,6 +20,15 @@ function startPlatformServer() {
     const allowedOrigins = normalizeAllowedOrigins(
         process.env.PLATFORM_ALLOWED_ORIGINS
     );
+    const readinessTimeoutMs = process.env.PLATFORM_READINESS_TIMEOUT_MS === undefined
+        ? 3000
+        : Number(process.env.PLATFORM_READINESS_TIMEOUT_MS);
+    const checkReadiness = createReadinessChecker({
+        timeoutMs: readinessTimeoutMs,
+        checks: {
+            firestore: createFirestoreReadinessCheck({ db })
+        }
+    });
     const app = createPlatformApp({
         auth,
         tenantRegistry,
@@ -24,6 +36,7 @@ function startPlatformServer() {
         webConfig,
         allowedOrigins
     });
+    attachReadinessEndpoint({ app, checkReadiness });
 
     const port = Number(process.env.PLATFORM_PORT || process.env.PORT || 3100);
 
