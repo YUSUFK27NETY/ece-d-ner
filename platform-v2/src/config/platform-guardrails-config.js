@@ -1,5 +1,9 @@
 const { FEATURE_CATALOG } = require("../tenant/feature-catalog");
 const { requireTenantId } = require("../tenant/tenant-id");
+const {
+    DEFAULT_PLATFORM_STEP_UP_CONFIG,
+    normalizePlatformStepUpConfig
+} = require("./platform-step-up-config");
 
 const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     telemetry: Object.freeze({
@@ -22,7 +26,8 @@ const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     security: Object.freeze({
         authFailureWindowMs: 5 * 60_000,
         authFailureThreshold: 5,
-        signalListLimit: 20
+        signalListLimit: 20,
+        stepUp: DEFAULT_PLATFORM_STEP_UP_CONFIG
     }),
     plans: Object.freeze({
         default: Object.freeze({
@@ -241,7 +246,8 @@ function normalizePlatformGuardrailsConfig(input) {
     assertKeys(input.security, new Set([
         "authFailureWindowMs",
         "authFailureThreshold",
-        "signalListLimit"
+        "signalListLimit",
+        "stepUp"
     ]), "Security config");
     assertKeys(input.finops, new Set([
         "currency",
@@ -346,6 +352,7 @@ function normalizePlatformGuardrailsConfig(input) {
                 2,
                 10_000
             ),
+            stepUp: normalizePlatformStepUpConfig(input.security.stepUp),
             signalListLimit: requireInteger(
                 input.security.signalListLimit,
                 "Security signalListLimit",
