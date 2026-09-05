@@ -91,6 +91,21 @@ Minimum contract:
 
 An SBOM proves dependency inventory, not dependency safety. `npm audit`, CodeQL and human review remain separate controls.
 
+### Implemented SBOM workflow
+
+`.github/workflows/sbom.yml` implements the repository-side SBOM gate:
+
+- read-only repository permissions;
+- SHA-pinned checkout, Node setup and artifact upload actions;
+- Node 22 to match the supported runtime range;
+- `npm ci --ignore-scripts` before inventory generation to avoid executing dependency lifecycle scripts in this evidence-only job;
+- CycloneDX JSON generation with `npm sbom`;
+- validation through `scripts/validate-sbom.js` against the root package identity and a sensitive-field denylist;
+- non-secret provenance evidence containing repository, commit, workflow, Node/npm versions, lockfile hash and SBOM hash;
+- ephemeral artifact retention for 14 days.
+
+The workflow does not read provider credentials or application runtime secrets.
+
 ## Build provenance / attestation baseline
 
 Phase 8 establishes an extensible provenance contract but does not require signing infrastructure or provider credentials.
