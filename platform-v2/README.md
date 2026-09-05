@@ -90,6 +90,8 @@ Phase 6 telemetry, entitlement, tenant-scoped rate limiting, security signal ve 
 
 Phase 7 capacity/SLO, tenant placement/routing, güvenli placement migration, tenant queue/cache izolasyonu, canary rollout ve provider resilience sözleşmeleri için `PHASE7-SCALABILITY-ROUTING-RESILIENCE.md` dosyasına bak.
 
+Phase 8 provider-neutral edge protection ve abuse operations baseline'ı için `PHASE8-PACKAGE6A-EDGE-PROTECTION.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text
