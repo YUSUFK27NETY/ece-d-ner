@@ -92,6 +92,8 @@ Phase 7 capacity/SLO, tenant placement/routing, güvenli placement migration, te
 
 Phase 8 provider-neutral edge protection ve abuse operations baseline'ı için `PHASE8-PACKAGE6A-EDGE-PROTECTION.md` dosyasına bak.
 
+Phase 8 durable central security alert persistence temeli için `PHASE8-PACKAGE6B1-ALERT-PERSISTENCE.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text
