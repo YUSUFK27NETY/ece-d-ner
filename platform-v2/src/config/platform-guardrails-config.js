@@ -4,6 +4,10 @@ const {
     DEFAULT_PLATFORM_STEP_UP_CONFIG,
     normalizePlatformStepUpConfig
 } = require("./platform-step-up-config");
+const {
+    DEFAULT_PLATFORM_SECURITY_ALERTS_CONFIG,
+    normalizePlatformSecurityAlertsConfig
+} = require("./platform-security-alerts-config");
 
 const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     telemetry: Object.freeze({
@@ -27,7 +31,8 @@ const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
         authFailureWindowMs: 5 * 60_000,
         authFailureThreshold: 5,
         signalListLimit: 20,
-        stepUp: DEFAULT_PLATFORM_STEP_UP_CONFIG
+        stepUp: DEFAULT_PLATFORM_STEP_UP_CONFIG,
+        alerts: DEFAULT_PLATFORM_SECURITY_ALERTS_CONFIG
     }),
     plans: Object.freeze({
         default: Object.freeze({
@@ -247,7 +252,8 @@ function normalizePlatformGuardrailsConfig(input) {
         "authFailureWindowMs",
         "authFailureThreshold",
         "signalListLimit",
-        "stepUp"
+        "stepUp",
+        "alerts"
     ]), "Security config");
     assertKeys(input.finops, new Set([
         "currency",
@@ -353,6 +359,7 @@ function normalizePlatformGuardrailsConfig(input) {
                 10_000
             ),
             stepUp: normalizePlatformStepUpConfig(input.security.stepUp),
+            alerts: normalizePlatformSecurityAlertsConfig(input.security.alerts),
             signalListLimit: requireInteger(
                 input.security.signalListLimit,
                 "Security signalListLimit",
