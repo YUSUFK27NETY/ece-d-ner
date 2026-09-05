@@ -67,6 +67,24 @@ function mergeBackupSummaries(telemetryBackup, evidenceBackup) {
     });
 }
 
+function optionalService(service, method, label) {
+    if (service !== null && typeof service?.[method] !== "function") {
+        throw new TypeError(`Tenant operations ${label} service geçersiz.`);
+    }
+}
+
+function elapsedUtcDaySeconds(at) {
+    const date = at instanceof Date ? at : new Date(at);
+    if (Number.isNaN(date.getTime())) throw new TypeError("Tenant operations tarihi geçersiz.");
+    const start = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+    return Math.max(1, Math.floor((date.getTime() - start) / 1000) + 1);
+}
+
+function safeNumber(value, fallback = 0) {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= 0 ? number : fallback;
+}
+
 function createTenantOperationsService({
     tenantRegistry,
     usageTelemetry,
@@ -75,6 +93,13 @@ function createTenantOperationsService({
     securitySignals,
     backupEvidenceProvider = null,
     checkReadiness = null,
+    capacityService = null,
+    routingService = null,
+    migrationService = null,
+    jobQueue = null,
+    tenantCache = null,
+    rolloutService = null,
+    resilienceService = null,
     signalListLimit = 20
 }) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function") {
@@ -96,6 +121,13 @@ function createTenantOperationsService({
         typeof backupEvidenceProvider?.getStatus !== "function") {
         throw new TypeError("Tenant operations backup evidence provider geçersiz.");
     }
+    optionalService(capacityService, "evaluate", "capacity");
+    optionalService(routingService, "resolve", "routing");
+    optionalService(migrationService, "getTenantStatus", "migration");
+    optionalService(jobQueue, "getSummary", "queue");
+    optionalService(tenantCache, "getSummary", "cache");
+    optionalService(rolloutService, "getStatus", "rollout");
+    optionalService(resilienceService, "getSummary", "resilience");
 
     return Object.freeze({
         async getOverview({ context, tenantId, at = new Date() }) {
@@ -113,7 +145,10 @@ function createTenantOperationsService({
                 throw error;
             }
 
-            const [dailyUsage, monthlyUsage, cost, signals, readiness, backupEvidence] = await Promise.all([
+            const [
+                dailyUsage, monthlyUsage, cost, signals, readiness, backupEvidence,
+                placementResult, migrationResult, queueResult, cacheResult, releaseResult
+            ] = await Promise.all([
                 usageTelemetry.getAggregate({ context, tenantId: safeTenantId, period: "daily", at }),
                 usageTelemetry.getAggregate({ context, tenantId: safeTenantId, period: "monthly", at }),
                 finOpsService.getTenantEstimate({ context, tenantId: safeTenantId, at }),
@@ -129,6 +164,21 @@ function createTenantOperationsService({
                     ? Promise.resolve()
                         .then(() => backupEvidenceProvider.getStatus({ tenantId: safeTenantId }))
                         .catch(() => null)
+                    : Promise.resolve(null),
+                routingService
+                    ? Promise.resolve().then(() => routingService.resolve({ context, tenantId: safeTenantId })).catch(() => null)
+                    : Promise.resolve(null),
+                migrationService
+                    ? Promise.resolve().then(() => migrationService.getTenantStatus({ context, tenantId: safeTenantId })).catch(() => null)
+                    : Promise.resolve(null),
+                jobQueue
+                    ? Promise.resolve().then(() => jobQueue.getSummary({ context, tenantId: safeTenantId })).catch(() => null)
+                    : Promise.resolve(null),
+                tenantCache
+                    ? Promise.resolve().then(() => tenantCache.getSummary({ context, tenantId: safeTenantId })).catch(() => null)
+                    : Promise.resolve(null),
+                rolloutService
+                    ? Promise.resolve().then(() => rolloutService.getStatus({ context, tenantId: safeTenantId })).catch(() => null)
                     : Promise.resolve(null)
             ]);
             const featureEntitlements = {};
@@ -146,6 +196,40 @@ function createTenantOperationsService({
                 feature: "catalog",
                 currentUsage: monthlyUsage.requestCount
             });
+            const providerUsage = monthlyUsage.providerUsage || {};
+            const queueBacklog = safeNumber(queueResult?.backlog);
+            const capacity = capacityService
+                ? capacityService.evaluate({
+                    scope: "tenant",
+                    tenantId: safeTenantId,
+                    metrics: {
+                        requestRate: safeNumber(dailyUsage.requestCount) / elapsedUtcDaySeconds(at),
+                        latencyP95Ms: safeNumber(dailyUsage.latencyP95Ms, safeNumber(dailyUsage.latencyMaxMs)),
+                        latencyP99Ms: safeNumber(dailyUsage.latencyP99Ms, safeNumber(dailyUsage.latencyMaxMs)),
+                        errorRate: safeNumber(dailyUsage.requestCount) > 0
+                            ? Math.min(1, safeNumber(dailyUsage.errorCount) / safeNumber(dailyUsage.requestCount))
+                            : 0,
+                        firestoreOperations: safeNumber(providerUsage.firestoreReads) + safeNumber(providerUsage.firestoreWrites),
+                        appOperations: safeNumber(monthlyUsage.requestCount),
+                        queueBacklog,
+                        workerConcurrency: safeNumber(queueResult?.running),
+                        workerCapacity: safeNumber(queueResult?.perTenantConcurrency),
+                        healthyWorkers: queueResult?.workerHealth === "healthy" ? 1 : 0,
+                        totalWorkers: queueResult ? 1 : 0,
+                        storageBytes: safeNumber(monthlyUsage.backup?.sizeBytes),
+                        bandwidthBytes: safeNumber(providerUsage.r2BandwidthBytes),
+                        infraRevenueRatio: safeNumber(cost.infraRevenueRatio)
+                    }
+                })
+                : null;
+            let resilience = null;
+            if (resilienceService) {
+                try {
+                    resilience = resilienceService.getSummary();
+                } catch {
+                    resilience = null;
+                }
+            }
 
             return Object.freeze({
                 tenantId: safeTenantId,
@@ -177,7 +261,70 @@ function createTenantOperationsService({
                     usedDefaultPlanPolicy: entitlement.usedDefaultPlanPolicy
                 }),
                 backup: mergeBackupSummaries(monthlyUsage.backup, backupEvidence),
-                security: summarizeSignals(signals)
+                security: summarizeSignals(signals),
+                placement: Object.freeze({
+                    type: placementResult?.placementType || "unknown",
+                    placementId: placementResult?.placementId || null,
+                    region: placementResult?.region || null,
+                    status: placementResult?.status || "unknown",
+                    releaseChannel: placementResult?.releaseChannel || null,
+                    cohort: placementResult?.cohort || null,
+                    version: Number.isInteger(placementResult?.version) ? placementResult.version : null
+                }),
+                capacity: capacity
+                    ? Object.freeze({
+                        status: capacity.status,
+                        dedicatedReview: capacity.dedicatedReview,
+                        sloStatus: capacity.slo.status,
+                        availability: capacity.slo.availability,
+                        latencyP95Ms: capacity.metrics.latencyP95Ms,
+                        latencyP99Ms: capacity.metrics.latencyP99Ms,
+                        requestRate: capacity.metrics.requestRate,
+                        operationLoad: capacity.metrics.operationLoad
+                    })
+                    : Object.freeze({ status: "unknown", dedicatedReview: false, sloStatus: "unknown" }),
+                migration: Object.freeze({
+                    state: migrationResult?.state || "idle",
+                    migrationId: migrationResult?.migrationId || null,
+                    sourcePlacementType: migrationResult?.sourcePlacementType || null,
+                    destinationPlacementType: migrationResult?.destinationPlacementType || null,
+                    updatedAt: migrationResult?.updatedAt || null
+                }),
+                queue: Object.freeze({
+                    backlog: safeNumber(queueResult?.backlog),
+                    running: safeNumber(queueResult?.running),
+                    deadLetter: safeNumber(queueResult?.deadLetter),
+                    workerHealth: queueResult?.workerHealth || "unknown",
+                    perTenantConcurrency: safeNumber(queueResult?.perTenantConcurrency)
+                }),
+                cache: Object.freeze({
+                    publicEntries: safeNumber(cacheResult?.publicEntries),
+                    fresh: safeNumber(cacheResult?.fresh),
+                    stale: safeNumber(cacheResult?.stale),
+                    privateStored: 0,
+                    lastInvalidatedAt: cacheResult?.lastInvalidatedAt || null,
+                    invalidatedEntries: safeNumber(cacheResult?.invalidatedEntries)
+                }),
+                release: Object.freeze({
+                    cohort: releaseResult?.cohort || placementResult?.cohort || null,
+                    stage: releaseResult?.stage || placementResult?.releaseChannel || "stable",
+                    health: releaseResult?.health || "unknown",
+                    currentVersion: releaseResult?.currentVersion || null,
+                    targetVersion: releaseResult?.targetVersion || null,
+                    rollbackSignal: releaseResult?.rollbackSignal === true,
+                    automaticApply: false,
+                    updatedAt: releaseResult?.updatedAt || null
+                }),
+                resilience: Object.freeze({
+                    status: resilience?.status || "unknown",
+                    dependencies: Object.freeze((resilience?.dependencies || []).map(item => Object.freeze({
+                        dependency: item.dependency,
+                        status: item.status,
+                        circuit: item.circuit,
+                        consecutiveFailures: safeNumber(item.consecutiveFailures),
+                        lastErrorCode: item.lastErrorCode || null
+                    })))
+                })
             });
         }
     });

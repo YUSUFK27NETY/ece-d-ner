@@ -138,3 +138,13 @@ Phase 6, tenant iş servislerinin önüne provider-neutral telemetry, entitlemen
 Maliyet modeli gerçek provider billing SDK'sına değil `CostProvider` interface'ine bağlıdır. Firestore, compute, R2 ve backup usage birimleri tenant-attributable maliyete çevrilir; shared maliyet deterministik request payıyla dağıtılır. Rate-card, revenue referansı ve warning/critical thresholdlar merkezi doğrulanmış config'ten gelir.
 
 Platform Admin operations görünümü health/readiness, usage, entitlement, cost, backup/DR ve security özetlerini salt okunur olarak birleştirir. Bu kontrol düzlemi tenant create/update API sözleşmelerini veya Phase 5 backup/migration güvenlik kapılarını değiştirmez.
+
+## 14. Ölçekleme, routing ve dayanıklılık kontrol düzlemi
+
+Phase 7 tenantId'yi mantıksal veri sınırı olarak korurken fiziksel placement bilgisini additive `platformTenantPlacements/{tenantId}` registry'sine ayırır. Application code shared, shard veya dedicated hedefi müşteri URL'sinden değil doğrulanmış routing service'den alır. Eksik/inactive route fail-closed olur; route cache exact tenant anahtarıyla izole edilir.
+
+Shared → shard/dedicated taşıma ayrı, idempotent state machine'dir. Dry-run, doğrulanmış backup, readiness, copy, verify ve exact tenant apply onayı geçmeden cutover yapılamaz. Rollback adapterı yoksa sistem otomatik riskli geri dönüş yerine `forward_fix_required` üretir.
+
+Queue admission/concurrency/idempotency ve cache key/invalidation tenant-bound çalışır. Yalnız public static içerik shared cache'e girebilir. Rollout canary → staged → stable ilerler; sağlık bozulması yalnız rollback sinyali üretir ve otomatik deploy mutationı yapmaz.
+
+Provider resilience bounded timeout/retry/backoff ve circuit breaker ile readiness'e bağlanır. Capacity/SLO değerlendirmesi müşteri sayısını ölçek tetikleyicisi saymaz; latency, error, operation load, backlog, worker, storage, bandwidth ve cost ratio gibi ölçülmüş eşikleri kullanır. Ayrıntılı sözleşme ve outage runbook'u `PHASE7-SCALABILITY-ROUTING-RESILIENCE.md` içindedir.

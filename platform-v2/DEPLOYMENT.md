@@ -24,6 +24,7 @@ PLATFORM_FIREBASE_WEB_CONFIG_JSON={"apiKey":"...","authDomain":"...","projectId"
 PLATFORM_ALLOWED_ORIGINS=https://admin.example.com
 PLATFORM_PORT=3100
 PLATFORM_GUARDRAILS_CONFIG_JSON={"plans":{"starter":{"allowedFeatures":"*","softRequestLimit":100000,"warningThreshold":0.8,"dedicatedReviewThreshold":1,"monthlyRevenueReference":2000}}}
+PLATFORM_SCALABILITY_CONFIG_JSON={"capacity":{"slo":{"availabilityTarget":0.995,"p95LatencyMs":500,"p99LatencyMs":1000,"errorRate":0.01}},"routing":{"cacheTtlMs":30000}}
 ```
 
 `PLATFORM_PORT` verilmezse hosting sağlayıcısının `PORT` değeri kullanılır.
@@ -35,6 +36,7 @@ PLATFORM_GUARDRAILS_CONFIG_JSON={"plans":{"starter":{"allowedFeatures":"*","soft
 - `PLATFORM_ALLOWED_ORIGINS` yalnız ek browser originleri içindir. Aynı origin üzerindeki `/admin/` paneli otomatik kabul edilir.
 - `PLATFORM_GUARDRAILS_CONFIG_JSON` secret değildir; rate-limit, entitlement ve maliyet tahmin policylerini taşır. Geçersiz değer startup'ı fail-closed durdurur ve raw config loglanmaz.
 - Provider billing credentialları bu JSON içine konmaz. Phase 6 varsayılan rate-card değerleri sıfırdır ve gerçek billing adapterı zorunlu değildir.
+- `PLATFORM_SCALABILITY_CONFIG_JSON` secret değildir; SLO/eşik, route cache, queue/cache ve resilience policylerini taşır. Geçersiz veya bilinmeyen alan startup'ı fail-closed durdurur. Provider endpointi, tokenı veya credential burada tutulmaz.
 
 ## Firebase sınırı
 
@@ -120,5 +122,12 @@ Aynı tenant kimliği staging ve production'da bulunabilir ancak veritabanları 
 - [ ] guardrails config validation + tenant telemetry izolasyon testi
 - [ ] tenant operations ve top-N FinOps admin endpoint smoke testi
 - [ ] budget alarmı ve WAF politikasının staging üzerinde bağımsız doğrulanması
+- [ ] staging tenant placement registry ve missing-route backward compatibility smoke testi
+- [ ] cross-tenant route, queue ve cache leakage regression testleri
+- [ ] shared → shard/dedicated migration dry-run + backup/readiness/verify kapıları
+- [ ] canary cohort sağlık eşiği ve rollback sinyalinin otomatik apply yapmadığının doğrulanması
+- [ ] provider timeout/retry/backoff/circuit breaker ve outage runbook provası
+
+Gerçek shard/database, managed queue/worker, CDN rule, DNS, deploy, rollout promotion, cutover veya rollback bu repository değişikliğiyle aktive edilmez. Bunların her biri staging kanıtından sonra production için ayrı operasyon onayı gerektirir. Ayrıntılı sıra ve güvenli durdurma koşulları `PHASE7-SCALABILITY-ROUTING-RESILIENCE.md` içindedir.
 
 Bu kontroller tamamlanmadan Ece Döner V1 otomatik olarak V2'ye taşınmaz.

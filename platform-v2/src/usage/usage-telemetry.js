@@ -11,6 +11,9 @@ const OPERATION_CLASSES = new Set([
     "restore",
     "system"
 ]);
+const LATENCY_BUCKET_UPPER_BOUNDS = Object.freeze([
+    50, 100, 250, 500, 1000, 2000, 5000, 10_000, 30_000
+]);
 
 function normalizeDate(value, label = "Telemetry timestamp") {
     const date = value instanceof Date ? value : new Date(value);
@@ -117,6 +120,33 @@ function normalizeBackupMetadata(input) {
     return Object.freeze(output);
 }
 
+function latencyBucketFor(value) {
+    const latency = normalizeMetric(value, "Telemetry latencyMs");
+    const bound = LATENCY_BUCKET_UPPER_BOUNDS.find(item => latency <= item);
+    return bound === undefined ? "overflow" : String(bound);
+}
+
+function emptyLatencyBuckets() {
+    return Object.fromEntries([
+        ...LATENCY_BUCKET_UPPER_BOUNDS.map(bound => [String(bound), 0]),
+        ["overflow", 0]
+    ]);
+}
+
+function percentileLatency(aggregate, percentile) {
+    const buckets = aggregate?.latencyBuckets || {};
+    const bucketTotal = Object.values(buckets).reduce((sum, value) =>
+        sum + (Number.isFinite(Number(value)) ? Number(value) : 0), 0);
+    if (bucketTotal <= 0) return aggregate?.requestCount > 0 ? aggregate.latencyMaxMs : 0;
+    const target = Math.max(1, Math.ceil(bucketTotal * percentile));
+    let cumulative = 0;
+    for (const bound of LATENCY_BUCKET_UPPER_BOUNDS) {
+        cumulative += Number(buckets[String(bound)] || 0);
+        if (cumulative >= target) return bound;
+    }
+    return aggregate.latencyMaxMs;
+}
+
 function createUsageDelta({
     tenantId,
     operation,
@@ -150,6 +180,8 @@ function createUsageDelta({
         throw new TypeError("Telemetry errorCount requestCount değerini aşamaz.");
     }
 
+    const safeLatencyMs = normalizeMetric(latencyMs, "Telemetry latencyMs");
+
     return Object.freeze({
         tenantId: requireTenantId(tenantId),
         operation: normalizeOperation(operation),
@@ -158,7 +190,8 @@ function createUsageDelta({
         requestCount: safeRequestCount,
         errorCount: safeErrorCount,
         statusCode: safeStatusCode,
-        latencyMs: normalizeMetric(latencyMs, "Telemetry latencyMs"),
+        latencyMs: safeLatencyMs,
+        latencyBucket: latencyBucketFor(safeLatencyMs),
         providerUsage: Object.freeze({
             firestoreReads: normalizeCounter(firestoreReads, "Telemetry firestoreReads"),
             firestoreWrites: normalizeCounter(firestoreWrites, "Telemetry firestoreWrites"),
@@ -199,6 +232,7 @@ function emptyUsageAggregate(tenantId, descriptor) {
         errorCount: 0,
         latencyTotalMs: 0,
         latencyMaxMs: 0,
+        latencyBuckets: emptyLatencyBuckets(),
         operationCounts: {},
         operationClassCounts: {},
         providerUsage: {
@@ -232,6 +266,10 @@ function mergeUsageAggregate(current, delta, descriptor) {
         providerUsage: {
             ...defaults.providerUsage,
             ...(stored.providerUsage || {})
+        },
+        latencyBuckets: {
+            ...defaults.latencyBuckets,
+            ...(stored.latencyBuckets || {})
         }
     };
 
@@ -249,6 +287,8 @@ function mergeUsageAggregate(current, delta, descriptor) {
     aggregate.errorCount += delta.errorCount;
     aggregate.latencyTotalMs += delta.latencyMs;
     aggregate.latencyMaxMs = Math.max(aggregate.latencyMaxMs, delta.latencyMs);
+    aggregate.latencyBuckets[delta.latencyBucket] =
+        (Number(aggregate.latencyBuckets[delta.latencyBucket]) || 0) + delta.requestCount;
     const currentOperationCount = Number.isFinite(aggregate.operationCounts[delta.operation])
         ? aggregate.operationCounts[delta.operation]
         : 0;
@@ -288,6 +328,8 @@ function presentUsageAggregate(aggregate) {
     output.latencyAverageMs = output.requestCount > 0
         ? output.latencyTotalMs / output.requestCount
         : 0;
+    output.latencyP95Ms = percentileLatency(output, 0.95);
+    output.latencyP99Ms = percentileLatency(output, 0.99);
     return Object.freeze(output);
 }
 
@@ -344,11 +386,14 @@ function createUsageTelemetryService({ store }) {
 module.exports = {
     AGGREGATION_PERIODS,
     OPERATION_CLASSES,
+    LATENCY_BUCKET_UPPER_BOUNDS,
     createUsageDelta,
     createUsageTelemetryService,
     emptyUsageAggregate,
     getAggregationPeriod,
     mergeUsageAggregate,
+    latencyBucketFor,
     normalizeBackupMetadata,
-    presentUsageAggregate
+    presentUsageAggregate,
+    percentileLatency
 };

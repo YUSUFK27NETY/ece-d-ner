@@ -88,6 +88,16 @@ Platform endpointleri yalnız Firebase ID tokenında `platformAdmin: true` claim
 
 Phase 6 telemetry, entitlement, tenant-scoped rate limiting, security signal ve FinOps sözleşmeleri için `PHASE6-SECURITY-FINOPS-GUARDRAILS.md` dosyasına bak.
 
+Phase 7 capacity/SLO, tenant placement/routing, güvenli placement migration, tenant queue/cache izolasyonu, canary rollout ve provider resilience sözleşmeleri için `PHASE7-SCALABILITY-ROUTING-RESILIENCE.md` dosyasına bak.
+
+Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
+
+```text
+platformTenantPlacements/{tenantId}
+```
+
+Placement kaydı olmayan eski tenantlar backward-compatible çalışır; operations görünürlüğü fiziksel konum tahmini yapmak yerine `unknown` gösterir.
+
 ## Backup anahtar sözleşmesi
 
 ```text

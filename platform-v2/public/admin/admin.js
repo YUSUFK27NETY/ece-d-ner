@@ -54,6 +54,20 @@
         operationsDrill: document.getElementById("operations-drill"),
         operationsSecurity: document.getElementById("operations-security"),
         operationsSecurityDetail: document.getElementById("operations-security-detail"),
+        operationsPlacement: document.getElementById("operations-placement"),
+        operationsPlacementDetail: document.getElementById("operations-placement-detail"),
+        operationsCapacity: document.getElementById("operations-capacity"),
+        operationsSlo: document.getElementById("operations-slo"),
+        operationsMigration: document.getElementById("operations-migration"),
+        operationsMigrationDetail: document.getElementById("operations-migration-detail"),
+        operationsQueue: document.getElementById("operations-queue"),
+        operationsWorker: document.getElementById("operations-worker"),
+        operationsCache: document.getElementById("operations-cache"),
+        operationsCacheDetail: document.getElementById("operations-cache-detail"),
+        operationsRelease: document.getElementById("operations-release"),
+        operationsReleaseDetail: document.getElementById("operations-release-detail"),
+        operationsResilience: document.getElementById("operations-resilience"),
+        operationsResilienceDetail: document.getElementById("operations-resilience-detail"),
         operationsMessage: document.getElementById("operations-message"),
         saveButton: document.getElementById("save-button"),
         cancelButton: document.getElementById("cancel-button")
@@ -150,6 +164,13 @@
         const plan = overview.plan || {};
         const backup = overview.backup || {};
         const security = overview.security || {};
+        const placement = overview.placement || {};
+        const capacity = overview.capacity || {};
+        const migration = overview.migration || {};
+        const queue = overview.queue || {};
+        const cache = overview.cache || {};
+        const release = overview.release || {};
+        const resilience = overview.resilience || {};
 
         elements.operationsHealth.textContent = overview.health?.readiness || "unknown";
         elements.operationsLatency.textContent =
@@ -174,6 +195,29 @@
         elements.operationsSecurity.textContent = `${formatNumber(security.total, 0)} sinyal`;
         elements.operationsSecurityDetail.textContent =
             `En yüksek seviye: ${security.highestSeverity || "none"}`;
+        elements.operationsPlacement.textContent = `${placement.type || "unknown"} · ${placement.status || "unknown"}`;
+        elements.operationsPlacementDetail.textContent =
+            `${placement.region || "bölge yok"} · ${placement.releaseChannel || "kanal yok"}`;
+        elements.operationsCapacity.textContent = capacity.status || "unknown";
+        elements.operationsSlo.textContent =
+            `SLO: ${capacity.sloStatus || "unknown"} · p95 ${formatNumber(capacity.latencyP95Ms)} ms`;
+        elements.operationsMigration.textContent = migration.state || "idle";
+        elements.operationsMigrationDetail.textContent = migration.destinationPlacementType
+            ? `${migration.sourcePlacementType || "unknown"} → ${migration.destinationPlacementType}`
+            : "Aktif placement taşıması yok";
+        elements.operationsQueue.textContent = `${formatNumber(queue.backlog, 0)} bekleyen · ${formatNumber(queue.running, 0)} çalışan`;
+        elements.operationsWorker.textContent =
+            `Worker: ${queue.workerHealth || "unknown"} · DLQ ${formatNumber(queue.deadLetter, 0)}`;
+        elements.operationsCache.textContent = `${formatNumber(cache.publicEntries, 0)} public entry`;
+        elements.operationsCacheDetail.textContent =
+            `${formatNumber(cache.fresh, 0)} fresh · ${formatNumber(cache.stale, 0)} stale · ` +
+            `son invalidation ${formatTimestamp(cache.lastInvalidatedAt)}`;
+        elements.operationsRelease.textContent = `${release.stage || "stable"} · ${release.health || "unknown"}`;
+        elements.operationsReleaseDetail.textContent =
+            `${release.cohort || "cohort yok"} · rollback ${release.rollbackSignal ? "sinyali var" : "sinyali yok"}`;
+        elements.operationsResilience.textContent = resilience.status || "unknown";
+        elements.operationsResilienceDetail.textContent =
+            `${formatNumber(resilience.dependencies?.length, 0)} provider bağımlılığı`;
         setMessage(elements.operationsMessage);
     }
 
