@@ -96,6 +96,8 @@ Phase 8 durable central security alert persistence temeli için `PHASE8-PACKAGE6
 
 Phase 8 Platform Admin auth denial alert runtime köprüsü için `PHASE8-PACKAGE6B2A-AUTH-ALERT-BRIDGE.md` dosyasına bak.
 
+Phase 8 tenant-boundary central alert contract'ı için `PHASE8-PACKAGE6B2B1-TENANT-BOUNDARY-ALERT-BRIDGE.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text
