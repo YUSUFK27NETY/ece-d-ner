@@ -20,6 +20,10 @@ const {
     DEFAULT_PLATFORM_BREAK_GLASS_CONFIG,
     normalizePlatformBreakGlassConfig
 } = require("./platform-break-glass-config");
+const {
+    DEFAULT_PLATFORM_BREAK_GLASS_INTEGRATION_CONFIG,
+    normalizePlatformBreakGlassIntegrationConfig
+} = require("./platform-break-glass-integration-config");
 
 const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     telemetry: Object.freeze({
@@ -47,7 +51,8 @@ const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
         alerts: DEFAULT_PLATFORM_SECURITY_ALERTS_CONFIG,
         secretLifecycle: DEFAULT_PLATFORM_SECRET_LIFECYCLE_CONFIG,
         incidents: DEFAULT_PLATFORM_INCIDENTS_CONFIG,
-        breakGlass: DEFAULT_PLATFORM_BREAK_GLASS_CONFIG
+        breakGlass: DEFAULT_PLATFORM_BREAK_GLASS_CONFIG,
+        breakGlassIntegration: DEFAULT_PLATFORM_BREAK_GLASS_INTEGRATION_CONFIG
     }),
     plans: Object.freeze({
         default: Object.freeze({
@@ -271,7 +276,8 @@ function normalizePlatformGuardrailsConfig(input) {
         "alerts",
         "secretLifecycle",
         "incidents",
-        "breakGlass"
+        "breakGlass",
+        "breakGlassIntegration"
     ]), "Security config");
     assertKeys(input.finops, new Set([
         "currency",
@@ -381,6 +387,7 @@ function normalizePlatformGuardrailsConfig(input) {
             secretLifecycle: normalizePlatformSecretLifecycleConfig(input.security.secretLifecycle),
             incidents: normalizePlatformIncidentsConfig(input.security.incidents),
             breakGlass: normalizePlatformBreakGlassConfig(input.security.breakGlass),
+            breakGlassIntegration: normalizePlatformBreakGlassIntegrationConfig(input.security.breakGlassIntegration),
             signalListLimit: requireInteger(
                 input.security.signalListLimit,
                 "Security signalListLimit",
