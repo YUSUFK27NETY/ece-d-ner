@@ -1,0 +1,17 @@
+# Platform V2 ownership policy
+# Keep a default owner so no repository path can silently fall outside review ownership.
+* @YUSUFK27NETY
+
+# CI, dependency automation and repository governance.
+/.github/ @YUSUFK27NETY
+/package.json @YUSUFK27NETY
+/package-lock.json @YUSUFK27NETY
+
+# Platform V2 is a security-sensitive multi-tenant runtime. Changes require explicit owner review.
+/platform-v2/ @YUSUFK27NETY
+
+# Ece Döner V1 remains independently protected from Platform V2 changes.
+/index.html @YUSUFK27NETY
+/admin.html @YUSUFK27NETY
+/style.css @YUSUFK27NETY
+/script.js @YUSUFK27NETY
