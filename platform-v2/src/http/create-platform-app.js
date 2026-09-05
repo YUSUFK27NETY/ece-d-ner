@@ -87,6 +87,7 @@ function createPlatformApp({
     tenantRateLimitPolicy = null,
     securitySignals = null,
     abuseMonitor = null,
+    securityOperations = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -105,7 +106,11 @@ function createPlatformApp({
         throw new TypeError("FinOps service geçersiz.");
     }
 
-    const requirePlatformAdmin = createRequirePlatformAdmin({ auth, abuseMonitor });
+    const requirePlatformAdmin = createRequirePlatformAdmin({
+        auth,
+        abuseMonitor,
+        securityOperations
+    });
     const onboarding = createTenantOnboardingService({
         tenantRegistry,
         auditWriter

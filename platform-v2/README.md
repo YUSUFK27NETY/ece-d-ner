@@ -94,6 +94,8 @@ Phase 8 provider-neutral edge protection ve abuse operations baseline'ı için `
 
 Phase 8 durable central security alert persistence temeli için `PHASE8-PACKAGE6B1-ALERT-PERSISTENCE.md` dosyasına bak.
 
+Phase 8 Platform Admin auth denial alert runtime köprüsü için `PHASE8-PACKAGE6B2A-AUTH-ALERT-BRIDGE.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

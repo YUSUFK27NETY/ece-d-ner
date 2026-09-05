@@ -18,6 +18,13 @@ const {
 } = require("./src/firestore/firestore-security-signal-store");
 const { createSecuritySignalService } = require("./src/security/security-signal");
 const { createAbuseMonitor } = require("./src/security/abuse-monitor");
+const {
+    createFirestoreSecurityAlertSink
+} = require("./src/firestore/firestore-security-alert-sink");
+const { createSecurityAlertService } = require("./src/security/security-alert-service");
+const {
+    createSecurityOperationsBridge
+} = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
@@ -57,6 +64,12 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
     return createBackupOperationsEvidenceProvider({ storageProvider, db });
 }
 
+function createRuntimeSecurityOperations({ db, config }) {
+    const sink = createFirestoreSecurityAlertSink({ db });
+    const alertService = createSecurityAlertService({ sink, config });
+    return createSecurityOperationsBridge({ alertService });
+}
+
 function startPlatformServer() {
     const guardrailsConfig = loadPlatformGuardrailsConfig();
     const scalabilityConfig = loadPlatformScalabilityConfig();
@@ -93,6 +106,10 @@ function startPlatformServer() {
         securitySignals,
         windowMs: guardrailsConfig.security.authFailureWindowMs,
         threshold: guardrailsConfig.security.authFailureThreshold
+    });
+    const securityOperations = createRuntimeSecurityOperations({
+        db,
+        config: guardrailsConfig.security.alerts
     });
     const entitlementService = createEntitlementService({
         config: guardrailsConfig,
@@ -147,6 +164,7 @@ function startPlatformServer() {
         tenantRateLimitPolicy: guardrailsConfig.rateLimits.adminTenant,
         securitySignals,
         abuseMonitor,
+        securityOperations,
         tenantOperations,
         finOpsService
     });
@@ -170,5 +188,6 @@ if (require.main === module) {
 module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     createConfiguredBackupEvidenceProvider,
+    createRuntimeSecurityOperations,
     startPlatformServer
 };
