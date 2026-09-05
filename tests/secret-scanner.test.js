@@ -7,11 +7,14 @@ const {
     scanText
 } = require("../secret-scanner");
 
-test("erişim anahtarı ve özel anahtar başlığını yakalar", () => {
+test("erişim anahtarı ve tam özel anahtar bloğunu yakalar", () => {
     const githubToken =
         "ghp_" + "A".repeat(32);
-    const privateKey =
-        "-----BEGIN " + "PRIVATE KEY-----";
+    const privateKey = [
+        "-----BEGIN " + "PRIVATE KEY-----",
+        "A".repeat(64),
+        "-----END " + "PRIVATE KEY-----"
+    ].join("\n");
 
     const findings = scanText(
         `${githubToken}\n${privateKey}`,
@@ -30,6 +33,16 @@ test("erişim anahtarı ve özel anahtar başlığını yakalar", () => {
             finding => /özel anahtar/.test(finding.detector)
         ),
         true
+    );
+});
+
+test("tek başına özel anahtar başlığını gerçek secret saymaz", () => {
+    const headerOnly =
+        "-----BEGIN " + "PRIVATE KEY-----";
+
+    assert.equal(
+        scanText(headerOnly, "validation-fixture").length,
+        0
     );
 });
 
