@@ -98,6 +98,8 @@ Phase 8 Platform Admin auth denial alert runtime köprüsü için `PHASE8-PACKAG
 
 Phase 8 tenant-boundary central alert contract'ı için `PHASE8-PACKAGE6B2B1-TENANT-BOUNDARY-ALERT-BRIDGE.md` dosyasına bak.
 
+Phase 8 step-up denial central alert contract'ı için `PHASE8-PACKAGE6B2B2-STEP-UP-ALERT-BRIDGE.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

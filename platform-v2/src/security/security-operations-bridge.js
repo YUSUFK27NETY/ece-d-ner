@@ -1,6 +1,7 @@
 const {
     securityEventFromAuthFailure,
-    securityEventFromTenantBoundary
+    securityEventFromTenantBoundary,
+    securityEventFromStepUpDenial
 } = require("./security-alert-adapters");
 const { assertFlatSecurityInput } = require("./security-alert-model");
 const { requireTenantId } = require("../tenant/tenant-id");
@@ -10,6 +11,7 @@ const TENANT_BOUNDARY_INPUT_FIELDS = new Set([
     "context", "errorCode", "operation", "requestId", "targetTenantId"
 ]);
 const TENANT_BOUNDARY_CONTEXT_FIELDS = new Set(["tenantId", "actorId"]);
+const STEP_UP_DENIAL_INPUT_FIELDS = new Set(["result", "tenantId", "requestId"]);
 
 function assertAllowedFields(input, allowed, label) {
     for (const key of Reflect.ownKeys(input)) {
@@ -69,6 +71,26 @@ function assertTenantBoundaryInput(input) {
     }
 }
 
+function assertStepUpDenialInput(input) {
+    assertFlatSecurityInput(input, "result");
+    assertAllowedFields(input, STEP_UP_DENIAL_INPUT_FIELDS, "Step-up denial");
+
+    if (!Object.hasOwn(input, "result") || !input.result ||
+        typeof input.result !== "object") {
+        throw new TypeError("Step-up denial issued decision gerekli.");
+    }
+    if (!Object.hasOwn(input, "requestId") || input.requestId === null ||
+        input.requestId === undefined) {
+        throw new TypeError("Step-up denial requestId gerekli.");
+    }
+    if (input.tenantId !== undefined && input.tenantId !== null) {
+        if (typeof input.tenantId !== "string" ||
+            requireTenantId(input.tenantId) !== input.tenantId) {
+            throw new TypeError("Step-up denial tenantId geçersiz.");
+        }
+    }
+}
+
 function createSecurityOperationsBridge({ alertService }) {
     if (!alertService || typeof alertService.record !== "function") {
         throw new TypeError("Central security alert service gerekli.");
@@ -97,6 +119,16 @@ function createSecurityOperationsBridge({ alertService }) {
                 },
                 errorCode: input.errorCode,
                 operation: input.operation,
+                requestId: input.requestId
+            });
+
+            return alertService.record(event);
+        },
+
+        async recordStepUpDenial(input) {
+            assertStepUpDenialInput(input);
+            const event = securityEventFromStepUpDenial(input.result, {
+                tenantId: input.tenantId ?? null,
                 requestId: input.requestId
             });
 
