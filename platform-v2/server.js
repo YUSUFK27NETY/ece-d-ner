@@ -64,8 +64,8 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
     return createBackupOperationsEvidenceProvider({ storageProvider, db });
 }
 
-function createRuntimeSecurityOperations({ db, config }) {
-    const sink = createFirestoreSecurityAlertSink({ db });
+function createRuntimeSecurityOperations({ db, config, securityAlertSink = null }) {
+    const sink = securityAlertSink || createFirestoreSecurityAlertSink({ db });
     const alertService = createSecurityAlertService({ sink, config });
     return createSecurityOperationsBridge({ alertService });
 }
@@ -107,9 +107,11 @@ function startPlatformServer() {
         windowMs: guardrailsConfig.security.authFailureWindowMs,
         threshold: guardrailsConfig.security.authFailureThreshold
     });
+    const securityAlertReader = createFirestoreSecurityAlertSink({ db });
     const securityOperations = createRuntimeSecurityOperations({
         db,
-        config: guardrailsConfig.security.alerts
+        config: guardrailsConfig.security.alerts,
+        securityAlertSink: securityAlertReader
     });
     const entitlementService = createEntitlementService({
         config: guardrailsConfig,
@@ -165,6 +167,7 @@ function startPlatformServer() {
         securitySignals,
         abuseMonitor,
         securityOperations,
+        securityAlertReader,
         tenantOperations,
         finOpsService
     });

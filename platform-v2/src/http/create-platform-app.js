@@ -42,6 +42,60 @@ function normalizeTopTenantLimit(value = 10) {
     return limit;
 }
 
+const SECURITY_ALERT_RESPONSE_FIELDS = Object.freeze([
+    "schemaVersion", "alertId", "dedupeKey", "eventType", "severity", "tenantId",
+    "actorId", "requestId", "correlationId", "source", "occurredAt", "reasonCode",
+    "operation", "eventCount", "duplicateCount", "rollingCount", "firstSeenAt", "lastSeenAt"
+]);
+
+function normalizeSecurityAlertLimit(value = 20) {
+    const limit = typeof value === "string" && /^[1-9][0-9]{0,2}$/.test(value)
+        ? Number(value)
+        : value;
+
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 200) {
+        throw new TypeError("Güvenlik uyarısı liste limiti geçersiz.");
+    }
+
+    return limit;
+}
+
+function projectSecurityAlertList(alerts) {
+    if (!Array.isArray(alerts) || Object.getPrototypeOf(alerts) !== Array.prototype) {
+        throw new TypeError("Güvenlik uyarısı reader sonucu geçersiz.");
+    }
+
+    return Object.freeze(alerts.map(alert => {
+        if (!alert || typeof alert !== "object" || Array.isArray(alert) ||
+            Object.getPrototypeOf(alert) !== Object.prototype) {
+            throw new TypeError("Güvenlik uyarısı reader sonucu geçersiz.");
+        }
+
+        const projected = {};
+        for (const field of SECURITY_ALERT_RESPONSE_FIELDS) {
+            const descriptor = Object.getOwnPropertyDescriptor(alert, field);
+            if (!descriptor || !Object.hasOwn(descriptor, "value")) {
+                throw new TypeError("Güvenlik uyarısı reader sonucu geçersiz.");
+            }
+            const value = descriptor.value;
+            if (value !== null && !["string", "number"].includes(typeof value)) {
+                throw new TypeError("Güvenlik uyarısı reader sonucu geçersiz.");
+            }
+            projected[field] = value;
+        }
+
+        return Object.freeze(projected);
+    }));
+}
+
+function sendSecurityAlertReadError(res) {
+    console.error("Platform güvenlik uyarıları okunamadı.");
+    return res.status(500).json({
+        success: false,
+        message: "Güvenlik uyarıları alınamadı."
+    });
+}
+
 function createPlatformCorsMiddleware(allowedOrigins = []) {
     const allowlist = new Set(allowedOrigins);
 
@@ -88,6 +142,7 @@ function createPlatformApp({
     securitySignals = null,
     abuseMonitor = null,
     securityOperations = null,
+    securityAlertReader = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -104,6 +159,9 @@ function createPlatformApp({
     }
     if (finOpsService && typeof finOpsService.getTopTenants !== "function") {
         throw new TypeError("FinOps service geçersiz.");
+    }
+    if (securityAlertReader && typeof securityAlertReader.list !== "function") {
+        throw new TypeError("Security alert reader geçersiz.");
     }
 
     const requirePlatformAdmin = createRequirePlatformAdmin({
@@ -209,6 +267,69 @@ function createPlatformApp({
     }
     if (tenantMiddlewares.length > 0) {
         app.use("/api/platform/tenants/:tenantId", ...tenantMiddlewares);
+    }
+
+    if (securityAlertReader) {
+        app.get("/api/platform/tenants/:tenantId/security-alerts", async (req, res) => {
+            let tenantId;
+            let limit;
+            try {
+                tenantId = requireTenantId(req.params.tenantId);
+                if (tenantId !== req.params.tenantId) throw new TypeError();
+                limit = normalizeSecurityAlertLimit(
+                    req.query.limit === undefined ? 20 : req.query.limit
+                );
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Güvenlik uyarısı sorgusu geçersiz."
+                });
+            }
+
+            try {
+                const alerts = projectSecurityAlertList(await securityAlertReader.list({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    tenantId,
+                    limit
+                }));
+
+                return res.json({ success: true, alerts });
+            } catch {
+                return sendSecurityAlertReadError(res);
+            }
+        });
+
+        app.get("/api/platform/security-alerts", async (req, res) => {
+            let limit;
+            try {
+                limit = normalizeSecurityAlertLimit(
+                    req.query.limit === undefined ? 20 : req.query.limit
+                );
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Güvenlik uyarısı sorgusu geçersiz."
+                });
+            }
+
+            try {
+                const alerts = projectSecurityAlertList(await securityAlertReader.list({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    tenantId: null,
+                    limit
+                }));
+
+                return res.json({ success: true, alerts });
+            } catch {
+                return sendSecurityAlertReadError(res);
+            }
+        });
     }
 
     app.get("/api/platform/tenants", async (req, res) => {
@@ -411,6 +532,8 @@ module.exports = {
     ADMIN_CSP,
     normalizeApiListLimit,
     normalizeTopTenantLimit,
+    normalizeSecurityAlertLimit,
+    projectSecurityAlertList,
     createPlatformCorsMiddleware,
     createPlatformApp,
     sendPlatformError
