@@ -65,6 +65,23 @@ legend { padding: 0 8px; color: #93c5fd; font-weight: 800; }
 .metric-card span { color: #93c5fd; font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
 .metric-card strong { font-size: 1.05rem; overflow-wrap: anywhere; }
 .metric-card small { line-height: 1.35; }
+.security-alert-sections { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.security-alert-sections section { min-width: 0; }
+.security-alert-sections h3 { margin: 0 0 10px; color: #dbeafe; font-size: .95rem; }
+.security-alert-list { display: grid; gap: 10px; }
+.security-alert-card { display: grid; gap: 9px; padding: 13px; border: 1px solid #273449; border-radius: 12px; background: #0f172a; }
+.security-alert-header { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.security-alert-header strong { overflow-wrap: anywhere; }
+.security-alert-meta { display: grid; gap: 5px; color: #94a3b8; font-size: .78rem; }
+.security-alert-meta-item { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px; }
+.security-alert-meta-item strong { color: #cbd5e1; }
+.security-alert-meta-item span { overflow-wrap: anywhere; }
+.security-alert-badge { border-radius: 999px; padding: 4px 8px; font-size: .7rem; font-weight: 850; text-transform: uppercase; letter-spacing: .04em; border: 1px solid transparent; }
+.severity-info { color: #bfdbfe; background: #172554; border-color: #1d4ed8; }
+.severity-warning { color: #fde68a; background: #422006; border-color: #a16207; }
+.severity-high { color: #fdba74; background: #431407; border-color: #c2410c; }
+.severity-critical { color: #fecaca; background: #450a0a; border-color: #b91c1c; }
+.severity-unknown { color: #cbd5e1; background: #1e293b; border-color: #475569; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .badge { border-radius: 999px; padding: 6px 10px; font-size: .76rem; font-weight: 800; background: #172554; color: #bfdbfe; border: 1px solid #1d4ed8; }
 .message { min-height: 1.2em; margin: 0; color: #93c5fd; }
@@ -81,7 +98,7 @@ legend { padding: 0 8px; color: #93c5fd; font-weight: 800; }
     .topbar { align-items: flex-start; padding: 16px; }
     .top-actions { justify-content: flex-start; }
     .layout { padding: 12px; gap: 12px; }
-    .grid.two, .feature-grid, .operations-grid { grid-template-columns: 1fr; }
+    .grid.two, .feature-grid, .operations-grid, .security-alert-sections { grid-template-columns: 1fr; }
     .span-two { grid-column: auto; }
     .form-actions { flex-direction: column-reverse; }
     .form-actions button { width: 100%; }

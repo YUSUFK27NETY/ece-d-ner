@@ -69,6 +69,11 @@
         operationsResilience: document.getElementById("operations-resilience"),
         operationsResilienceDetail: document.getElementById("operations-resilience-detail"),
         operationsMessage: document.getElementById("operations-message"),
+        securityAlertsPanel: document.getElementById("security-alerts-panel"),
+        tenantSecurityAlerts: document.getElementById("tenant-security-alerts"),
+        tenantSecurityAlertsMessage: document.getElementById("tenant-security-alerts-message"),
+        platformSecurityAlerts: document.getElementById("platform-security-alerts"),
+        platformSecurityAlertsMessage: document.getElementById("platform-security-alerts-message"),
         saveButton: document.getElementById("save-button"),
         cancelButton: document.getElementById("cancel-button")
     };
@@ -76,8 +81,17 @@
     const state = {
         tenants: [],
         selectedTenantId: null,
-        mode: "none"
+        mode: "none",
+        tenantAlertRequestVersion: 0,
+        platformAlertRequestVersion: 0
     };
+
+    const ALERT_SEVERITY_PRESENTATION = Object.freeze({
+        info: Object.freeze({ label: "info", className: "severity-info" }),
+        warning: Object.freeze({ label: "warning", className: "severity-warning" }),
+        high: Object.freeze({ label: "high", className: "severity-high" }),
+        critical: Object.freeze({ label: "critical", className: "severity-critical" })
+    });
 
     function setMessage(element, text = "", type = "") {
         element.textContent = text;
@@ -155,6 +169,157 @@
         if (!value) return "henüz yok";
         const date = new Date(value);
         return Number.isNaN(date.getTime()) ? "bilinmiyor" : date.toLocaleString("tr-TR");
+    }
+
+    function safeAlertString(value, fallback = "—") {
+        return typeof value === "string" && value.length > 0 ? value : fallback;
+    }
+
+    function projectAlertForDisplay(alert) {
+        if (!alert || typeof alert !== "object" || Array.isArray(alert) ||
+            Object.getPrototypeOf(alert) !== Object.prototype ||
+            typeof alert.eventType !== "string" || typeof alert.reasonCode !== "string" ||
+            typeof alert.correlationId !== "string" ||
+            !Number.isSafeInteger(alert.eventCount) || alert.eventCount < 1) {
+            return null;
+        }
+
+        const severity = Object.hasOwn(ALERT_SEVERITY_PRESENTATION, alert.severity)
+            ? ALERT_SEVERITY_PRESENTATION[alert.severity]
+            : Object.freeze({ label: "unknown", className: "severity-unknown" });
+
+        return Object.freeze({
+            severityLabel: severity.label,
+            severityClass: severity.className,
+            eventType: safeAlertString(alert.eventType),
+            reasonCode: safeAlertString(alert.reasonCode),
+            operation: safeAlertString(alert.operation),
+            eventCount: alert.eventCount,
+            firstSeenAt: safeAlertString(alert.firstSeenAt),
+            lastSeenAt: safeAlertString(alert.lastSeenAt),
+            correlationId: safeAlertString(alert.correlationId),
+            actorId: safeAlertString(alert.actorId, ""),
+            source: safeAlertString(alert.source, "")
+        });
+    }
+
+    function appendAlertMeta(container, label, value) {
+        const item = document.createElement("div");
+        item.className = "security-alert-meta-item";
+        const name = document.createElement("strong");
+        name.textContent = label;
+        const content = document.createElement("span");
+        content.textContent = value;
+        item.append(name, content);
+        container.append(item);
+    }
+
+    function renderSecurityAlertList(container, message, alerts, emptyMessage) {
+        container.replaceChildren();
+        const projected = Array.isArray(alerts)
+            ? alerts.map(projectAlertForDisplay).filter(Boolean)
+            : [];
+
+        if (projected.length === 0) {
+            setMessage(
+                message,
+                Array.isArray(alerts) && alerts.length > 0
+                    ? "Geçersiz güvenlik kaydı."
+                    : emptyMessage,
+                Array.isArray(alerts) && alerts.length > 0 ? "error" : ""
+            );
+            return;
+        }
+
+        setMessage(message);
+        for (const alert of projected) {
+            const card = document.createElement("article");
+            card.className = "security-alert-card";
+            const header = document.createElement("div");
+            header.className = "security-alert-header";
+            const badge = document.createElement("span");
+            badge.className = "security-alert-badge";
+            badge.classList.add(alert.severityClass);
+            badge.textContent = alert.severityLabel;
+            const eventType = document.createElement("strong");
+            eventType.textContent = alert.eventType;
+            header.append(badge, eventType);
+
+            const reason = document.createElement("strong");
+            reason.textContent = alert.reasonCode;
+            const meta = document.createElement("div");
+            meta.className = "security-alert-meta";
+            appendAlertMeta(meta, "Operasyon", alert.operation);
+            appendAlertMeta(meta, "Olay sayısı", String(alert.eventCount));
+            appendAlertMeta(meta, "İlk görülme", formatTimestamp(alert.firstSeenAt));
+            appendAlertMeta(meta, "Son görülme", formatTimestamp(alert.lastSeenAt));
+            appendAlertMeta(meta, "Korelasyon", alert.correlationId);
+            if (alert.actorId) appendAlertMeta(meta, "Actor", alert.actorId);
+            if (alert.source) appendAlertMeta(meta, "Kaynak", alert.source);
+
+            card.append(header, reason, meta);
+            container.append(card);
+        }
+    }
+
+    async function loadTenantSecurityAlerts(tenantId) {
+        const requestVersion = ++state.tenantAlertRequestVersion;
+        elements.tenantSecurityAlerts.replaceChildren();
+        setMessage(
+            elements.tenantSecurityAlertsMessage,
+            "Tenant güvenlik uyarıları yükleniyor..."
+        );
+
+        try {
+            const response = await apiRequest(
+                `/api/platform/tenants/${encodeURIComponent(tenantId)}/security-alerts?limit=20`
+            );
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.tenantAlertRequestVersion) return;
+            renderSecurityAlertList(
+                elements.tenantSecurityAlerts,
+                elements.tenantSecurityAlertsMessage,
+                response?.alerts,
+                "Bu tenant için güvenlik uyarısı yok."
+            );
+        } catch {
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.tenantAlertRequestVersion) return;
+            elements.tenantSecurityAlerts.replaceChildren();
+            setMessage(
+                elements.tenantSecurityAlertsMessage,
+                "Güvenlik uyarıları yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
+    async function loadPlatformSecurityAlerts() {
+        const requestVersion = ++state.platformAlertRequestVersion;
+        elements.platformSecurityAlerts.replaceChildren();
+        setMessage(
+            elements.platformSecurityAlertsMessage,
+            "Platform güvenlik uyarıları yükleniyor..."
+        );
+
+        try {
+            const response = await apiRequest("/api/platform/security-alerts?limit=20");
+            if (requestVersion !== state.platformAlertRequestVersion) return;
+            renderSecurityAlertList(
+                elements.platformSecurityAlerts,
+                elements.platformSecurityAlertsMessage,
+                response?.alerts,
+                "Platform güvenlik uyarısı yok."
+            );
+        } catch {
+            if (requestVersion !== state.platformAlertRequestVersion) return;
+            elements.platformSecurityAlerts.replaceChildren();
+            setMessage(
+                elements.platformSecurityAlertsMessage,
+                "Güvenlik uyarıları yüklenemedi.",
+                "error"
+            );
+        }
     }
 
     function renderOverview(overview) {
@@ -252,6 +417,9 @@
         elements.statusField.classList.add("hidden");
         elements.statusBadge.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.securityAlertsPanel.classList.add("hidden");
+        state.tenantAlertRequestVersion += 1;
+        state.platformAlertRequestVersion += 1;
         renderTenantList();
         elements.tenantId.focus();
     }
@@ -274,6 +442,7 @@
         elements.statusBadge.classList.remove("hidden");
         elements.statusBadge.textContent = tenant.status || "provisioning";
         elements.operationsPanel.classList.remove("hidden");
+        elements.securityAlertsPanel.classList.remove("hidden");
 
         const profile = tenant.profile || {};
         elements.brandName.value = profile.brandName || "";
@@ -290,6 +459,8 @@
         setMessage(elements.formMessage);
         renderTenantList();
         loadOverview(tenant.tenantId);
+        loadTenantSecurityAlerts(tenant.tenantId);
+        loadPlatformSecurityAlerts();
     }
 
     function showEmpty() {
@@ -297,6 +468,9 @@
         state.selectedTenantId = null;
         elements.tenantForm.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.securityAlertsPanel.classList.add("hidden");
+        state.tenantAlertRequestVersion += 1;
+        state.platformAlertRequestVersion += 1;
         elements.emptyState.classList.remove("hidden");
         renderTenantList();
     }

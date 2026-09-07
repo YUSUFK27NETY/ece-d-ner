@@ -102,6 +102,8 @@ Phase 8 step-up denial central alert contract'ı için `PHASE8-PACKAGE6B2B2-STEP
 
 Phase 8 read-only Security Alerts API kontratı için `PHASE8-PACKAGE6B3A-SECURITY-ALERT-API.md` dosyasına bak.
 
+Phase 8 read-only Platform Admin Security Alerts UI için `PHASE8-PACKAGE6B3B-SECURITY-ALERT-UI.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

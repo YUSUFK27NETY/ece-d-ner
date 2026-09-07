@@ -204,6 +204,22 @@
                         <p id="operations-message" class="message" role="status"></p>
                     </fieldset>
 
+                    <fieldset id="security-alerts-panel" class="hidden">
+                        <legend>Güvenlik Uyarıları</legend>
+                        <div class="security-alert-sections">
+                            <section aria-labelledby="tenant-security-alerts-title">
+                                <h3 id="tenant-security-alerts-title">Seçili Tenant</h3>
+                                <p id="tenant-security-alerts-message" class="message" role="status"></p>
+                                <div id="tenant-security-alerts" class="security-alert-list"></div>
+                            </section>
+                            <section aria-labelledby="platform-security-alerts-title">
+                                <h3 id="platform-security-alerts-title">Platform</h3>
+                                <p id="platform-security-alerts-message" class="message" role="status"></p>
+                                <div id="platform-security-alerts" class="security-alert-list"></div>
+                            </section>
+                        </div>
+                    </fieldset>
+
                     <div class="form-actions">
                         <button id="cancel-button" type="button" class="secondary">Vazgeç</button>
                         <button id="save-button" type="submit" class="primary">Kaydet</button>
