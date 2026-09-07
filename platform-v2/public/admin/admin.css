@@ -82,6 +82,15 @@ legend { padding: 0 8px; color: #93c5fd; font-weight: 800; }
 .severity-high { color: #fdba74; background: #431407; border-color: #c2410c; }
 .severity-critical { color: #fecaca; background: #450a0a; border-color: #b91c1c; }
 .severity-unknown { color: #cbd5e1; background: #1e293b; border-color: #475569; }
+.security-posture-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.security-posture-card { align-content: start; }
+.posture-state { justify-self: start; border-radius: 999px; padding: 4px 8px; font-size: .7rem; font-weight: 850; border: 1px solid transparent; }
+.posture-state-active, .posture-status-healthy { color: #bbf7d0; background: #052e16; border-color: #15803d; }
+.posture-state-contract, .posture-status-partial { color: #bfdbfe; background: #172554; border-color: #1d4ed8; }
+.posture-state-not-wired { color: #fde68a; background: #422006; border-color: #a16207; }
+.posture-state-external { color: #ddd6fe; background: #2e1065; border-color: #7e22ce; }
+.posture-state-unavailable, .posture-status-unknown { color: #cbd5e1; background: #1e293b; border-color: #475569; }
+.posture-status-degraded { color: #fecaca; background: #450a0a; border-color: #b91c1c; }
 .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
 .badge { border-radius: 999px; padding: 6px 10px; font-size: .76rem; font-weight: 800; background: #172554; color: #bfdbfe; border: 1px solid #1d4ed8; }
 .message { min-height: 1.2em; margin: 0; color: #93c5fd; }
@@ -98,7 +107,7 @@ legend { padding: 0 8px; color: #93c5fd; font-weight: 800; }
     .topbar { align-items: flex-start; padding: 16px; }
     .top-actions { justify-content: flex-start; }
     .layout { padding: 12px; gap: 12px; }
-    .grid.two, .feature-grid, .operations-grid, .security-alert-sections { grid-template-columns: 1fr; }
+    .grid.two, .feature-grid, .operations-grid, .security-alert-sections, .security-posture-grid { grid-template-columns: 1fr; }
     .span-two { grid-column: auto; }
     .form-actions { flex-direction: column-reverse; }
     .form-actions button { width: 100%; }
