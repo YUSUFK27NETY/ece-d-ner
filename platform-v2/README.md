@@ -104,6 +104,8 @@ Phase 8 read-only Security Alerts API kontratı için `PHASE8-PACKAGE6B3A-SECURI
 
 Phase 8 read-only Platform Admin Security Alerts UI için `PHASE8-PACKAGE6B3B-SECURITY-ALERT-UI.md` dosyasına bak.
 
+Phase 8 provider-neutral, read-only Platform Admin Security Posture backend/read model kontratı için `PHASE8-PACKAGE7A-SECURITY-POSTURE.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

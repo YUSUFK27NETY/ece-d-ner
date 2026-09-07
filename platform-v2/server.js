@@ -22,6 +22,7 @@ const {
     createFirestoreSecurityAlertSink
 } = require("./src/firestore/firestore-security-alert-sink");
 const { createSecurityAlertService } = require("./src/security/security-alert-service");
+const { createSecurityPostureService } = require("./src/security/security-posture-service");
 const {
     createSecurityOperationsBridge
 } = require("./src/security/security-operations-bridge");
@@ -113,6 +114,10 @@ function startPlatformServer() {
         config: guardrailsConfig.security.alerts,
         securityAlertSink: securityAlertReader
     });
+    const securityPostureService = createSecurityPostureService({
+        securityAlertReader,
+        stepUpConfig: guardrailsConfig.security.stepUp
+    });
     const entitlementService = createEntitlementService({
         config: guardrailsConfig,
         securitySignals
@@ -168,6 +173,7 @@ function startPlatformServer() {
         abuseMonitor,
         securityOperations,
         securityAlertReader,
+        securityPostureService,
         tenantOperations,
         finOpsService
     });

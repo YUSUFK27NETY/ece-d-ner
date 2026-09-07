@@ -8,6 +8,7 @@ const { createTenantManagementService } = require("../tenant/tenant-management-s
 const { requireTenantId } = require("../tenant/tenant-id");
 const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
 const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
+const { assertSecurityPosture } = require("../security/security-posture-service");
 
 const ADMIN_CSP = [
     "default-src 'self'",
@@ -143,6 +144,7 @@ function createPlatformApp({
     abuseMonitor = null,
     securityOperations = null,
     securityAlertReader = null,
+    securityPostureService = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -162,6 +164,10 @@ function createPlatformApp({
     }
     if (securityAlertReader && typeof securityAlertReader.list !== "function") {
         throw new TypeError("Security alert reader geçersiz.");
+    }
+    if (securityPostureService &&
+        typeof securityPostureService.getPlatformPosture !== "function") {
+        throw new TypeError("Security posture service geçersiz.");
     }
 
     const requirePlatformAdmin = createRequirePlatformAdmin({
@@ -328,6 +334,29 @@ function createPlatformApp({
                 return res.json({ success: true, alerts });
             } catch {
                 return sendSecurityAlertReadError(res);
+            }
+        });
+    }
+
+    if (securityPostureService) {
+        app.get("/api/platform/security-posture", async (req, res) => {
+            try {
+                const posture = assertSecurityPosture(
+                    await securityPostureService.getPlatformPosture({
+                        context: {
+                            role: req.platformActor.role,
+                            actorId: req.platformActor.uid
+                        }
+                    })
+                );
+
+                return res.json({ success: true, posture });
+            } catch {
+                console.error("Platform security posture okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Güvenlik durumu alınamadı."
+                });
             }
         });
     }
