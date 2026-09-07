@@ -1,5 +1,22 @@
+const issuedAuthAnomalyObservations = new WeakSet();
+
+function issueAuthAnomalyObservation({ requestId, occurredAt }) {
+    const observation = Object.freeze({ requestId, occurredAt });
+    issuedAuthAnomalyObservations.add(observation);
+    return observation;
+}
+
+function consumeAuthAnomalyObservation(observation) {
+    if (!issuedAuthAnomalyObservations.has(observation)) {
+        throw new TypeError("Auth anomaly issued observation gerekli.");
+    }
+    issuedAuthAnomalyObservations.delete(observation);
+    return observation;
+}
+
 function createAbuseMonitor({
     securitySignals,
+    securityOperations = null,
     windowMs,
     threshold,
     now = () => Date.now()
@@ -15,6 +32,9 @@ function createAbuseMonitor({
     }
     if (typeof now !== "function") {
         throw new TypeError("Abuse monitor clock geçersiz.");
+    }
+    if (securityOperations && typeof securityOperations.recordAuthAnomaly !== "function") {
+        throw new TypeError("Abuse monitor security operations bridge geçersiz.");
     }
 
     const failures = new Map();
@@ -46,7 +66,7 @@ function createAbuseMonitor({
                 return null;
             }
 
-            return securitySignals.emit({
+            const signalInput = {
                 tenantId,
                 type: safeStatus === 401 ? "repeated_unauthorized" : "forbidden",
                 severity: "warning",
@@ -58,7 +78,30 @@ function createAbuseMonitor({
                     threshold
                 },
                 now: new Date(timestamp)
-            });
+            };
+            const signalPromise = Promise.resolve().then(() =>
+                securitySignals.emit(signalInput)
+            );
+            const shouldRecordCentralAuthAnomaly = securityOperations &&
+                tenantId === null && operation === "platform.admin.auth";
+            const centralPromise = shouldRecordCentralAuthAnomaly
+                ? Promise.resolve().then(() => securityOperations.recordAuthAnomaly(
+                    issueAuthAnomalyObservation({
+                        requestId,
+                        occurredAt: new Date(timestamp).toISOString()
+                    })
+                ))
+                : Promise.resolve(null);
+            const [signalResult, centralResult] = await Promise.allSettled([
+                signalPromise,
+                centralPromise
+            ]);
+
+            if (centralResult.status === "rejected") {
+                console.error("Central auth anomaly security alert kaydı başarısız.");
+            }
+            if (signalResult.status === "rejected") throw signalResult.reason;
+            return signalResult.value;
         },
 
         async recordTenantBoundaryViolation({
@@ -82,5 +125,6 @@ function createAbuseMonitor({
 }
 
 module.exports = {
-    createAbuseMonitor
+    createAbuseMonitor,
+    consumeAuthAnomalyObservation
 };

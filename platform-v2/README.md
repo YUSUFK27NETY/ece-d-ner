@@ -110,6 +110,8 @@ Phase 8 read-only Platform Admin Security Posture UI için `PHASE8-PACKAGE7B-SEC
 
 Phase 8 threat model, trust boundaries/assets/entry points, pentest readiness checklist ve security-impact review template'i için `PHASE8-THREAT-MODEL-SECURITY-REVIEW.md` dosyasına bak.
 
+Phase 8 operational security event coverage ve runtime/contract-only ayrımı için `PHASE8-FINAL-GAP1-OPERATIONAL-SECURITY-EVENTS.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

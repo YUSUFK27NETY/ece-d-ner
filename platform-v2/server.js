@@ -103,16 +103,17 @@ function startPlatformServer() {
     const securitySignals = createSecuritySignalService({
         store: createFirestoreSecuritySignalStore({ db })
     });
-    const abuseMonitor = createAbuseMonitor({
-        securitySignals,
-        windowMs: guardrailsConfig.security.authFailureWindowMs,
-        threshold: guardrailsConfig.security.authFailureThreshold
-    });
     const securityAlertReader = createFirestoreSecurityAlertSink({ db });
     const securityOperations = createRuntimeSecurityOperations({
         db,
         config: guardrailsConfig.security.alerts,
         securityAlertSink: securityAlertReader
+    });
+    const abuseMonitor = createAbuseMonitor({
+        securitySignals,
+        securityOperations,
+        windowMs: guardrailsConfig.security.authFailureWindowMs,
+        threshold: guardrailsConfig.security.authFailureThreshold
     });
     const securityPostureService = createSecurityPostureService({
         securityAlertReader,

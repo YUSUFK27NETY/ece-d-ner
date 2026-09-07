@@ -1,5 +1,8 @@
 const {
+    securityEventFromAuthAnomaly,
     securityEventFromAuthFailure,
+    securityEventFromDestructiveOperationAttempt,
+    securityEventFromPrivilegeChange,
     securityEventFromTenantBoundary,
     securityEventFromStepUpDenial
 } = require("./security-alert-adapters");
@@ -12,6 +15,10 @@ const TENANT_BOUNDARY_INPUT_FIELDS = new Set([
 ]);
 const TENANT_BOUNDARY_CONTEXT_FIELDS = new Set(["tenantId", "actorId"]);
 const STEP_UP_DENIAL_INPUT_FIELDS = new Set(["result", "tenantId", "requestId"]);
+const PRIVILEGE_CHANGE_INPUT_FIELDS = new Set(["context", "operation", "requestId"]);
+const PRIVILEGE_CHANGE_CONTEXT_FIELDS = new Set(["actorId"]);
+const DESTRUCTIVE_OPERATION_INPUT_FIELDS = new Set(["context", "operation", "requestId"]);
+const DESTRUCTIVE_OPERATION_CONTEXT_FIELDS = new Set(["tenantId", "actorId"]);
 
 function assertAllowedFields(input, allowed, label) {
     for (const key of Reflect.ownKeys(input)) {
@@ -91,12 +98,33 @@ function assertStepUpDenialInput(input) {
     }
 }
 
+function assertOperationInput(input, inputFields, contextFields, label) {
+    assertFlatSecurityInput(input, "context");
+    assertAllowedFields(input, inputFields, label);
+    if (!input.context || typeof input.context !== "object") {
+        throw new TypeError(`${label} trusted context gerekli.`);
+    }
+    assertAllowedFields(input.context, contextFields, `${label} trusted context`);
+    if (!Object.hasOwn(input, "operation") || typeof input.operation !== "string") {
+        throw new TypeError(`${label} operation gerekli.`);
+    }
+    if (!Object.hasOwn(input, "requestId") || input.requestId === null ||
+        input.requestId === undefined) {
+        throw new TypeError(`${label} requestId gerekli.`);
+    }
+}
+
 function createSecurityOperationsBridge({ alertService }) {
     if (!alertService || typeof alertService.record !== "function") {
         throw new TypeError("Central security alert service gerekli.");
     }
 
     return Object.freeze({
+        async recordAuthAnomaly(observation) {
+            const event = securityEventFromAuthAnomaly(observation);
+            return alertService.record(event);
+        },
+
         async recordAuthFailure(input) {
             assertAuthFailureInput(input);
             const event = securityEventFromAuthFailure({
@@ -129,6 +157,41 @@ function createSecurityOperationsBridge({ alertService }) {
             assertStepUpDenialInput(input);
             const event = securityEventFromStepUpDenial(input.result, {
                 tenantId: input.tenantId ?? null,
+                requestId: input.requestId
+            });
+
+            return alertService.record(event);
+        },
+
+        async recordPrivilegeChange(input) {
+            assertOperationInput(
+                input,
+                PRIVILEGE_CHANGE_INPUT_FIELDS,
+                PRIVILEGE_CHANGE_CONTEXT_FIELDS,
+                "Privilege change"
+            );
+            const event = securityEventFromPrivilegeChange({
+                context: { actorId: input.context.actorId },
+                operation: input.operation,
+                requestId: input.requestId
+            });
+
+            return alertService.record(event);
+        },
+
+        async recordDestructiveOperationAttempt(input) {
+            assertOperationInput(
+                input,
+                DESTRUCTIVE_OPERATION_INPUT_FIELDS,
+                DESTRUCTIVE_OPERATION_CONTEXT_FIELDS,
+                "Destructive operation"
+            );
+            const event = securityEventFromDestructiveOperationAttempt({
+                context: {
+                    tenantId: input.context.tenantId ?? null,
+                    actorId: input.context.actorId
+                },
+                operation: input.operation,
                 requestId: input.requestId
             });
 
