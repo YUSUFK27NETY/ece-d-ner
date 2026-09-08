@@ -108,6 +108,10 @@ function createEntitlementService({ config, securitySignals = null }) {
             return evaluateTenantEntitlement({ ...input, config });
         },
 
+        resolvePolicy({ tenant }) {
+            return resolveTenantPolicy({ tenant, config });
+        },
+
         assertFeatureAccess({
             context,
             tenant,

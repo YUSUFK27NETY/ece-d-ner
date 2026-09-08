@@ -227,6 +227,46 @@
                         <div id="customer-readiness-cards" class="customer-readiness-grid"></div>
                     </fieldset>
 
+                    <fieldset id="plan-preview-panel" class="hidden">
+                        <legend>Plan Önizleme</legend>
+                        <p id="plan-preview-message" class="message" role="status"></p>
+                        <div class="plan-preview-controls">
+                            <label>
+                                Hedef plan
+                                <select id="plan-preview-target" disabled>
+                                    <option value="">Plan kataloğu yükleniyor...</option>
+                                </select>
+                            </label>
+                            <p class="muted">Salt okunur teknik karşılaştırma. Mevcut Kaydet akışından ayrıdır.</p>
+                        </div>
+                        <div class="plan-preview-summary">
+                            <article class="metric-card">
+                                <span>Mevcut plan</span>
+                                <strong id="plan-preview-current">—</strong>
+                                <small id="plan-preview-current-policy">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Hedef plan</span>
+                                <strong id="plan-preview-requested">—</strong>
+                                <small>Config kataloğundan exact seçim</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Otomatik uygulama</span>
+                                <strong id="plan-preview-automatic-apply">—</strong>
+                                <small>Tenant planı değiştirilmez</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Feature özeti</span>
+                                <strong id="plan-preview-feature-summary">—</strong>
+                                <small>Effective erişim değişimi</small>
+                            </article>
+                        </div>
+                        <h3 class="plan-preview-heading">Feature değişiklikleri</h3>
+                        <div id="plan-preview-features" class="plan-preview-grid"></div>
+                        <h3 class="plan-preview-heading">Limit politikası</h3>
+                        <div id="plan-preview-limits" class="plan-preview-grid"></div>
+                    </fieldset>
+
                     <fieldset id="security-alerts-panel" class="hidden">
                         <legend>Güvenlik Uyarıları</legend>
                         <div class="security-alert-sections">

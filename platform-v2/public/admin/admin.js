@@ -76,6 +76,16 @@
         customerReadinessLifecycle: document.getElementById("customer-readiness-lifecycle"),
         customerReadinessEvaluatedAt: document.getElementById("customer-readiness-evaluated-at"),
         customerReadinessCards: document.getElementById("customer-readiness-cards"),
+        planPreviewPanel: document.getElementById("plan-preview-panel"),
+        planPreviewMessage: document.getElementById("plan-preview-message"),
+        planPreviewTarget: document.getElementById("plan-preview-target"),
+        planPreviewCurrent: document.getElementById("plan-preview-current"),
+        planPreviewCurrentPolicy: document.getElementById("plan-preview-current-policy"),
+        planPreviewRequested: document.getElementById("plan-preview-requested"),
+        planPreviewAutomaticApply: document.getElementById("plan-preview-automatic-apply"),
+        planPreviewFeatureSummary: document.getElementById("plan-preview-feature-summary"),
+        planPreviewFeatures: document.getElementById("plan-preview-features"),
+        planPreviewLimits: document.getElementById("plan-preview-limits"),
         securityAlertsPanel: document.getElementById("security-alerts-panel"),
         tenantSecurityAlerts: document.getElementById("tenant-security-alerts"),
         tenantSecurityAlertsMessage: document.getElementById("tenant-security-alerts-message"),
@@ -95,7 +105,10 @@
         tenantAlertRequestVersion: 0,
         platformAlertRequestVersion: 0,
         securityPostureRequestVersion: 0,
-        customerReadinessRequestVersion: 0
+        customerReadinessRequestVersion: 0,
+        planCatalogRequestVersion: 0,
+        planPreviewRequestVersion: 0,
+        configuredPlanIds: []
     };
 
     const ALERT_SEVERITY_PRESENTATION = Object.freeze({
@@ -182,6 +195,27 @@
             required: false,
             codes: Object.freeze(["DOMAIN_NOT_CONFIGURED", "DOMAIN_PENDING", "DOMAIN_VERIFICATION_FAILED", "DOMAIN_UNAVAILABLE"])
         })
+    });
+    const PLAN_PREVIEW_FEATURES = Object.freeze({
+        catalog: "Katalog",
+        orders: "Sipariş",
+        appointments: "Randevu",
+        reservations: "Rezervasyon",
+        whatsapp: "WhatsApp",
+        inventory: "Stok",
+        quotes: "Teklif",
+        fleet: "Filo",
+        gallery: "Galeri"
+    });
+    const PLAN_PREVIEW_CHANGE_PRESENTATION = Object.freeze({
+        gained: Object.freeze({ label: "Kazanım", className: "plan-change-gained" }),
+        lost: Object.freeze({ label: "Kayıp", className: "plan-change-lost" }),
+        unchanged: Object.freeze({ label: "Değişmedi", className: "plan-change-unchanged" })
+    });
+    const PLAN_PREVIEW_LIMITS = Object.freeze({
+        softRequestLimit: "Soft istek limiti",
+        warningThreshold: "Uyarı eşiği",
+        dedicatedReviewThreshold: "Dedicated review eşiği"
     });
 
     function setMessage(element, text = "", type = "") {
@@ -599,6 +633,440 @@
         }
     }
 
+    function isPlainPlanPreviewRecord(value) {
+        return Boolean(value) && typeof value === "object" &&
+            !Array.isArray(value) &&
+            Object.getPrototypeOf(value) === Object.prototype;
+    }
+
+    function readPlanPreviewValue(record, key) {
+        if (!isPlainPlanPreviewRecord(record)) return undefined;
+        const descriptor = Object.getOwnPropertyDescriptor(record, key);
+        return descriptor && Object.hasOwn(descriptor, "value")
+            ? descriptor.value
+            : undefined;
+    }
+
+    function projectPlanId(value) {
+        return typeof value === "string" &&
+            /^[a-z0-9][a-z0-9_-]{1,63}$/.test(value)
+            ? value
+            : null;
+    }
+
+    function projectPlanCatalogForDisplay(catalog) {
+        if (!isPlainPlanPreviewRecord(catalog) ||
+            readPlanPreviewValue(catalog, "schemaVersion") !== 1) {
+            return null;
+        }
+
+        const rawPlanIds = readPlanPreviewValue(catalog, "planIds");
+        if (!Array.isArray(rawPlanIds) ||
+            Object.getPrototypeOf(rawPlanIds) !== Array.prototype ||
+            rawPlanIds.length === 0) {
+            return null;
+        }
+
+        const planIds = [];
+        for (const rawPlanId of rawPlanIds) {
+            const planId = projectPlanId(rawPlanId);
+            if (!planId || planIds.includes(planId)) return null;
+            planIds.push(planId);
+        }
+        if (planIds.join("\n") !== planIds.slice().sort().join("\n")) {
+            return null;
+        }
+
+        return Object.freeze({ planIds: Object.freeze(planIds) });
+    }
+
+    function projectPlanPreviewFeatureForDisplay(value) {
+        if (!isPlainPlanPreviewRecord(value)) return null;
+
+        const feature = readPlanPreviewValue(value, "feature");
+        const tenantEnabled = readPlanPreviewValue(value, "tenantEnabled");
+        const currentPlanAllowed = readPlanPreviewValue(
+            value,
+            "currentPlanAllowed"
+        );
+        const targetPlanAllowed = readPlanPreviewValue(
+            value,
+            "targetPlanAllowed"
+        );
+        const currentEffective = readPlanPreviewValue(
+            value,
+            "currentEffective"
+        );
+        const targetEffective = readPlanPreviewValue(value, "targetEffective");
+        const change = readPlanPreviewValue(value, "change");
+        if (!Object.hasOwn(PLAN_PREVIEW_FEATURES, feature) ||
+            [
+                tenantEnabled,
+                currentPlanAllowed,
+                targetPlanAllowed,
+                currentEffective,
+                targetEffective
+            ].some(item => typeof item !== "boolean") ||
+            currentEffective !== (tenantEnabled && currentPlanAllowed) ||
+            targetEffective !== (tenantEnabled && targetPlanAllowed) ||
+            !Object.hasOwn(PLAN_PREVIEW_CHANGE_PRESENTATION, change)) {
+            return null;
+        }
+
+        const expectedChange = !currentEffective && targetEffective
+            ? "gained"
+            : currentEffective && !targetEffective ? "lost" : "unchanged";
+        if (change !== expectedChange) return null;
+
+        return Object.freeze({
+            feature,
+            tenantEnabled,
+            currentPlanAllowed,
+            targetPlanAllowed,
+            currentEffective,
+            targetEffective,
+            presentation: PLAN_PREVIEW_CHANGE_PRESENTATION[change]
+        });
+    }
+
+    function projectPlanPreviewLimitValue(key, value) {
+        if (key === "softRequestLimit") {
+            return value === null ||
+                (Number.isSafeInteger(value) && value >= 1)
+                ? value
+                : undefined;
+        }
+        if (key === "warningThreshold") {
+            return Number.isFinite(value) && value > 0 && value <= 1
+                ? value
+                : undefined;
+        }
+        if (key === "dedicatedReviewThreshold") {
+            return Number.isFinite(value) && value >= 1 && value <= 100
+                ? value
+                : undefined;
+        }
+        return undefined;
+    }
+
+    function derivePlanPreviewLimitChange(current, target) {
+        const currentValue = current === null
+            ? Number.POSITIVE_INFINITY
+            : current;
+        const targetValue = target === null
+            ? Number.POSITIVE_INFINITY
+            : target;
+        if (targetValue > currentValue) return "increased";
+        if (targetValue < currentValue) return "decreased";
+        return "unchanged";
+    }
+
+    function projectPlanPreviewLimitForDisplay(key, value) {
+        if (!isPlainPlanPreviewRecord(value)) return null;
+        const current = projectPlanPreviewLimitValue(
+            key,
+            readPlanPreviewValue(value, "current")
+        );
+        const target = projectPlanPreviewLimitValue(
+            key,
+            readPlanPreviewValue(value, "target")
+        );
+        const change = readPlanPreviewValue(value, "change");
+        if (current === undefined || target === undefined ||
+            !["increased", "decreased", "unchanged"].includes(change) ||
+            change !== derivePlanPreviewLimitChange(current, target)) {
+            return null;
+        }
+
+        return Object.freeze({ current, target, change });
+    }
+
+    function projectCommercialPlanPreviewForDisplay(
+        preview,
+        selectedTenantId,
+        selectedTargetPlan,
+        configuredPlanIds
+    ) {
+        if (!isPlainPlanPreviewRecord(preview) ||
+            readPlanPreviewValue(preview, "schemaVersion") !== 1 ||
+            readPlanPreviewValue(preview, "tenantId") !== selectedTenantId) {
+            return null;
+        }
+
+        const currentPlan = projectPlanId(
+            readPlanPreviewValue(preview, "currentPlan")
+        );
+        const targetPlan = projectPlanId(
+            readPlanPreviewValue(preview, "targetPlan")
+        );
+        const currentPlanConfigured = readPlanPreviewValue(
+            preview,
+            "currentPlanConfigured"
+        );
+        const currentUsesDefaultPolicyFallback = readPlanPreviewValue(
+            preview,
+            "currentUsesDefaultPolicyFallback"
+        );
+        const automaticApply = readPlanPreviewValue(preview, "automaticApply");
+        const rawFeatures = readPlanPreviewValue(preview, "features");
+        const rawLimits = readPlanPreviewValue(preview, "limits");
+        if (!currentPlan || targetPlan !== selectedTargetPlan ||
+            !configuredPlanIds.includes(targetPlan) ||
+            typeof currentPlanConfigured !== "boolean" ||
+            typeof currentUsesDefaultPolicyFallback !== "boolean" ||
+            automaticApply !== false ||
+            currentPlanConfigured !== configuredPlanIds.includes(currentPlan) ||
+            currentUsesDefaultPolicyFallback === currentPlanConfigured ||
+            !Array.isArray(rawFeatures) ||
+            rawFeatures.length !== Object.keys(PLAN_PREVIEW_FEATURES).length ||
+            !isPlainPlanPreviewRecord(rawLimits)) {
+            return null;
+        }
+
+        const features = {};
+        for (const rawFeature of rawFeatures) {
+            const item = projectPlanPreviewFeatureForDisplay(rawFeature);
+            if (!item || Object.hasOwn(features, item.feature)) return null;
+            features[item.feature] = item;
+        }
+        if (Object.keys(features).length !==
+            Object.keys(PLAN_PREVIEW_FEATURES).length) {
+            return null;
+        }
+
+        const limits = {};
+        for (const key of Object.keys(PLAN_PREVIEW_LIMITS)) {
+            const item = projectPlanPreviewLimitForDisplay(
+                key,
+                readPlanPreviewValue(rawLimits, key)
+            );
+            if (!item) return null;
+            limits[key] = item;
+        }
+
+        return Object.freeze({
+            currentPlan,
+            targetPlan,
+            currentPlanConfigured,
+            currentUsesDefaultPolicyFallback,
+            automaticApply,
+            features: Object.freeze(features),
+            limits: Object.freeze(limits)
+        });
+    }
+
+    function resetCommercialPlanPreview() {
+        elements.planPreviewCurrent.textContent = "—";
+        elements.planPreviewCurrentPolicy.textContent = "—";
+        elements.planPreviewRequested.textContent = "—";
+        elements.planPreviewAutomaticApply.textContent = "—";
+        elements.planPreviewFeatureSummary.textContent = "—";
+        elements.planPreviewFeatures.replaceChildren();
+        elements.planPreviewLimits.replaceChildren();
+    }
+
+    function resetPlanPreviewTarget() {
+        elements.planPreviewTarget.replaceChildren();
+        const option = document.createElement("option");
+        option.value = "";
+        option.textContent = "Plan kataloğu kullanılamıyor";
+        elements.planPreviewTarget.append(option);
+        elements.planPreviewTarget["dis" + "abled"] = true;
+    }
+
+    function populatePlanPreviewTarget(planIds, currentPlan) {
+        elements.planPreviewTarget.replaceChildren();
+        for (const planId of planIds) {
+            const option = document.createElement("option");
+            option.value = planId;
+            option.textContent = planId;
+            elements.planPreviewTarget.append(option);
+        }
+        elements.planPreviewTarget.value = planIds.includes(currentPlan)
+            ? currentPlan
+            : planIds[0];
+        elements.planPreviewTarget["dis" + "abled"] = false;
+        return elements.planPreviewTarget.value;
+    }
+
+    function appendPlanPreviewFeatureCard(title, item) {
+        const article = document.createElement("article");
+        article.className = "metric-card plan-preview-card";
+        const heading = document.createElement("span");
+        heading.textContent = title;
+        const change = document.createElement("span");
+        change.className = "plan-change";
+        change.classList.add(item.presentation.className);
+        change.textContent = item.presentation.label;
+        const effective = document.createElement("strong");
+        effective.textContent =
+            `Effective: ${item.currentEffective ? "açık" : "kapalı"} → ` +
+            `${item.targetEffective ? "açık" : "kapalı"}`;
+        const detail = document.createElement("small");
+        detail.textContent =
+            `Tenant flag: ${item.tenantEnabled ? "açık" : "kapalı"} · ` +
+            `Plan izni: ${item.currentPlanAllowed ? "var" : "yok"} → ` +
+            `${item.targetPlanAllowed ? "var" : "yok"}`;
+        article.append(heading, change, effective, detail);
+        elements.planPreviewFeatures.append(article);
+    }
+
+    function formatPlanPreviewLimit(key, value) {
+        if (value === null) return "Sınırsız";
+        return key === "softRequestLimit"
+            ? formatNumber(value, 0)
+            : formatNumber(value, 2);
+    }
+
+    function appendPlanPreviewLimitCard(key, item) {
+        const article = document.createElement("article");
+        article.className = "metric-card plan-preview-card";
+        const heading = document.createElement("span");
+        heading.textContent = PLAN_PREVIEW_LIMITS[key];
+        const change = document.createElement("span");
+        change.className = "plan-change";
+        change.classList.add(
+            item.change === "unchanged"
+                ? "plan-change-unchanged"
+                : item.change === "increased"
+                    ? "plan-change-gained"
+                    : "plan-change-lost"
+        );
+        change.textContent = item.change === "unchanged"
+            ? "Değişmedi"
+            : item.change === "increased" ? "Arttı" : "Azaldı";
+        const values = document.createElement("strong");
+        values.textContent =
+            `${formatPlanPreviewLimit(key, item.current)} → ` +
+            formatPlanPreviewLimit(key, item.target);
+        const detail = document.createElement("small");
+        detail.textContent = "Teknik policy karşılaştırması";
+        article.append(heading, change, values, detail);
+        elements.planPreviewLimits.append(article);
+    }
+
+    function renderCommercialPlanPreview(preview, tenantId, targetPlan) {
+        const display = projectCommercialPlanPreviewForDisplay(
+            preview,
+            tenantId,
+            targetPlan,
+            state.configuredPlanIds
+        );
+        resetCommercialPlanPreview();
+        if (!display) return false;
+
+        elements.planPreviewCurrent.textContent = display.currentPlan;
+        elements.planPreviewCurrentPolicy.textContent =
+            display.currentUsesDefaultPolicyFallback
+                ? "Yapılandırılmamış · default-policy fallback"
+                : "Config planı";
+        elements.planPreviewRequested.textContent = display.targetPlan;
+        elements.planPreviewAutomaticApply.textContent = "Hayır";
+
+        const counts = { gained: 0, lost: 0, unchanged: 0 };
+        for (const feature of Object.keys(PLAN_PREVIEW_FEATURES)) {
+            const item = display.features[feature];
+            const change = item.presentation ===
+                PLAN_PREVIEW_CHANGE_PRESENTATION.gained
+                ? "gained"
+                : item.presentation === PLAN_PREVIEW_CHANGE_PRESENTATION.lost
+                    ? "lost"
+                    : "unchanged";
+            counts[change] += 1;
+            appendPlanPreviewFeatureCard(
+                PLAN_PREVIEW_FEATURES[feature],
+                item
+            );
+        }
+        elements.planPreviewFeatureSummary.textContent =
+            `${counts.gained} kazanım · ${counts.lost} kayıp · ` +
+            `${counts.unchanged} değişmedi`;
+        for (const key of Object.keys(PLAN_PREVIEW_LIMITS)) {
+            appendPlanPreviewLimitCard(key, display.limits[key]);
+        }
+        return true;
+    }
+
+    async function loadCommercialPlanPreview(tenantId, targetPlan) {
+        const requestVersion = ++state.planPreviewRequestVersion;
+        resetCommercialPlanPreview();
+        setMessage(elements.planPreviewMessage, "Plan önizlemesi yükleniyor...");
+
+        try {
+            const response = await apiRequest(
+                `/api/platform/tenants/${encodeURIComponent(tenantId)}/plan-preview?targetPlan=${encodeURIComponent(targetPlan)}`
+            );
+            if (state.selectedTenantId !== tenantId) return;
+            if (elements.planPreviewTarget.value !== targetPlan) return;
+            if (requestVersion !== state.planPreviewRequestVersion) return;
+            if (!renderCommercialPlanPreview(
+                response?.preview,
+                tenantId,
+                targetPlan
+            )) {
+                setMessage(
+                    elements.planPreviewMessage,
+                    "Plan önizlemesi kullanılamıyor.",
+                    "error"
+                );
+                return;
+            }
+            setMessage(elements.planPreviewMessage);
+        } catch {
+            if (state.selectedTenantId !== tenantId) return;
+            if (elements.planPreviewTarget.value !== targetPlan) return;
+            if (requestVersion !== state.planPreviewRequestVersion) return;
+            resetCommercialPlanPreview();
+            setMessage(
+                elements.planPreviewMessage,
+                "Plan önizlemesi yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
+    async function loadCommercialPlanCatalog(tenantId, currentPlan) {
+        const requestVersion = ++state.planCatalogRequestVersion;
+        state.planPreviewRequestVersion += 1;
+        state.configuredPlanIds = [];
+        resetCommercialPlanPreview();
+        resetPlanPreviewTarget();
+        setMessage(elements.planPreviewMessage, "Plan kataloğu yükleniyor...");
+
+        try {
+            const response = await apiRequest("/api/platform/plans");
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.planCatalogRequestVersion) return;
+            const catalog = projectPlanCatalogForDisplay(response?.catalog);
+            if (!catalog) {
+                setMessage(
+                    elements.planPreviewMessage,
+                    "Plan kataloğu kullanılamıyor.",
+                    "error"
+                );
+                return;
+            }
+
+            state.configuredPlanIds = catalog.planIds;
+            const targetPlan = populatePlanPreviewTarget(
+                catalog.planIds,
+                currentPlan
+            );
+            await loadCommercialPlanPreview(tenantId, targetPlan);
+        } catch {
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.planCatalogRequestVersion) return;
+            state.configuredPlanIds = [];
+            resetCommercialPlanPreview();
+            resetPlanPreviewTarget();
+            setMessage(
+                elements.planPreviewMessage,
+                "Plan kataloğu yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
     function renderOverview(overview) {
         const daily = overview.usage?.daily || {};
         const monthly = overview.usage?.monthly || {};
@@ -908,14 +1376,21 @@
         elements.statusBadge.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
         elements.customerReadinessPanel.classList.add("hidden");
+        elements.planPreviewPanel.classList.add("hidden");
         elements.securityAlertsPanel.classList.add("hidden");
         elements.securityPosturePanel.classList.add("hidden");
         state.tenantAlertRequestVersion += 1;
         state.platformAlertRequestVersion += 1;
         state.securityPostureRequestVersion += 1;
         state.customerReadinessRequestVersion += 1;
+        state.planCatalogRequestVersion += 1;
+        state.planPreviewRequestVersion += 1;
+        state.configuredPlanIds = [];
         resetCustomerReadiness();
         setMessage(elements.customerReadinessMessage);
+        resetCommercialPlanPreview();
+        resetPlanPreviewTarget();
+        setMessage(elements.planPreviewMessage);
         elements.securityPostureCards.replaceChildren();
         setMessage(elements.securityPostureMessage);
         renderTenantList();
@@ -941,6 +1416,7 @@
         elements.statusBadge.textContent = tenant.status || "provisioning";
         elements.operationsPanel.classList.remove("hidden");
         elements.customerReadinessPanel.classList.remove("hidden");
+        elements.planPreviewPanel.classList.remove("hidden");
         elements.securityAlertsPanel.classList.remove("hidden");
         elements.securityPosturePanel.classList.remove("hidden");
 
@@ -960,6 +1436,7 @@
         renderTenantList();
         loadOverview(tenant.tenantId);
         loadCustomerReadiness(tenant.tenantId);
+        loadCommercialPlanCatalog(tenant.tenantId, tenant.plan);
         loadTenantSecurityAlerts(tenant.tenantId);
         loadPlatformSecurityAlerts();
         loadSecurityPosture();
@@ -971,14 +1448,21 @@
         elements.tenantForm.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
         elements.customerReadinessPanel.classList.add("hidden");
+        elements.planPreviewPanel.classList.add("hidden");
         elements.securityAlertsPanel.classList.add("hidden");
         elements.securityPosturePanel.classList.add("hidden");
         state.tenantAlertRequestVersion += 1;
         state.platformAlertRequestVersion += 1;
         state.securityPostureRequestVersion += 1;
         state.customerReadinessRequestVersion += 1;
+        state.planCatalogRequestVersion += 1;
+        state.planPreviewRequestVersion += 1;
+        state.configuredPlanIds = [];
         resetCustomerReadiness();
         setMessage(elements.customerReadinessMessage);
+        resetCommercialPlanPreview();
+        resetPlanPreviewTarget();
+        setMessage(elements.planPreviewMessage);
         elements.securityPostureCards.replaceChildren();
         setMessage(elements.securityPostureMessage);
         elements.emptyState.classList.remove("hidden");
@@ -1176,6 +1660,14 @@
     elements.newTenantButton.addEventListener("click", showCreateForm);
     elements.cancelButton.addEventListener("click", showEmpty);
     elements.tenantSearch.addEventListener("input", renderTenantList);
+    elements.planPreviewTarget.addEventListener("change", () => {
+        const tenantId = state.selectedTenantId;
+        const targetPlan = elements.planPreviewTarget.value;
+        if (state.mode === "edit" && tenantId &&
+            state.configuredPlanIds.includes(targetPlan)) {
+            loadCommercialPlanPreview(tenantId, targetPlan);
+        }
+    });
     elements.tenantForm.addEventListener("submit", saveTenant);
 
     firebase.auth().onAuthStateChanged(async user => {

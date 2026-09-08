@@ -28,6 +28,9 @@ const {
 } = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const {
+    createCommercialPlanPreviewService
+} = require("./src/entitlements/commercial-plan-preview-service");
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
 const { createFinOpsService } = require("./src/finops/finops-service");
 const { createTenantOperationsService } = require("./src/operations/tenant-operations-service");
@@ -129,6 +132,10 @@ function startPlatformServer() {
         config: guardrailsConfig,
         securitySignals
     });
+    const commercialPlanPreviewService = createCommercialPlanPreviewService({
+        config: guardrailsConfig,
+        entitlementService
+    });
     const finOpsService = createFinOpsService({
         config: guardrailsConfig,
         costProvider: createConfigCostProvider({
@@ -188,6 +195,7 @@ function startPlatformServer() {
         securityAlertReader,
         securityPostureService,
         customerReadinessService,
+        commercialPlanPreviewService,
         tenantOperations,
         finOpsService
     });

@@ -12,6 +12,10 @@ const { assertSecurityPosture } = require("../security/security-posture-service"
 const {
     assertCustomerReadiness
 } = require("../onboarding/customer-readiness-service");
+const {
+    assertCommercialPlanCatalog,
+    assertCommercialPlanPreview
+} = require("../entitlements/commercial-plan-preview-service");
 
 const ADMIN_CSP = [
     "default-src 'self'",
@@ -149,6 +153,7 @@ function createPlatformApp({
     securityAlertReader = null,
     securityPostureService = null,
     customerReadinessService = null,
+    commercialPlanPreviewService = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -176,6 +181,11 @@ function createPlatformApp({
     if (customerReadinessService &&
         typeof customerReadinessService.evaluate !== "function") {
         throw new TypeError("Customer readiness service geçersiz.");
+    }
+    if (commercialPlanPreviewService &&
+        (typeof commercialPlanPreviewService.getCatalog !== "function" ||
+            typeof commercialPlanPreviewService.preview !== "function")) {
+        throw new TypeError("Commercial plan preview service geçersiz.");
     }
 
     const requirePlatformAdmin = createRequirePlatformAdmin({
@@ -369,6 +379,28 @@ function createPlatformApp({
         });
     }
 
+    if (commercialPlanPreviewService) {
+        app.get("/api/platform/plans", (req, res) => {
+            try {
+                const catalog = assertCommercialPlanCatalog(
+                    commercialPlanPreviewService.getCatalog({
+                        context: {
+                            role: req.platformActor.role,
+                            actorId: req.platformActor.uid
+                        }
+                    })
+                );
+                return res.json({ success: true, catalog });
+            } catch {
+                console.error("Commercial plan catalog okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Plan kataloğu alınamadı."
+                });
+            }
+        });
+    }
+
     app.get("/api/platform/tenants", async (req, res) => {
         try {
             const limit = normalizeApiListLimit(
@@ -418,6 +450,64 @@ function createPlatformApp({
                 return res.status(500).json({
                     success: false,
                     message: "Müşteri hazırlığı alınamadı."
+                });
+            }
+        });
+    }
+
+    if (commercialPlanPreviewService) {
+        app.get("/api/platform/tenants/:tenantId/plan-preview", async (req, res) => {
+            let tenantId;
+            try {
+                tenantId = requireTenantId(req.params.tenantId);
+                if (tenantId !== req.params.tenantId ||
+                    typeof req.query.targetPlan !== "string") {
+                    throw new TypeError();
+                }
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Plan önizleme sorgusu geçersiz."
+                });
+            }
+
+            try {
+                const tenant = await tenantRegistry.getById(tenantId);
+                if (!tenant) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "İşletme bulunamadı."
+                    });
+                }
+
+                const preview = assertCommercialPlanPreview(
+                    commercialPlanPreviewService.preview({
+                        context: {
+                            role: req.platformActor.role,
+                            actorId: req.platformActor.uid
+                        },
+                        tenantId,
+                        tenant,
+                        targetPlan: req.query.targetPlan
+                    })
+                );
+                return res.json({ success: true, preview });
+            } catch (error) {
+                const code = error && typeof error === "object"
+                    ? Object.getOwnPropertyDescriptor(error, "code")
+                    : null;
+                if (code && Object.hasOwn(code, "value") &&
+                    code.value === "TARGET_PLAN_NOT_CONFIGURED") {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Hedef plan yapılandırılmamış."
+                    });
+                }
+
+                console.error("Commercial plan preview okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Plan önizlemesi alınamadı."
                 });
             }
         });
