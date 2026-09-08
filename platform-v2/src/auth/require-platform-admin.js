@@ -1,4 +1,8 @@
-function createRequirePlatformAdmin({ auth, abuseMonitor = null }) {
+function createRequirePlatformAdmin({
+    auth,
+    abuseMonitor = null,
+    securityOperations = null
+}) {
     if (!auth || typeof auth.verifyIdToken !== "function") {
         throw new TypeError("Firebase Auth adapter gerekli.");
     }
@@ -6,10 +10,12 @@ function createRequirePlatformAdmin({ auth, abuseMonitor = null }) {
     if (abuseMonitor && typeof abuseMonitor.recordDenied !== "function") {
         throw new TypeError("Platform admin abuse monitor geçersiz.");
     }
+    if (securityOperations && typeof securityOperations.recordAuthFailure !== "function") {
+        throw new TypeError("Platform admin security operations bridge geçersiz.");
+    }
 
-    async function recordDenied(req, statusCode) {
+    async function recordPhase6Denied(req, statusCode) {
         if (!abuseMonitor) return;
-
         try {
             await abuseMonitor.recordDenied({
                 requestId: req.requestId || null,
@@ -19,6 +25,26 @@ function createRequirePlatformAdmin({ auth, abuseMonitor = null }) {
         } catch {
             console.error("Platform admin auth security signal yazılamadı.");
         }
+    }
+
+    async function recordPhase8Denied(req, statusCode, actorId) {
+        if (!securityOperations) return;
+        try {
+            await securityOperations.recordAuthFailure({
+                statusCode,
+                actorId,
+                requestId: req.requestId || null
+            });
+        } catch {
+            console.error("Central security alert kaydı başarısız.");
+        }
+    }
+
+    async function recordDenied(req, statusCode, actorId = null) {
+        await Promise.all([
+            recordPhase6Denied(req, statusCode),
+            recordPhase8Denied(req, statusCode, actorId)
+        ]);
     }
 
     return async function requirePlatformAdmin(req, res, next) {
@@ -55,7 +81,7 @@ function createRequirePlatformAdmin({ auth, abuseMonitor = null }) {
             }
 
             if (decodedToken.platformAdmin !== true) {
-                await recordDenied(req, 403);
+                await recordDenied(req, 403, uid);
                 return res.status(403).json({
                     success: false,
                     message: "Platform yöneticisi yetkisi gerekli."

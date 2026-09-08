@@ -1,0 +1,59 @@
+name: Supply-chain SBOM
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependency graph without lifecycle scripts
+        run: npm ci --ignore-scripts
+
+      - name: Generate CycloneDX SBOM
+        run: npm sbom --sbom-format=cyclonedx > sbom.cdx.json
+
+      - name: Validate SBOM contract
+        run: node scripts/validate-sbom.js sbom.cdx.json
+
+      - name: Record non-secret provenance evidence
+        shell: bash
+        run: |
+          {
+            echo "repository=${GITHUB_REPOSITORY}"
+            echo "commit=${GITHUB_SHA}"
+            echo "workflow=${GITHUB_WORKFLOW}"
+            echo "node=$(node --version)"
+            echo "npm=$(npm --version)"
+            echo "package_lock_sha256=$(sha256sum package-lock.json | awk '{print $1}')"
+            echo "sbom_sha256=$(sha256sum sbom.cdx.json | awk '{print $1}')"
+          } > sbom-provenance.txt
+
+      - name: Upload SBOM evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: platform-v2-sbom-${{ github.sha }}
+          path: |
+            sbom.cdx.json
+            sbom-provenance.txt
+          if-no-files-found: error
+          retention-days: 14

@@ -1,5 +1,29 @@
 const { FEATURE_CATALOG } = require("../tenant/feature-catalog");
 const { requireTenantId } = require("../tenant/tenant-id");
+const {
+    DEFAULT_PLATFORM_STEP_UP_CONFIG,
+    normalizePlatformStepUpConfig
+} = require("./platform-step-up-config");
+const {
+    DEFAULT_PLATFORM_SECURITY_ALERTS_CONFIG,
+    normalizePlatformSecurityAlertsConfig
+} = require("./platform-security-alerts-config");
+const {
+    DEFAULT_PLATFORM_SECRET_LIFECYCLE_CONFIG,
+    normalizePlatformSecretLifecycleConfig
+} = require("./platform-secret-lifecycle-config");
+const {
+    DEFAULT_PLATFORM_INCIDENTS_CONFIG,
+    normalizePlatformIncidentsConfig
+} = require("./platform-incidents-config");
+const {
+    DEFAULT_PLATFORM_BREAK_GLASS_CONFIG,
+    normalizePlatformBreakGlassConfig
+} = require("./platform-break-glass-config");
+const {
+    DEFAULT_PLATFORM_BREAK_GLASS_INTEGRATION_CONFIG,
+    normalizePlatformBreakGlassIntegrationConfig
+} = require("./platform-break-glass-integration-config");
 
 const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     telemetry: Object.freeze({
@@ -22,7 +46,13 @@ const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
     security: Object.freeze({
         authFailureWindowMs: 5 * 60_000,
         authFailureThreshold: 5,
-        signalListLimit: 20
+        signalListLimit: 20,
+        stepUp: DEFAULT_PLATFORM_STEP_UP_CONFIG,
+        alerts: DEFAULT_PLATFORM_SECURITY_ALERTS_CONFIG,
+        secretLifecycle: DEFAULT_PLATFORM_SECRET_LIFECYCLE_CONFIG,
+        incidents: DEFAULT_PLATFORM_INCIDENTS_CONFIG,
+        breakGlass: DEFAULT_PLATFORM_BREAK_GLASS_CONFIG,
+        breakGlassIntegration: DEFAULT_PLATFORM_BREAK_GLASS_INTEGRATION_CONFIG
     }),
     plans: Object.freeze({
         default: Object.freeze({
@@ -241,7 +271,13 @@ function normalizePlatformGuardrailsConfig(input) {
     assertKeys(input.security, new Set([
         "authFailureWindowMs",
         "authFailureThreshold",
-        "signalListLimit"
+        "signalListLimit",
+        "stepUp",
+        "alerts",
+        "secretLifecycle",
+        "incidents",
+        "breakGlass",
+        "breakGlassIntegration"
     ]), "Security config");
     assertKeys(input.finops, new Set([
         "currency",
@@ -346,6 +382,12 @@ function normalizePlatformGuardrailsConfig(input) {
                 2,
                 10_000
             ),
+            stepUp: normalizePlatformStepUpConfig(input.security.stepUp),
+            alerts: normalizePlatformSecurityAlertsConfig(input.security.alerts),
+            secretLifecycle: normalizePlatformSecretLifecycleConfig(input.security.secretLifecycle),
+            incidents: normalizePlatformIncidentsConfig(input.security.incidents),
+            breakGlass: normalizePlatformBreakGlassConfig(input.security.breakGlass),
+            breakGlassIntegration: normalizePlatformBreakGlassIntegrationConfig(input.security.breakGlassIntegration),
             signalListLimit: requireInteger(
                 input.security.signalListLimit,
                 "Security signalListLimit",

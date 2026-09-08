@@ -18,6 +18,14 @@ const {
 } = require("./src/firestore/firestore-security-signal-store");
 const { createSecuritySignalService } = require("./src/security/security-signal");
 const { createAbuseMonitor } = require("./src/security/abuse-monitor");
+const {
+    createFirestoreSecurityAlertSink
+} = require("./src/firestore/firestore-security-alert-sink");
+const { createSecurityAlertService } = require("./src/security/security-alert-service");
+const { createSecurityPostureService } = require("./src/security/security-posture-service");
+const {
+    createSecurityOperationsBridge
+} = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
@@ -57,6 +65,12 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
     return createBackupOperationsEvidenceProvider({ storageProvider, db });
 }
 
+function createRuntimeSecurityOperations({ db, config, securityAlertSink = null }) {
+    const sink = securityAlertSink || createFirestoreSecurityAlertSink({ db });
+    const alertService = createSecurityAlertService({ sink, config });
+    return createSecurityOperationsBridge({ alertService });
+}
+
 function startPlatformServer() {
     const guardrailsConfig = loadPlatformGuardrailsConfig();
     const scalabilityConfig = loadPlatformScalabilityConfig();
@@ -89,10 +103,21 @@ function startPlatformServer() {
     const securitySignals = createSecuritySignalService({
         store: createFirestoreSecuritySignalStore({ db })
     });
+    const securityAlertReader = createFirestoreSecurityAlertSink({ db });
+    const securityOperations = createRuntimeSecurityOperations({
+        db,
+        config: guardrailsConfig.security.alerts,
+        securityAlertSink: securityAlertReader
+    });
     const abuseMonitor = createAbuseMonitor({
         securitySignals,
+        securityOperations,
         windowMs: guardrailsConfig.security.authFailureWindowMs,
         threshold: guardrailsConfig.security.authFailureThreshold
+    });
+    const securityPostureService = createSecurityPostureService({
+        securityAlertReader,
+        stepUpConfig: guardrailsConfig.security.stepUp
     });
     const entitlementService = createEntitlementService({
         config: guardrailsConfig,
@@ -147,6 +172,9 @@ function startPlatformServer() {
         tenantRateLimitPolicy: guardrailsConfig.rateLimits.adminTenant,
         securitySignals,
         abuseMonitor,
+        securityOperations,
+        securityAlertReader,
+        securityPostureService,
         tenantOperations,
         finOpsService
     });
@@ -170,5 +198,6 @@ if (require.main === module) {
 module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     createConfiguredBackupEvidenceProvider,
+    createRuntimeSecurityOperations,
     startPlatformServer
 };

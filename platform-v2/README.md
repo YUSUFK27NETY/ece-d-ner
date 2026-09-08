@@ -90,6 +90,28 @@ Phase 6 telemetry, entitlement, tenant-scoped rate limiting, security signal ve 
 
 Phase 7 capacity/SLO, tenant placement/routing, güvenli placement migration, tenant queue/cache izolasyonu, canary rollout ve provider resilience sözleşmeleri için `PHASE7-SCALABILITY-ROUTING-RESILIENCE.md` dosyasına bak.
 
+Phase 8 provider-neutral edge protection ve abuse operations baseline'ı için `PHASE8-PACKAGE6A-EDGE-PROTECTION.md` dosyasına bak.
+
+Phase 8 durable central security alert persistence temeli için `PHASE8-PACKAGE6B1-ALERT-PERSISTENCE.md` dosyasına bak.
+
+Phase 8 Platform Admin auth denial alert runtime köprüsü için `PHASE8-PACKAGE6B2A-AUTH-ALERT-BRIDGE.md` dosyasına bak.
+
+Phase 8 tenant-boundary central alert contract'ı için `PHASE8-PACKAGE6B2B1-TENANT-BOUNDARY-ALERT-BRIDGE.md` dosyasına bak.
+
+Phase 8 step-up denial central alert contract'ı için `PHASE8-PACKAGE6B2B2-STEP-UP-ALERT-BRIDGE.md` dosyasına bak.
+
+Phase 8 read-only Security Alerts API kontratı için `PHASE8-PACKAGE6B3A-SECURITY-ALERT-API.md` dosyasına bak.
+
+Phase 8 read-only Platform Admin Security Alerts UI için `PHASE8-PACKAGE6B3B-SECURITY-ALERT-UI.md` dosyasına bak.
+
+Phase 8 provider-neutral, read-only Platform Admin Security Posture backend/read model kontratı için `PHASE8-PACKAGE7A-SECURITY-POSTURE.md` dosyasına bak.
+
+Phase 8 read-only Platform Admin Security Posture UI için `PHASE8-PACKAGE7B-SECURITY-POSTURE-UI.md` dosyasına bak.
+
+Phase 8 threat model, trust boundaries/assets/entry points, pentest readiness checklist ve security-impact review template'i için `PHASE8-THREAT-MODEL-SECURITY-REVIEW.md` dosyasına bak.
+
+Phase 8 operational security event coverage ve runtime/contract-only ayrımı için `PHASE8-FINAL-GAP1-OPERATIONAL-SECURITY-EVENTS.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

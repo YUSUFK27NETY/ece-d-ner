@@ -7,8 +7,11 @@ const DEFAULT_PUBLIC_VALUES = [
 const DETECTORS = [
     {
         name: "özel anahtar",
+        // Require a complete private-key block rather than a header-only
+        // sentinel. This avoids false positives from security-validation
+        // code while still detecting actual committed key material.
         pattern:
-            /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g
+            /-----BEGIN ((?:RSA |EC |OPENSSH )?)PRIVATE KEY-----[\s\S]{40,}?-----END \1PRIVATE KEY-----/g
     },
     {
         name: "GitHub erişim anahtarı",

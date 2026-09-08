@@ -69,6 +69,14 @@
         operationsResilience: document.getElementById("operations-resilience"),
         operationsResilienceDetail: document.getElementById("operations-resilience-detail"),
         operationsMessage: document.getElementById("operations-message"),
+        securityAlertsPanel: document.getElementById("security-alerts-panel"),
+        tenantSecurityAlerts: document.getElementById("tenant-security-alerts"),
+        tenantSecurityAlertsMessage: document.getElementById("tenant-security-alerts-message"),
+        platformSecurityAlerts: document.getElementById("platform-security-alerts"),
+        platformSecurityAlertsMessage: document.getElementById("platform-security-alerts-message"),
+        securityPosturePanel: document.getElementById("security-posture-panel"),
+        securityPostureMessage: document.getElementById("security-posture-message"),
+        securityPostureCards: document.getElementById("security-posture-cards"),
         saveButton: document.getElementById("save-button"),
         cancelButton: document.getElementById("cancel-button")
     };
@@ -76,8 +84,44 @@
     const state = {
         tenants: [],
         selectedTenantId: null,
-        mode: "none"
+        mode: "none",
+        tenantAlertRequestVersion: 0,
+        platformAlertRequestVersion: 0,
+        securityPostureRequestVersion: 0
     };
+
+    const ALERT_SEVERITY_PRESENTATION = Object.freeze({
+        info: Object.freeze({ label: "info", className: "severity-info" }),
+        warning: Object.freeze({ label: "warning", className: "severity-warning" }),
+        high: Object.freeze({ label: "high", className: "severity-high" }),
+        critical: Object.freeze({ label: "critical", className: "severity-critical" })
+    });
+
+    const SECURITY_POSTURE_SOURCE_PRESENTATION = Object.freeze({
+        active: Object.freeze({ label: "Aktif", className: "posture-state-active", isActive: true }),
+        durable_runtime: Object.freeze({ label: "Aktif / kalıcı runtime", className: "posture-state-active", isActive: true }),
+        contract_only: Object.freeze({ label: "Contract hazır", className: "posture-state-contract", isActive: false }),
+        not_wired: Object.freeze({ label: "Runtime'a bağlı değil", className: "posture-state-not-wired", isActive: false }),
+        external_verification_required: Object.freeze({ label: "Harici doğrulama gerekli", className: "posture-state-external", isActive: false }),
+        unavailable: Object.freeze({ label: "Kullanılamıyor", className: "posture-state-unavailable", isActive: false })
+    });
+    const SECURITY_POSTURE_OVERALL_PRESENTATION = Object.freeze({
+        partial_visibility: Object.freeze({ label: "Kısmi görünürlük", className: "posture-status-partial" }),
+        degraded: Object.freeze({ label: "Azalmış görünürlük", className: "posture-status-degraded" }),
+        healthy: Object.freeze({ label: "Sağlıklı", className: "posture-status-healthy" }),
+        unknown: Object.freeze({ label: "Bilinmiyor", className: "posture-status-unknown" })
+    });
+    const SECURITY_POSTURE_UNKNOWN_SOURCE = Object.freeze({
+        label: "Bilinmiyor",
+        className: "posture-state-unavailable",
+        isActive: false
+    });
+    const SECURITY_POSTURE_VALUE_LABELS = Object.freeze({
+        ready: "Hazır",
+        contract_ready: "Contract hazır",
+        configured: "Yapılandırılmış",
+        not_detected: "Algılanmadı"
+    });
 
     function setMessage(element, text = "", type = "") {
         element.textContent = text;
@@ -157,6 +201,157 @@
         return Number.isNaN(date.getTime()) ? "bilinmiyor" : date.toLocaleString("tr-TR");
     }
 
+    function safeAlertString(value, fallback = "—") {
+        return typeof value === "string" && value.length > 0 ? value : fallback;
+    }
+
+    function projectAlertForDisplay(alert) {
+        if (!alert || typeof alert !== "object" || Array.isArray(alert) ||
+            Object.getPrototypeOf(alert) !== Object.prototype ||
+            typeof alert.eventType !== "string" || typeof alert.reasonCode !== "string" ||
+            typeof alert.correlationId !== "string" ||
+            !Number.isSafeInteger(alert.eventCount) || alert.eventCount < 1) {
+            return null;
+        }
+
+        const severity = Object.hasOwn(ALERT_SEVERITY_PRESENTATION, alert.severity)
+            ? ALERT_SEVERITY_PRESENTATION[alert.severity]
+            : Object.freeze({ label: "unknown", className: "severity-unknown" });
+
+        return Object.freeze({
+            severityLabel: severity.label,
+            severityClass: severity.className,
+            eventType: safeAlertString(alert.eventType),
+            reasonCode: safeAlertString(alert.reasonCode),
+            operation: safeAlertString(alert.operation),
+            eventCount: alert.eventCount,
+            firstSeenAt: safeAlertString(alert.firstSeenAt),
+            lastSeenAt: safeAlertString(alert.lastSeenAt),
+            correlationId: safeAlertString(alert.correlationId),
+            actorId: safeAlertString(alert.actorId, ""),
+            source: safeAlertString(alert.source, "")
+        });
+    }
+
+    function appendAlertMeta(container, label, value) {
+        const item = document.createElement("div");
+        item.className = "security-alert-meta-item";
+        const name = document.createElement("strong");
+        name.textContent = label;
+        const content = document.createElement("span");
+        content.textContent = value;
+        item.append(name, content);
+        container.append(item);
+    }
+
+    function renderSecurityAlertList(container, message, alerts, emptyMessage) {
+        container.replaceChildren();
+        const projected = Array.isArray(alerts)
+            ? alerts.map(projectAlertForDisplay).filter(Boolean)
+            : [];
+
+        if (projected.length === 0) {
+            setMessage(
+                message,
+                Array.isArray(alerts) && alerts.length > 0
+                    ? "Geçersiz güvenlik kaydı."
+                    : emptyMessage,
+                Array.isArray(alerts) && alerts.length > 0 ? "error" : ""
+            );
+            return;
+        }
+
+        setMessage(message);
+        for (const alert of projected) {
+            const card = document.createElement("article");
+            card.className = "security-alert-card";
+            const header = document.createElement("div");
+            header.className = "security-alert-header";
+            const badge = document.createElement("span");
+            badge.className = "security-alert-badge";
+            badge.classList.add(alert.severityClass);
+            badge.textContent = alert.severityLabel;
+            const eventType = document.createElement("strong");
+            eventType.textContent = alert.eventType;
+            header.append(badge, eventType);
+
+            const reason = document.createElement("strong");
+            reason.textContent = alert.reasonCode;
+            const meta = document.createElement("div");
+            meta.className = "security-alert-meta";
+            appendAlertMeta(meta, "Operasyon", alert.operation);
+            appendAlertMeta(meta, "Olay sayısı", String(alert.eventCount));
+            appendAlertMeta(meta, "İlk görülme", formatTimestamp(alert.firstSeenAt));
+            appendAlertMeta(meta, "Son görülme", formatTimestamp(alert.lastSeenAt));
+            appendAlertMeta(meta, "Korelasyon", alert.correlationId);
+            if (alert.actorId) appendAlertMeta(meta, "Actor", alert.actorId);
+            if (alert.source) appendAlertMeta(meta, "Kaynak", alert.source);
+
+            card.append(header, reason, meta);
+            container.append(card);
+        }
+    }
+
+    async function loadTenantSecurityAlerts(tenantId) {
+        const requestVersion = ++state.tenantAlertRequestVersion;
+        elements.tenantSecurityAlerts.replaceChildren();
+        setMessage(
+            elements.tenantSecurityAlertsMessage,
+            "Tenant güvenlik uyarıları yükleniyor..."
+        );
+
+        try {
+            const response = await apiRequest(
+                `/api/platform/tenants/${encodeURIComponent(tenantId)}/security-alerts?limit=20`
+            );
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.tenantAlertRequestVersion) return;
+            renderSecurityAlertList(
+                elements.tenantSecurityAlerts,
+                elements.tenantSecurityAlertsMessage,
+                response?.alerts,
+                "Bu tenant için güvenlik uyarısı yok."
+            );
+        } catch {
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.tenantAlertRequestVersion) return;
+            elements.tenantSecurityAlerts.replaceChildren();
+            setMessage(
+                elements.tenantSecurityAlertsMessage,
+                "Güvenlik uyarıları yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
+    async function loadPlatformSecurityAlerts() {
+        const requestVersion = ++state.platformAlertRequestVersion;
+        elements.platformSecurityAlerts.replaceChildren();
+        setMessage(
+            elements.platformSecurityAlertsMessage,
+            "Platform güvenlik uyarıları yükleniyor..."
+        );
+
+        try {
+            const response = await apiRequest("/api/platform/security-alerts?limit=20");
+            if (requestVersion !== state.platformAlertRequestVersion) return;
+            renderSecurityAlertList(
+                elements.platformSecurityAlerts,
+                elements.platformSecurityAlertsMessage,
+                response?.alerts,
+                "Platform güvenlik uyarısı yok."
+            );
+        } catch {
+            if (requestVersion !== state.platformAlertRequestVersion) return;
+            elements.platformSecurityAlerts.replaceChildren();
+            setMessage(
+                elements.platformSecurityAlertsMessage,
+                "Güvenlik uyarıları yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
     function renderOverview(overview) {
         const daily = overview.usage?.daily || {};
         const monthly = overview.usage?.monthly || {};
@@ -221,6 +416,219 @@
         setMessage(elements.operationsMessage);
     }
 
+    function isPlainPostureRecord(value) {
+        return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
+            Object.getPrototypeOf(value) === Object.prototype;
+    }
+
+    function readPostureValue(record, key) {
+        if (!isPlainPostureRecord(record)) return undefined;
+        const descriptor = Object.getOwnPropertyDescriptor(record, key);
+        return descriptor && Object.hasOwn(descriptor, "value")
+            ? descriptor.value
+            : undefined;
+    }
+
+    function projectSourceState(record) {
+        const value = readPostureValue(record, "sourceState");
+        return typeof value === "string" &&
+            Object.hasOwn(SECURITY_POSTURE_SOURCE_PRESENTATION, value)
+            ? SECURITY_POSTURE_SOURCE_PRESENTATION[value]
+            : SECURITY_POSTURE_UNKNOWN_SOURCE;
+    }
+
+    function projectOverallStatus(value) {
+        return typeof value === "string" &&
+            Object.hasOwn(SECURITY_POSTURE_OVERALL_PRESENTATION, value)
+            ? SECURITY_POSTURE_OVERALL_PRESENTATION[value]
+            : SECURITY_POSTURE_OVERALL_PRESENTATION.unknown;
+    }
+
+    function projectPostureValue(value) {
+        return typeof value === "string" &&
+            Object.hasOwn(SECURITY_POSTURE_VALUE_LABELS, value)
+            ? SECURITY_POSTURE_VALUE_LABELS[value]
+            : "Bilinmiyor";
+    }
+
+    function projectPostureCount(record, key, source) {
+        const value = readPostureValue(record, key);
+        return source.isActive && Number.isSafeInteger(value) && value >= 0
+            ? value
+            : null;
+    }
+
+    function projectPostureTimestamp(value) {
+        if (typeof value !== "string") return null;
+        const date = new Date(value);
+        return !Number.isNaN(date.getTime()) && date.toISOString() === value
+            ? value
+            : null;
+    }
+
+    function projectSecurityPostureForDisplay(posture) {
+        if (!isPlainPostureRecord(posture) ||
+            readPostureValue(posture, "schemaVersion") !== 1) {
+            return null;
+        }
+
+        const generatedAt = projectPostureTimestamp(
+            readPostureValue(posture, "generatedAt")
+        );
+        const identity = readPostureValue(posture, "identity");
+        const secrets = readPostureValue(posture, "secrets");
+        const alerts = readPostureValue(posture, "alerts");
+        const incidents = readPostureValue(posture, "incidents");
+        const breakGlass = readPostureValue(posture, "breakGlass");
+        const supplyChain = readPostureValue(posture, "supplyChain");
+        if (!generatedAt || ![identity, secrets, alerts, incidents, breakGlass, supplyChain]
+            .every(isPlainPostureRecord)) {
+            return null;
+        }
+
+        const overall = projectOverallStatus(readPostureValue(posture, "overallStatus"));
+        const identitySource = projectSourceState(identity);
+        const secretSource = projectSourceState(secrets);
+        const alertSource = projectSourceState(alerts);
+        const incidentSource = projectSourceState(incidents);
+        const breakGlassSource = projectSourceState(breakGlass);
+        const supplyChainSource = projectSourceState(supplyChain);
+        const secretCount = projectPostureCount(secrets, "count", secretSource);
+        const overdueCount = projectPostureCount(secrets, "overdue", secretSource);
+        const alertCount = projectPostureCount(alerts, "recentVisibleCount", alertSource);
+        const openIncidentCount = projectPostureCount(incidents, "openCount", incidentSource);
+        const criticalIncidentCount = projectPostureCount(incidents, "criticalCount", incidentSource);
+        const activeSessionCount = projectPostureCount(breakGlass, "activeSessions", breakGlassSource);
+        const recentUsageCount = projectPostureCount(breakGlass, "recentUsageCount", breakGlassSource);
+        const ttlMs = readPostureValue(identity, "elevatedSessionTtlMs");
+        const factorTypeCount = readPostureValue(identity, "requiredFactorTypeCount");
+        const safeTtlMs = Number.isSafeInteger(ttlMs) && ttlMs > 0 ? ttlMs : null;
+        const safeFactorTypeCount = Number.isSafeInteger(factorTypeCount) &&
+            factorTypeCount >= 0 ? factorTypeCount : null;
+        const highestSeverityValue = readPostureValue(alerts, "highestSeverity");
+        const highestSeverity = ["info", "warning", "high", "critical"]
+            .includes(highestSeverityValue) ? highestSeverityValue : "—";
+
+        return Object.freeze({
+            overall: Object.freeze({
+                presentation: overall,
+                primary: overall.label,
+                detail: `Üretim: ${formatTimestamp(generatedAt)}`
+            }),
+            identity: Object.freeze({
+                presentation: identitySource,
+                primary: `Step-up contract: ${projectPostureValue(readPostureValue(identity, "contractStatus"))}`,
+                detail:
+                    `Runtime enforcement: ${projectSourceState({ sourceState: readPostureValue(identity, "runtimeEnforcement") }).label} · ` +
+                    `Elevated session: ${projectSourceState({ sourceState: readPostureValue(identity, "elevatedSessionStatus") }).label} · ` +
+                    `MFA readiness: ${projectPostureValue(readPostureValue(identity, "mfaReadiness"))} · ` +
+                    `Enrollment: ${projectSourceState({ sourceState: readPostureValue(identity, "enrollmentStatus") }).label} · ` +
+                    `TTL: ${safeTtlMs === null ? "—" : `${formatNumber(safeTtlMs / 1000, 0)} sn`} · ` +
+                    `Faktör türü: ${safeFactorTypeCount === null ? "—" : formatNumber(safeFactorTypeCount, 0)}`
+            }),
+            secrets: Object.freeze({
+                presentation: secretSource,
+                primary: secretCount === null
+                    ? "Ölçüm kaynağı bağlı değil"
+                    : `${formatNumber(secretCount, 0)} lifecycle kaydı`,
+                detail:
+                    `Gecikmiş: ${overdueCount === null ? "—" : formatNumber(overdueCount, 0)} · ` +
+                    `Sağlık: ${projectSourceState({ sourceState: readPostureValue(secrets, "health") }).label}`
+            }),
+            alerts: Object.freeze({
+                presentation: alertSource,
+                primary: `Son görünür uyarılar: ${alertCount === null ? "—" : formatNumber(alertCount, 0)}`,
+                detail:
+                    `En yüksek seviye: ${highestSeverity} · ` +
+                    `Son görülme: ${projectPostureTimestamp(readPostureValue(alerts, "lastSeenAt"))
+                        ? formatTimestamp(readPostureValue(alerts, "lastSeenAt"))
+                        : "—"}`
+            }),
+            incidents: Object.freeze({
+                presentation: incidentSource,
+                primary: openIncidentCount === null
+                    ? "Canlı incident kaynağı bağlı değil"
+                    : `${formatNumber(openIncidentCount, 0)} açık incident`,
+                detail: `Critical: ${criticalIncidentCount === null ? "—" : formatNumber(criticalIncidentCount, 0)}`
+            }),
+            breakGlass: Object.freeze({
+                presentation: breakGlassSource,
+                primary: activeSessionCount === null
+                    ? "Canlı break-glass kaynağı bağlı değil"
+                    : `${formatNumber(activeSessionCount, 0)} aktif oturum`,
+                detail: `Yakın kullanım: ${recentUsageCount === null ? "—" : formatNumber(recentUsageCount, 0)}`
+            }),
+            supplyChain: Object.freeze({
+                presentation: supplyChainSource,
+                primary:
+                    `SBOM: ${projectPostureValue(readPostureValue(supplyChain, "sbomBaseline"))} · ` +
+                    `CodeQL: ${projectPostureValue(readPostureValue(supplyChain, "codeqlBaseline"))}`,
+                detail:
+                    `Canlı workflow: ${projectSourceState({ sourceState: readPostureValue(supplyChain, "liveWorkflowStatus") }).label}`
+            })
+        });
+    }
+
+    function appendSecurityPostureCard(title, card) {
+        const article = document.createElement("article");
+        article.className = "metric-card security-posture-card";
+        const heading = document.createElement("span");
+        heading.textContent = title;
+        const status = document.createElement("span");
+        status.className = "posture-state";
+        status.classList.add(card.presentation.className);
+        status.textContent = card.presentation.label;
+        const primary = document.createElement("strong");
+        primary.textContent = card.primary;
+        const detail = document.createElement("small");
+        detail.textContent = card.detail;
+        article.append(heading, status, primary, detail);
+        elements.securityPostureCards.append(article);
+    }
+
+    function renderSecurityPosture(posture) {
+        const display = projectSecurityPostureForDisplay(posture);
+        elements.securityPostureCards.replaceChildren();
+        if (!display) return false;
+
+        appendSecurityPostureCard("Overall", display.overall);
+        appendSecurityPostureCard("Identity / Step-up", display.identity);
+        appendSecurityPostureCard("Secret Lifecycle", display.secrets);
+        appendSecurityPostureCard("Security Alerts", display.alerts);
+        appendSecurityPostureCard("Incidents", display.incidents);
+        appendSecurityPostureCard("Break-glass", display.breakGlass);
+        appendSecurityPostureCard("Supply-chain", display.supplyChain);
+        return true;
+    }
+
+    async function loadSecurityPosture() {
+        const requestVersion = ++state.securityPostureRequestVersion;
+        elements.securityPostureCards.replaceChildren();
+        setMessage(elements.securityPostureMessage, "Güvenlik duruşu yükleniyor...");
+
+        try {
+            const response = await apiRequest("/api/platform/security-posture");
+            if (requestVersion !== state.securityPostureRequestVersion) return;
+            if (!renderSecurityPosture(response?.posture)) {
+                setMessage(
+                    elements.securityPostureMessage,
+                    "Güvenlik duruşu kullanılamıyor.",
+                    "error"
+                );
+                return;
+            }
+            setMessage(elements.securityPostureMessage);
+        } catch {
+            if (requestVersion !== state.securityPostureRequestVersion) return;
+            elements.securityPostureCards.replaceChildren();
+            setMessage(
+                elements.securityPostureMessage,
+                "Güvenlik duruşu yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
     async function loadOverview(tenantId) {
         setMessage(elements.operationsMessage, "Operasyon verileri yükleniyor...");
 
@@ -252,6 +660,13 @@
         elements.statusField.classList.add("hidden");
         elements.statusBadge.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.securityAlertsPanel.classList.add("hidden");
+        elements.securityPosturePanel.classList.add("hidden");
+        state.tenantAlertRequestVersion += 1;
+        state.platformAlertRequestVersion += 1;
+        state.securityPostureRequestVersion += 1;
+        elements.securityPostureCards.replaceChildren();
+        setMessage(elements.securityPostureMessage);
         renderTenantList();
         elements.tenantId.focus();
     }
@@ -274,6 +689,8 @@
         elements.statusBadge.classList.remove("hidden");
         elements.statusBadge.textContent = tenant.status || "provisioning";
         elements.operationsPanel.classList.remove("hidden");
+        elements.securityAlertsPanel.classList.remove("hidden");
+        elements.securityPosturePanel.classList.remove("hidden");
 
         const profile = tenant.profile || {};
         elements.brandName.value = profile.brandName || "";
@@ -290,6 +707,9 @@
         setMessage(elements.formMessage);
         renderTenantList();
         loadOverview(tenant.tenantId);
+        loadTenantSecurityAlerts(tenant.tenantId);
+        loadPlatformSecurityAlerts();
+        loadSecurityPosture();
     }
 
     function showEmpty() {
@@ -297,6 +717,13 @@
         state.selectedTenantId = null;
         elements.tenantForm.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.securityAlertsPanel.classList.add("hidden");
+        elements.securityPosturePanel.classList.add("hidden");
+        state.tenantAlertRequestVersion += 1;
+        state.platformAlertRequestVersion += 1;
+        state.securityPostureRequestVersion += 1;
+        elements.securityPostureCards.replaceChildren();
+        setMessage(elements.securityPostureMessage);
         elements.emptyState.classList.remove("hidden");
         renderTenantList();
     }
