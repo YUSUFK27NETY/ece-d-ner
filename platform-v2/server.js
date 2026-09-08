@@ -44,6 +44,12 @@ const { createTenantCache } = require("./src/cache/tenant-cache");
 const { createInMemoryRolloutStore } = require("./src/rollout/in-memory-rollout-store");
 const { createTenantReleaseRolloutService } = require("./src/rollout/tenant-release-rollout");
 const { createDependencyResilienceService } = require("./src/resilience/dependency-resilience");
+const {
+    createCustomerReadinessService
+} = require("./src/onboarding/customer-readiness-service");
+const {
+    createCustomerReadinessSourceAdapters
+} = require("./src/onboarding/customer-readiness-adapters");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -133,6 +139,12 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const customerReadinessService = createCustomerReadinessService({
+        sourceAdapters: createCustomerReadinessSourceAdapters({
+            checkReadiness,
+            backupEvidenceProvider
+        })
+    });
     const capacityService = createCapacitySloService({ config: scalabilityConfig });
     const routingService = createTenantRoutingService({
         registry: createFirestorePlacementRegistry({ db }),
@@ -175,6 +187,7 @@ function startPlatformServer() {
         securityOperations,
         securityAlertReader,
         securityPostureService,
+        customerReadinessService,
         tenantOperations,
         finOpsService
     });

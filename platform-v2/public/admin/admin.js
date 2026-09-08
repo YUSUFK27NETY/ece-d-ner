@@ -69,6 +69,13 @@
         operationsResilience: document.getElementById("operations-resilience"),
         operationsResilienceDetail: document.getElementById("operations-resilience-detail"),
         operationsMessage: document.getElementById("operations-message"),
+        customerReadinessPanel: document.getElementById("customer-readiness-panel"),
+        customerReadinessMessage: document.getElementById("customer-readiness-message"),
+        customerReadinessOverall: document.getElementById("customer-readiness-overall"),
+        customerReadinessCanActivate: document.getElementById("customer-readiness-can-activate"),
+        customerReadinessLifecycle: document.getElementById("customer-readiness-lifecycle"),
+        customerReadinessEvaluatedAt: document.getElementById("customer-readiness-evaluated-at"),
+        customerReadinessCards: document.getElementById("customer-readiness-cards"),
         securityAlertsPanel: document.getElementById("security-alerts-panel"),
         tenantSecurityAlerts: document.getElementById("tenant-security-alerts"),
         tenantSecurityAlertsMessage: document.getElementById("tenant-security-alerts-message"),
@@ -87,7 +94,8 @@
         mode: "none",
         tenantAlertRequestVersion: 0,
         platformAlertRequestVersion: 0,
-        securityPostureRequestVersion: 0
+        securityPostureRequestVersion: 0,
+        customerReadinessRequestVersion: 0
     };
 
     const ALERT_SEVERITY_PRESENTATION = Object.freeze({
@@ -121,6 +129,59 @@
         contract_ready: "Contract hazır",
         configured: "Yapılandırılmış",
         not_detected: "Algılanmadı"
+    });
+    const CUSTOMER_READINESS_STATUS_PRESENTATION = Object.freeze({
+        ready: Object.freeze({ label: "Hazır", className: "readiness-state-ready" }),
+        pending: Object.freeze({ label: "Bekliyor", className: "readiness-state-pending" }),
+        blocked: Object.freeze({ label: "Engelli", className: "readiness-state-blocked" }),
+        unavailable: Object.freeze({ label: "Kullanılamıyor", className: "readiness-state-unavailable" })
+    });
+    const CUSTOMER_READINESS_UNKNOWN_STATUS = Object.freeze({
+        label: "Bilinmiyor",
+        className: "readiness-state-unknown"
+    });
+    const CUSTOMER_READINESS_LIFECYCLE_LABELS = Object.freeze({
+        provisioning: "Provisioning",
+        active: "Active",
+        suspended: "Suspended",
+        archived: "Archived"
+    });
+    const CUSTOMER_READINESS_SOURCES = Object.freeze({
+        profile: Object.freeze({
+            title: "Profile",
+            required: true,
+            codes: Object.freeze(["PROFILE_INCOMPLETE", "PROFILE_INVALID", "PROFILE_UNAVAILABLE"])
+        }),
+        health: Object.freeze({
+            title: "Health",
+            required: true,
+            codes: Object.freeze(["HEALTH_CHECK_PENDING", "HEALTH_CHECK_FAILED", "HEALTH_UNAVAILABLE"])
+        }),
+        plan: Object.freeze({
+            title: "Plan",
+            required: true,
+            codes: Object.freeze(["PLAN_NOT_CONFIGURED", "PLAN_UNSUPPORTED", "PLAN_UNAVAILABLE"])
+        }),
+        adminBootstrap: Object.freeze({
+            title: "Tenant Admin Bootstrap",
+            required: true,
+            codes: Object.freeze(["ADMIN_BOOTSTRAP_PENDING", "ADMIN_BOOTSTRAP_BLOCKED", "ADMIN_BOOTSTRAP_UNAVAILABLE"])
+        }),
+        backup: Object.freeze({
+            title: "Backup/DR",
+            required: true,
+            codes: Object.freeze(["BACKUP_PENDING", "BACKUP_NOT_VERIFIED", "BACKUP_UNAVAILABLE"])
+        }),
+        security: Object.freeze({
+            title: "Security",
+            required: true,
+            codes: Object.freeze(["SECURITY_REVIEW_PENDING", "SECURITY_BLOCKED", "SECURITY_UNAVAILABLE"])
+        }),
+        domain: Object.freeze({
+            title: "Domain",
+            required: false,
+            codes: Object.freeze(["DOMAIN_NOT_CONFIGURED", "DOMAIN_PENDING", "DOMAIN_VERIFICATION_FAILED", "DOMAIN_UNAVAILABLE"])
+        })
     });
 
     function setMessage(element, text = "", type = "") {
@@ -347,6 +408,192 @@
             setMessage(
                 elements.platformSecurityAlertsMessage,
                 "Güvenlik uyarıları yüklenemedi.",
+                "error"
+            );
+        }
+    }
+
+    function isPlainReadinessRecord(value) {
+        return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
+            Object.getPrototypeOf(value) === Object.prototype;
+    }
+
+    function readReadinessValue(record, key) {
+        if (!isPlainReadinessRecord(record)) return undefined;
+        const descriptor = Object.getOwnPropertyDescriptor(record, key);
+        return descriptor && Object.hasOwn(descriptor, "value")
+            ? descriptor.value
+            : undefined;
+    }
+
+    function projectReadinessTimestamp(value) {
+        if (value === null) return null;
+        if (typeof value !== "string") return undefined;
+        const date = new Date(value);
+        return !Number.isNaN(date.getTime()) && date.toISOString() === value
+            ? value
+            : undefined;
+    }
+
+    function projectReadinessCheckForDisplay(source, check) {
+        if (!isPlainReadinessRecord(check)) return null;
+        const policy = CUSTOMER_READINESS_SOURCES[source];
+        const status = readReadinessValue(check, "status");
+        const code = readReadinessValue(check, "code");
+        const observedAt = projectReadinessTimestamp(
+            readReadinessValue(check, "observedAt")
+        );
+        if (!policy || !Object.hasOwn(CUSTOMER_READINESS_STATUS_PRESENTATION, status) ||
+            (code !== null && !policy.codes.includes(code)) ||
+            observedAt === undefined) {
+            return null;
+        }
+
+        return Object.freeze({
+            status,
+            presentation: CUSTOMER_READINESS_STATUS_PRESENTATION[status],
+            code,
+            observedAt
+        });
+    }
+
+    function aggregateReadinessChecks(checks) {
+        const requiredStatuses = [];
+        for (const source of Object.keys(CUSTOMER_READINESS_SOURCES)) {
+            if (CUSTOMER_READINESS_SOURCES[source].required) {
+                requiredStatuses.push(checks[source].status);
+            }
+        }
+        for (const status of ["blocked", "unavailable", "pending"]) {
+            if (requiredStatuses.includes(status)) return status;
+        }
+        return "ready";
+    }
+
+    function projectCustomerReadinessForDisplay(readiness, selectedTenantId) {
+        if (!isPlainReadinessRecord(readiness) ||
+            readReadinessValue(readiness, "tenantId") !== selectedTenantId) {
+            return null;
+        }
+
+        const lifecycleStatus = readReadinessValue(readiness, "lifecycleStatus");
+        const activationReadiness = readReadinessValue(readiness, "activationReadiness");
+        const canActivate = readReadinessValue(readiness, "canActivate");
+        const evaluatedAt = projectReadinessTimestamp(
+            readReadinessValue(readiness, "evaluatedAt")
+        );
+        const rawChecks = readReadinessValue(readiness, "checks");
+        if (!Object.hasOwn(CUSTOMER_READINESS_LIFECYCLE_LABELS, lifecycleStatus) ||
+            !Object.hasOwn(CUSTOMER_READINESS_STATUS_PRESENTATION, activationReadiness) ||
+            typeof canActivate !== "boolean" || evaluatedAt === undefined ||
+            evaluatedAt === null || !isPlainReadinessRecord(rawChecks)) {
+            return null;
+        }
+
+        const checks = {};
+        for (const source of Object.keys(CUSTOMER_READINESS_SOURCES)) {
+            const check = projectReadinessCheckForDisplay(
+                source,
+                readReadinessValue(rawChecks, source)
+            );
+            if (!check) return null;
+            checks[source] = check;
+        }
+
+        const aggregate = aggregateReadinessChecks(checks);
+        const expectedCanActivate = aggregate === "ready" &&
+            lifecycleStatus === "provisioning";
+        if (activationReadiness !== aggregate || canActivate !== expectedCanActivate) {
+            return null;
+        }
+
+        return Object.freeze({
+            lifecycleLabel: CUSTOMER_READINESS_LIFECYCLE_LABELS[lifecycleStatus],
+            activation: CUSTOMER_READINESS_STATUS_PRESENTATION[activationReadiness],
+            canActivate,
+            evaluatedAt,
+            checks: Object.freeze(checks)
+        });
+    }
+
+    function resetCustomerReadiness() {
+        elements.customerReadinessOverall.className = "";
+        elements.customerReadinessOverall.textContent = "—";
+        elements.customerReadinessCanActivate.textContent = "—";
+        elements.customerReadinessLifecycle.textContent = "—";
+        elements.customerReadinessEvaluatedAt.textContent = "—";
+        elements.customerReadinessCards.replaceChildren();
+    }
+
+    function appendCustomerReadinessCard(title, check) {
+        const article = document.createElement("article");
+        article.className = "metric-card customer-readiness-card";
+        const heading = document.createElement("span");
+        heading.textContent = title;
+        const status = document.createElement("span");
+        status.className = "readiness-state";
+        status.classList.add(check.presentation.className);
+        status.textContent = check.presentation.label;
+        const code = document.createElement("strong");
+        code.textContent = check.code || "Kod yok";
+        const observedAt = document.createElement("small");
+        observedAt.textContent = check.observedAt
+            ? `Gözlem: ${formatTimestamp(check.observedAt)}`
+            : "Gözlem zamanı kullanılamıyor";
+        article.append(heading, status, code, observedAt);
+        elements.customerReadinessCards.append(article);
+    }
+
+    function renderCustomerReadiness(readiness, tenantId) {
+        const display = projectCustomerReadinessForDisplay(readiness, tenantId);
+        resetCustomerReadiness();
+        if (!display) return false;
+
+        elements.customerReadinessOverall.className = "readiness-state";
+        elements.customerReadinessOverall.classList.add(display.activation.className);
+        elements.customerReadinessOverall.textContent = display.activation.label;
+        elements.customerReadinessCanActivate.textContent = display.canActivate
+            ? "Evet"
+            : "Hayır";
+        elements.customerReadinessLifecycle.textContent = display.lifecycleLabel;
+        elements.customerReadinessEvaluatedAt.textContent =
+            `Değerlendirme: ${formatTimestamp(display.evaluatedAt)}`;
+        for (const source of Object.keys(CUSTOMER_READINESS_SOURCES)) {
+            appendCustomerReadinessCard(
+                CUSTOMER_READINESS_SOURCES[source].title,
+                display.checks[source]
+            );
+        }
+        return true;
+    }
+
+    async function loadCustomerReadiness(tenantId) {
+        const requestVersion = ++state.customerReadinessRequestVersion;
+        resetCustomerReadiness();
+        setMessage(elements.customerReadinessMessage, "Müşteri hazırlığı yükleniyor...");
+
+        try {
+            const response = await apiRequest(
+                `/api/platform/tenants/${encodeURIComponent(tenantId)}/readiness`
+            );
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.customerReadinessRequestVersion) return;
+            if (!renderCustomerReadiness(response?.readiness, tenantId)) {
+                setMessage(
+                    elements.customerReadinessMessage,
+                    "Müşteri hazırlığı kullanılamıyor.",
+                    "error"
+                );
+                return;
+            }
+            setMessage(elements.customerReadinessMessage);
+        } catch {
+            if (state.selectedTenantId !== tenantId) return;
+            if (requestVersion !== state.customerReadinessRequestVersion) return;
+            resetCustomerReadiness();
+            setMessage(
+                elements.customerReadinessMessage,
+                "Müşteri hazırlığı yüklenemedi.",
                 "error"
             );
         }
@@ -660,11 +907,15 @@
         elements.statusField.classList.add("hidden");
         elements.statusBadge.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.customerReadinessPanel.classList.add("hidden");
         elements.securityAlertsPanel.classList.add("hidden");
         elements.securityPosturePanel.classList.add("hidden");
         state.tenantAlertRequestVersion += 1;
         state.platformAlertRequestVersion += 1;
         state.securityPostureRequestVersion += 1;
+        state.customerReadinessRequestVersion += 1;
+        resetCustomerReadiness();
+        setMessage(elements.customerReadinessMessage);
         elements.securityPostureCards.replaceChildren();
         setMessage(elements.securityPostureMessage);
         renderTenantList();
@@ -689,6 +940,7 @@
         elements.statusBadge.classList.remove("hidden");
         elements.statusBadge.textContent = tenant.status || "provisioning";
         elements.operationsPanel.classList.remove("hidden");
+        elements.customerReadinessPanel.classList.remove("hidden");
         elements.securityAlertsPanel.classList.remove("hidden");
         elements.securityPosturePanel.classList.remove("hidden");
 
@@ -707,6 +959,7 @@
         setMessage(elements.formMessage);
         renderTenantList();
         loadOverview(tenant.tenantId);
+        loadCustomerReadiness(tenant.tenantId);
         loadTenantSecurityAlerts(tenant.tenantId);
         loadPlatformSecurityAlerts();
         loadSecurityPosture();
@@ -717,11 +970,15 @@
         state.selectedTenantId = null;
         elements.tenantForm.classList.add("hidden");
         elements.operationsPanel.classList.add("hidden");
+        elements.customerReadinessPanel.classList.add("hidden");
         elements.securityAlertsPanel.classList.add("hidden");
         elements.securityPosturePanel.classList.add("hidden");
         state.tenantAlertRequestVersion += 1;
         state.platformAlertRequestVersion += 1;
         state.securityPostureRequestVersion += 1;
+        state.customerReadinessRequestVersion += 1;
+        resetCustomerReadiness();
+        setMessage(elements.customerReadinessMessage);
         elements.securityPostureCards.replaceChildren();
         setMessage(elements.securityPostureMessage);
         elements.emptyState.classList.remove("hidden");

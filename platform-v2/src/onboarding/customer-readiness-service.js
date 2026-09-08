@@ -243,25 +243,20 @@ function createCustomerReadinessService({
         return value;
     }
 
-    async function evaluateSource({ source, tenantId, tenant, evaluatedAtMs }) {
+    async function loadSource({ source, tenantId, tenant }) {
         const adapter = adapters[source];
         if (!adapter) {
-            return unavailableCheck();
+            return Object.freeze({ available: false, value: null });
         }
 
         try {
-            const result = await adapter.evaluate(Object.freeze({
+            const value = await adapter.evaluate(Object.freeze({
                 tenantId,
                 tenant
             }));
-            return projectReadinessCheck(
-                source,
-                result,
-                tenantId,
-                evaluatedAtMs
-            );
+            return Object.freeze({ available: true, value });
         } catch {
-            return unavailableCheck();
+            return Object.freeze({ available: false, value: null });
         }
     }
 
@@ -302,14 +297,32 @@ function createCustomerReadinessService({
                 fail("tenant lifecycle status");
             }
 
-            const evaluatedAtMs = now();
-            const projectedChecks = await Promise.all(
-                ACTIVATION_READINESS_SOURCES.map(source => evaluateSource({
+            const loadedSources = await Promise.all(
+                ACTIVATION_READINESS_SOURCES.map(source => loadSource({
                     source,
                     tenantId,
-                    tenant,
-                    evaluatedAtMs
+                    tenant
                 }))
+            );
+            const evaluatedAtMs = now();
+            const projectedChecks = ACTIVATION_READINESS_SOURCES.map(
+                (source, index) => {
+                    const loaded = loadedSources[index];
+                    if (!loaded.available) {
+                        return unavailableCheck();
+                    }
+
+                    try {
+                        return projectReadinessCheck(
+                            source,
+                            loaded.value,
+                            tenantId,
+                            evaluatedAtMs
+                        );
+                    } catch {
+                        return unavailableCheck();
+                    }
+                }
             );
             const checks = {};
             ACTIVATION_READINESS_SOURCES.forEach((source, index) => {

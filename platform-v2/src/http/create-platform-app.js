@@ -9,6 +9,9 @@ const { requireTenantId } = require("../tenant/tenant-id");
 const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
 const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
 const { assertSecurityPosture } = require("../security/security-posture-service");
+const {
+    assertCustomerReadiness
+} = require("../onboarding/customer-readiness-service");
 
 const ADMIN_CSP = [
     "default-src 'self'",
@@ -145,6 +148,7 @@ function createPlatformApp({
     securityOperations = null,
     securityAlertReader = null,
     securityPostureService = null,
+    customerReadinessService = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -168,6 +172,10 @@ function createPlatformApp({
     if (securityPostureService &&
         typeof securityPostureService.getPlatformPosture !== "function") {
         throw new TypeError("Security posture service geçersiz.");
+    }
+    if (customerReadinessService &&
+        typeof customerReadinessService.evaluate !== "function") {
+        throw new TypeError("Customer readiness service geçersiz.");
     }
 
     const requirePlatformAdmin = createRequirePlatformAdmin({
@@ -376,6 +384,44 @@ function createPlatformApp({
             return sendPlatformError(res, error);
         }
     });
+
+    if (customerReadinessService) {
+        app.get("/api/platform/tenants/:tenantId/readiness", async (req, res) => {
+            let tenantId;
+            try {
+                tenantId = requireTenantId(req.params.tenantId);
+                if (tenantId !== req.params.tenantId) {
+                    throw new TypeError();
+                }
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Müşteri hazırlığı tenant kimliği geçersiz."
+                });
+            }
+
+            try {
+                const tenant = await tenantRegistry.getById(tenantId);
+                if (!tenant) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "İşletme bulunamadı."
+                    });
+                }
+
+                const readiness = assertCustomerReadiness(
+                    await customerReadinessService.evaluate({ tenantId, tenant })
+                );
+                return res.json({ success: true, readiness });
+            } catch {
+                console.error("Müşteri hazırlığı okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Müşteri hazırlığı alınamadı."
+                });
+            }
+        });
+    }
 
     app.get("/api/platform/tenants/:tenantId", async (req, res) => {
         try {
