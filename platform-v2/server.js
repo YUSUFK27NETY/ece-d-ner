@@ -53,6 +53,9 @@ const {
 const {
     createCustomerReadinessSourceAdapters
 } = require("./src/onboarding/customer-readiness-adapters");
+const {
+    createDomainReadinessService
+} = require("./src/onboarding/domain-readiness-service");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -146,10 +149,12 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const domainReadinessService = createDomainReadinessService();
     const customerReadinessService = createCustomerReadinessService({
         sourceAdapters: createCustomerReadinessSourceAdapters({
             checkReadiness,
-            backupEvidenceProvider
+            backupEvidenceProvider,
+            domainReadinessService
         })
     });
     const capacityService = createCapacitySloService({ config: scalabilityConfig });

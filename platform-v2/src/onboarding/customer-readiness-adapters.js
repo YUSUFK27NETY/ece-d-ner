@@ -1,4 +1,28 @@
 const { requireTenantId } = require("../tenant/tenant-id");
+const { assertDomainReadiness } = require("./domain-readiness-service");
+
+const DOMAIN_READINESS_SOURCE_MAPPING = Object.freeze({
+    not_configured: Object.freeze({
+        status: "pending",
+        code: "DOMAIN_NOT_CONFIGURED"
+    }),
+    pending: Object.freeze({
+        status: "pending",
+        code: "DOMAIN_PENDING"
+    }),
+    verified: Object.freeze({
+        status: "ready",
+        code: null
+    }),
+    failed: Object.freeze({
+        status: "blocked",
+        code: "DOMAIN_VERIFICATION_FAILED"
+    }),
+    unavailable: Object.freeze({
+        status: "unavailable",
+        code: "DOMAIN_UNAVAILABLE"
+    })
+});
 
 function fail(label) {
     throw new TypeError(`Customer readiness ${label} geçersiz.`);
@@ -213,9 +237,49 @@ function createBackupReadinessAdapter({ backupEvidenceProvider }) {
     });
 }
 
+function createDomainReadinessAdapter({ domainReadinessService }) {
+    if (!domainReadinessService ||
+        typeof domainReadinessService.evaluate !== "function") {
+        fail("domain readiness service");
+    }
+
+    return Object.freeze({
+        async evaluate(input) {
+            const tenantId = requireAdapterTenantId(input);
+            const tenantField = readOwn(input, "tenant");
+            if (!tenantField.exists || !tenantField.safe ||
+                !isPlainRecord(tenantField.value)) {
+                fail("domain tenant");
+            }
+
+            const domainReadiness = assertDomainReadiness(
+                await domainReadinessService.evaluate(Object.freeze({
+                    tenantId,
+                    tenant: tenantField.value
+                }))
+            );
+            const mapping = DOMAIN_READINESS_SOURCE_MAPPING[
+                domainReadiness.state
+            ];
+            if (!mapping) {
+                fail("domain state");
+            }
+
+            return readinessResult({
+                source: "domain",
+                tenantId,
+                status: mapping.status,
+                code: mapping.code,
+                observedAt: domainReadiness.observedAt
+            });
+        }
+    });
+}
+
 function createCustomerReadinessSourceAdapters({
     checkReadiness,
-    backupEvidenceProvider = null
+    backupEvidenceProvider = null,
+    domainReadinessService = null
 }) {
     const adapters = {
         profile: createProfileReadinessAdapter(),
@@ -228,13 +292,21 @@ function createCustomerReadinessSourceAdapters({
         });
     }
 
+    if (domainReadinessService !== null) {
+        adapters.domain = createDomainReadinessAdapter({
+            domainReadinessService
+        });
+    }
+
     return Object.freeze(adapters);
 }
 
 module.exports = {
+    DOMAIN_READINESS_SOURCE_MAPPING,
     canonicalTimestamp,
     createBackupReadinessAdapter,
     createCustomerReadinessSourceAdapters,
+    createDomainReadinessAdapter,
     createHealthReadinessAdapter,
     createProfileReadinessAdapter
 };
