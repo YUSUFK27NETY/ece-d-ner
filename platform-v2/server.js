@@ -1,6 +1,7 @@
 const { createPlatformFirebase } = require("./src/firebase/create-platform-firebase");
 const { createFirestoreTenantRegistry } = require("./src/firestore/firestore-tenant-registry");
 const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-writer");
+const { createFirestoreAuditReader } = require("./src/firestore/firestore-audit-reader");
 const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
@@ -8,6 +9,12 @@ const {
     createFirestoreSecurityReviewEvidenceProvider
 } = require("./src/firestore/firestore-security-review-evidence-provider");
 const { createPlatformApp } = require("./src/http/create-platform-app");
+const {
+    attachLastAuditEndpoint
+} = require("./src/http/attach-last-audit-endpoint");
+const {
+    createLastAuditReadModel
+} = require("./src/audit/last-audit-read-model");
 const {
     normalizeFirebaseWebConfig,
     normalizeAllowedOrigins
@@ -104,6 +111,8 @@ function startPlatformServer() {
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
     const auditWriter = createFirestoreAuditWriter({ db });
+    const auditReader = createFirestoreAuditReader({ db });
+    const lastAuditReadModel = createLastAuditReadModel({ auditReader });
     const webConfig = normalizeFirebaseWebConfig(
         process.env.PLATFORM_FIREBASE_WEB_CONFIG_JSON
     );
@@ -235,6 +244,11 @@ function startPlatformServer() {
         commercialPlanPreviewService,
         tenantOperations,
         finOpsService
+    });
+    attachLastAuditEndpoint({
+        app,
+        tenantRegistry,
+        lastAuditReadModel
     });
     attachReadinessEndpoint({ app, checkReadiness });
 
