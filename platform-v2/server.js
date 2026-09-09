@@ -54,6 +54,9 @@ const {
     createCustomerReadinessSourceAdapters
 } = require("./src/onboarding/customer-readiness-adapters");
 const {
+    createPlanReadinessAdapter
+} = require("./src/onboarding/plan-readiness-adapter");
+const {
     createDomainReadinessService
 } = require("./src/onboarding/domain-readiness-service");
 
@@ -151,10 +154,16 @@ function startPlatformServer() {
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
     const domainReadinessService = createDomainReadinessService();
     const customerReadinessService = createCustomerReadinessService({
-        sourceAdapters: createCustomerReadinessSourceAdapters({
-            checkReadiness,
-            backupEvidenceProvider,
-            domainReadinessService
+        sourceAdapters: Object.freeze({
+            ...createCustomerReadinessSourceAdapters({
+                checkReadiness,
+                backupEvidenceProvider,
+                domainReadinessService
+            }),
+            plan: createPlanReadinessAdapter({
+                guardrailsConfig,
+                entitlementService
+            })
         })
     });
     const capacityService = createCapacitySloService({ config: scalabilityConfig });
