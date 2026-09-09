@@ -74,16 +74,12 @@ function requireClockDate(clock) {
 
 function createTenantLifecycleService({
     tenantRegistry,
-    auditWriter = null,
     customerReadinessService = null,
     clock = () => new Date()
 }) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function" ||
         typeof tenantRegistry.update !== "function") {
         throw new TypeError("Tenant lifecycle registry getById/update metodlarını uygulamalı.");
-    }
-    if (auditWriter && typeof auditWriter.write !== "function") {
-        throw new TypeError("Tenant lifecycle audit writer geçersiz.");
     }
     if (customerReadinessService &&
         typeof customerReadinessService.evaluate !== "function") {
@@ -98,6 +94,14 @@ function createTenantLifecycleService({
             "TENANT_LIFECYCLE_UNAVAILABLE",
             "Tenant lifecycle işlemi şu anda kullanılamıyor."
         );
+    }
+
+    function snapshotTenant(tenant) {
+        try {
+            return structuredClone(tenant);
+        } catch {
+            unavailable();
+        }
     }
 
     async function loadTenant(tenantId) {
@@ -172,12 +176,13 @@ function createTenantLifecycleService({
         const tenantId = requireCanonicalTenantId(input?.tenantId);
         const actorId = requireActorId(input?.actorId);
 
-        if (!auditWriter) {
+        if (typeof tenantRegistry.commitLifecycleTransition !== "function") {
             unavailable();
         }
 
         const current = await loadTenant(tenantId);
-        if (current.status !== policy.from) {
+        const expected = snapshotTenant(current);
+        if (expected.status !== policy.from) {
             throw lifecycleError(
                 "TENANT_LIFECYCLE_INVALID_TRANSITION",
                 "Tenant lifecycle geçişine izin verilmiyor."
@@ -187,7 +192,7 @@ function createTenantLifecycleService({
         if (policy.readinessMode) {
             await evaluateReadiness(tenantId, current, policy.readinessMode);
             const fresh = await loadTenant(tenantId);
-            if (!isDeepStrictEqual(fresh, current)) {
+            if (!isDeepStrictEqual(fresh, expected)) {
                 throw lifecycleError(
                     "TENANT_LIFECYCLE_STATE_CHANGED",
                     "Tenant lifecycle durumu değişti; işlem yeniden değerlendirilmeli."
@@ -197,36 +202,43 @@ function createTenantLifecycleService({
 
         const now = requireClockDate(clock);
         const next = Object.freeze({
-            ...current,
+            ...expected,
             status: policy.to,
             updatedAt: now.toISOString(),
             updatedBy: actorId
         });
+        const auditEvent = createAuditEvent({
+            tenantId,
+            action: policy.auditAction,
+            actorId,
+            requestId: input?.requestId || null,
+            metadata: {
+                fromStatus: policy.from,
+                toStatus: policy.to
+            },
+            now
+        });
 
         let updated;
         try {
-            updated = await tenantRegistry.update(tenantId, next);
-        } catch {
-            unavailable();
-        }
-        if (!updated || typeof updated !== "object" ||
-            updated.tenantId !== tenantId || updated.status !== policy.to) {
+            updated = await tenantRegistry.commitLifecycleTransition({
+                tenantId,
+                expectedTenant: expected,
+                nextTenant: next,
+                auditEvent
+            });
+        } catch (error) {
+            if (error?.code === "TENANT_LIFECYCLE_STATE_CHANGED") {
+                throw lifecycleError(
+                    "TENANT_LIFECYCLE_STATE_CHANGED",
+                    "Tenant lifecycle durumu değişti; işlem yeniden değerlendirilmeli."
+                );
+            }
             unavailable();
         }
 
-        try {
-            await auditWriter.write(createAuditEvent({
-                tenantId,
-                action: policy.auditAction,
-                actorId,
-                requestId: input?.requestId || null,
-                metadata: {
-                    fromStatus: policy.from,
-                    toStatus: policy.to
-                },
-                now
-            }));
-        } catch {
+        if (!updated || typeof updated !== "object" ||
+            !isDeepStrictEqual(updated, next)) {
             unavailable();
         }
 

@@ -2,6 +2,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { isDeepStrictEqual } = require("node:util");
 
 const {
     authorizeTenantAction
@@ -97,7 +98,7 @@ function tenantFixture(tenantId, overrides = {}) {
     });
 }
 
-function createRegistry(initialTenants = []) {
+function createRegistry(initialTenants = [], lifecycleAudit = []) {
     const records = new Map(
         initialTenants.map(tenant => [tenant.tenantId, tenant])
     );
@@ -137,6 +138,30 @@ function createRegistry(initialTenants = []) {
             records.set(tenantId, tenant);
             operations.push(Object.freeze({ operation: "update", tenantId }));
             return tenant;
+        },
+        async commitLifecycleTransition({
+            tenantId,
+            expectedTenant,
+            nextTenant,
+            auditEvent
+        }) {
+            if (!Array.isArray(lifecycleAudit)) {
+                throw new Error("Synthetic atomic lifecycle unavailable.");
+            }
+            if (nextTenant?.tenantId !== tenantId || auditEvent?.tenantId !== tenantId) {
+                const error = new Error("Synthetic registry lifecycle scope mismatch.");
+                error.code = "TENANT_BOUNDARY_VIOLATION";
+                throw error;
+            }
+            if (!isDeepStrictEqual(records.get(tenantId), expectedTenant)) {
+                const error = new Error("Synthetic registry lifecycle state changed.");
+                error.code = "TENANT_LIFECYCLE_STATE_CHANGED";
+                throw error;
+            }
+            records.set(tenantId, nextTenant);
+            operations.push(Object.freeze({ operation: "update", tenantId }));
+            lifecycleAudit.push(auditEvent);
+            return nextTenant;
         }
     });
 
@@ -657,8 +682,8 @@ test("operations ve backup görünürlüğü exact ikinci tenant projection'ınd
 test("suspend resume ve archive yalnız mevcut lifecycle durumlarını kullanır", async () => {
     const firstTenant = tenantFixture(FIRST_TENANT_ID, { status: "active" });
     const secondTenant = tenantFixture(SECOND_TENANT_ID);
-    const state = createRegistry([firstTenant, secondTenant]);
     const audit = [];
+    const state = createRegistry([firstTenant, secondTenant], audit);
     const management = createTenantManagementService({ tenantRegistry: state.registry });
     const readiness = createReadyService();
     const times = [15, 16, 17, 18, 19].map(minute =>
@@ -667,9 +692,6 @@ test("suspend resume ve archive yalnız mevcut lifecycle durumlarını kullanır
     const lifecycle = createTenantLifecycleService({
         tenantRegistry: state.registry,
         customerReadinessService: readiness,
-        auditWriter: {
-            async write(event) { audit.push(event); }
-        },
         clock: () => times.shift()
     });
 

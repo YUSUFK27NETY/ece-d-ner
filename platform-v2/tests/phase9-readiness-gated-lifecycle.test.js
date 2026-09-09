@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { once } = require("node:events");
+const { isDeepStrictEqual } = require("node:util");
 
 const { createPlatformApp } = require("../src/http/create-platform-app");
 const {
@@ -67,7 +68,10 @@ function readinessService(profileStatus = "ready") {
     });
 }
 
-function registryFixture(initialTenants = [tenantFixture()]) {
+function registryFixture(
+    initialTenants = [tenantFixture()],
+    lifecycleAudit = []
+) {
     const records = new Map(initialTenants.map(tenant => [tenant.tenantId, tenant]));
     const getCalls = [];
     const updateCalls = [];
@@ -87,6 +91,30 @@ function registryFixture(initialTenants = [tenantFixture()]) {
             updateCalls.push({ tenantId, tenant });
             records.set(tenantId, tenant);
             return tenant;
+        },
+        async commitLifecycleTransition({
+            tenantId,
+            expectedTenant,
+            nextTenant,
+            auditEvent
+        }) {
+            if (!Array.isArray(lifecycleAudit)) {
+                throw new Error("synthetic atomic lifecycle unavailable");
+            }
+            if (nextTenant?.tenantId !== tenantId || auditEvent?.tenantId !== tenantId) {
+                const error = new Error("synthetic lifecycle tenant boundary mismatch");
+                error.code = "TENANT_BOUNDARY_VIOLATION";
+                throw error;
+            }
+            if (!isDeepStrictEqual(records.get(tenantId), expectedTenant)) {
+                const error = new Error("synthetic lifecycle state changed");
+                error.code = "TENANT_LIFECYCLE_STATE_CHANGED";
+                throw error;
+            }
+            updateCalls.push({ tenantId, tenant: nextTenant });
+            records.set(tenantId, nextTenant);
+            lifecycleAudit.push(auditEvent);
+            return nextTenant;
         }
     };
     return { records, getCalls, updateCalls, registry };
@@ -97,14 +125,11 @@ function lifecycleFixture({
     readiness = readinessService(),
     clock = () => new Date("2026-09-09T09:05:00.000Z")
 } = {}) {
-    const state = registryFixture(initialTenants);
     const audit = [];
+    const state = registryFixture(initialTenants, audit);
     const service = createTenantLifecycleService({
         tenantRegistry: state.registry,
         customerReadinessService: readiness,
-        auditWriter: {
-            async write(event) { audit.push(event); }
-        },
         clock
     });
     return { ...state, audit, service };
@@ -124,8 +149,11 @@ async function startServer({
     initialTenants = [tenantFixture()],
     includeAuditWriter = true
 } = {}) {
-    const state = registryFixture(initialTenants);
     const audit = [];
+    const state = registryFixture(
+        initialTenants,
+        includeAuditWriter ? audit : null
+    );
     const auth = {
         async verifyIdToken(value) {
             if (value === "platform-token") {
@@ -278,9 +306,9 @@ test("genuine issued readiness provisioning tenantı bir kez aktive eder ve audi
 });
 
 test("activation readiness değerlendirmesi sırasında değişen tenant yeniden denemeye kapanır", async () => {
-    const state = registryFixture();
-    const issued = readinessService();
     const audit = [];
+    const state = registryFixture(undefined, audit);
+    const issued = readinessService();
     const wrappedReadiness = {
         async evaluate(input) {
             const result = await issued.evaluate(input);
@@ -293,8 +321,7 @@ test("activation readiness değerlendirmesi sırasında değişen tenant yeniden
     };
     const service = createTenantLifecycleService({
         tenantRegistry: state.registry,
-        customerReadinessService: wrappedReadiness,
-        auditWriter: { async write(event) { audit.push(event); } }
+        customerReadinessService: wrappedReadiness
     });
 
     await assert.rejects(

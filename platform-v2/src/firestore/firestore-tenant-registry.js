@@ -1,6 +1,9 @@
+const { isDeepStrictEqual } = require("node:util");
 const { requireTenantId } = require("../tenant/tenant-id");
+const { tenantCollection, TENANT_COLLECTIONS } = require("./tenant-paths");
 
 const DEFAULT_TENANT_REGISTRY_COLLECTION = "platformTenants";
+const AUDIT_EVENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function normalizeListLimit(value = 100) {
     const limit = Number(value);
@@ -10,6 +13,34 @@ function normalizeListLimit(value = 100) {
     }
 
     return limit;
+}
+
+function stateChanged() {
+    const error = new Error("Tenant lifecycle durumu değişti; işlem yeniden değerlendirilmeli.");
+    error.code = "TENANT_LIFECYCLE_STATE_CHANGED";
+    return error;
+}
+
+function requireLifecycleTenant(record, tenantId, label) {
+    if (!record || typeof record !== "object" || Array.isArray(record) ||
+        record.tenantId !== tenantId ||
+        requireTenantId(record.tenantId) !== tenantId) {
+        throw new TypeError(`${label} tenant kaydı geçersiz.`);
+    }
+    return record;
+}
+
+function requireLifecycleAuditEvent(event, tenantId) {
+    if (!event || typeof event !== "object" || Array.isArray(event) ||
+        event.tenantId !== tenantId ||
+        requireTenantId(event.tenantId) !== tenantId ||
+        typeof event.eventId !== "string" ||
+        !AUDIT_EVENT_ID_PATTERN.test(event.eventId) ||
+        typeof event.action !== "string" ||
+        !event.action.startsWith("tenant.lifecycle.")) {
+        throw new TypeError("Lifecycle audit event geçersiz.");
+    }
+    return event;
 }
 
 function createFirestoreTenantRegistry({
@@ -75,6 +106,60 @@ function createFirestoreTenantRegistry({
 
             await collection.doc(tenantId).update({ ...tenant });
             return tenant;
+        },
+
+        async commitLifecycleTransition({
+            tenantId: rawTenantId,
+            expectedTenant,
+            nextTenant,
+            auditEvent
+        } = {}) {
+            const tenantId = requireTenantId(rawTenantId);
+            if (tenantId !== rawTenantId) {
+                throw new TypeError("Lifecycle tenant kimliği canonical olmalı.");
+            }
+            requireLifecycleTenant(expectedTenant, tenantId, "Expected lifecycle");
+            requireLifecycleTenant(nextTenant, tenantId, "Next lifecycle");
+            requireLifecycleAuditEvent(auditEvent, tenantId);
+
+            if (typeof db.runTransaction !== "function" ||
+                typeof db.doc !== "function") {
+                throw new TypeError("Atomic lifecycle persistence kullanılamıyor.");
+            }
+
+            const tenantRef = collection.doc(tenantId);
+            const auditPath = tenantCollection(
+                tenantId,
+                TENANT_COLLECTIONS.audit
+            );
+            const auditRef = db.doc(`${auditPath}/${auditEvent.eventId}`);
+
+            return db.runTransaction(async transaction => {
+                if (!transaction || typeof transaction.get !== "function" ||
+                    typeof transaction.update !== "function" ||
+                    typeof transaction.create !== "function") {
+                    throw new TypeError("Atomic lifecycle transaction geçersiz.");
+                }
+
+                const snapshot = await transaction.get(tenantRef);
+                if (!snapshot || snapshot.exists !== true ||
+                    typeof snapshot.data !== "function") {
+                    throw stateChanged();
+                }
+
+                const persisted = {
+                    id: snapshot.id,
+                    ...snapshot.data()
+                };
+
+                if (!isDeepStrictEqual(persisted, expectedTenant)) {
+                    throw stateChanged();
+                }
+
+                transaction.update(tenantRef, { ...nextTenant });
+                transaction.create(auditRef, { ...auditEvent });
+                return nextTenant;
+            });
         }
     });
 }
