@@ -41,6 +41,12 @@ const {
     createTenantManagementService
 } = require("../src/tenant/tenant-management-service");
 const {
+    createTenantLifecycleService
+} = require("../src/tenant/tenant-lifecycle-service");
+const {
+    createTenantOperationsService
+} = require("../src/operations/tenant-operations-service");
+const {
     createTenantOnboardingService
 } = require("../src/tenant/onboarding-service");
 const {
@@ -556,14 +562,116 @@ test("Security Alerts exact tenant; Security Posture platform scope ve read-only
         /app\.(?:post|patch|delete)\("\/api\/platform\/security-posture"/);
 });
 
+test("operations ve backup görünürlüğü exact ikinci tenant projection'ında kalır", async () => {
+    const firstTenant = tenantFixture(FIRST_TENANT_ID, { status: "active" });
+    const secondTenant = tenantFixture(SECOND_TENANT_ID);
+    const state = createRegistry([firstTenant, secondTenant]);
+    const calls = [];
+    const usageTelemetry = {
+        async getAggregate({ tenantId, period }) {
+            calls.push({ dependency: `usage-${period}`, tenantId });
+            return {
+                requestCount: 0,
+                errorCount: 0,
+                latencyAverageMs: 0,
+                latencyMaxMs: 0,
+                providerUsage: {},
+                backup: {}
+            };
+        }
+    };
+    const service = createTenantOperationsService({
+        tenantRegistry: state.registry,
+        usageTelemetry,
+        entitlementService: {
+            evaluate({ tenant }) {
+                return {
+                    featureEnabled: true,
+                    plan: tenant.plan,
+                    usedDefaultPlanPolicy: false,
+                    limit: {
+                        softLimit: 100,
+                        usage: 0,
+                        usageRatio: 0,
+                        status: "ok",
+                        warning: false
+                    }
+                };
+            }
+        },
+        finOpsService: {
+            async getTenantEstimate({ tenantId }) {
+                calls.push({ dependency: "finops", tenantId });
+                return { monthlyCost: 0 };
+            }
+        },
+        securitySignals: {
+            async listTenant({ tenantId }) {
+                calls.push({ dependency: "security", tenantId });
+                return [];
+            }
+        },
+        backupEvidenceProvider: {
+            async getStatus({ tenantId }) {
+                calls.push({ dependency: "backup", tenantId });
+                return {
+                    sizeBytes: 64,
+                    objectCount: 1,
+                    verifiedAt: OBSERVED_AT,
+                    restoreDrillAt: null,
+                    restoreDrillStatus: "unknown",
+                    providerPayload: "synthetic-private-provider-field",
+                    authMaterial: "synthetic-private-auth-field"
+                };
+            }
+        }
+    });
+
+    const overview = await service.getOverview({
+        context: platformContext(),
+        tenantId: SECOND_TENANT_ID,
+        at: new Date("2026-09-09T09:12:00.000Z")
+    });
+    assert.equal(overview.tenantId, SECOND_TENANT_ID);
+    assert.equal(overview.backup.objectCount, 1);
+    assert.equal(overview.backup.verifiedAt, OBSERVED_AT);
+    assert.equal(JSON.stringify(overview).includes("synthetic-private"), false);
+    assert.equal(calls.every(call => call.tenantId === SECOND_TENANT_ID), true);
+
+    const callCount = calls.length;
+    await assert.rejects(
+        () => service.getOverview({
+            context: createTenantContext({
+                tenantId: SECOND_TENANT_ID,
+                role: "tenant_owner",
+                actorId: "synthetic-second-owner"
+            }),
+            tenantId: FIRST_TENANT_ID
+        }),
+        error => error?.code === "TENANT_SCOPE_MISMATCH"
+    );
+    assert.equal(calls.length, callCount);
+    assert.strictEqual(state.records.get(FIRST_TENANT_ID), firstTenant);
+});
+
 test("suspend resume ve archive yalnız mevcut lifecycle durumlarını kullanır", async () => {
     const firstTenant = tenantFixture(FIRST_TENANT_ID, { status: "active" });
     const secondTenant = tenantFixture(SECOND_TENANT_ID);
     const state = createRegistry([firstTenant, secondTenant]);
-    const management = createTenantManagementService({
-        tenantRegistry: state.registry
-    });
+    const audit = [];
+    const management = createTenantManagementService({ tenantRegistry: state.registry });
     const readiness = createReadyService();
+    const times = [15, 16, 17, 18, 19].map(minute =>
+        new Date(`2026-09-09T09:${minute}:00.000Z`)
+    );
+    const lifecycle = createTenantLifecycleService({
+        tenantRegistry: state.registry,
+        customerReadinessService: readiness,
+        auditWriter: {
+            async write(event) { audit.push(event); }
+        },
+        clock: () => times.shift()
+    });
 
     const activationGate = await readiness.evaluate({
         tenantId: SECOND_TENANT_ID,
@@ -571,17 +679,20 @@ test("suspend resume ve archive yalnız mevcut lifecycle durumlarını kullanır
     });
     assert.equal(activationGate.canActivate, true);
 
-    const active = await management.update({
+    await assert.rejects(() => management.update({
         tenantId: SECOND_TENANT_ID,
-        actorId: PLATFORM_ACTOR_ID,
-        now: new Date("2026-09-09T09:15:00.000Z"),
         patch: { status: "active" }
-    });
-    const suspended = await management.update({
+    }), error => error?.code === "TENANT_LIFECYCLE_ACTION_REQUIRED");
+
+    const active = await lifecycle.activate({
         tenantId: SECOND_TENANT_ID,
         actorId: PLATFORM_ACTOR_ID,
-        now: new Date("2026-09-09T09:16:00.000Z"),
-        patch: { status: "suspended" }
+        requestId: "p9-6-activate-second"
+    });
+    const suspended = await lifecycle.suspend({
+        tenantId: SECOND_TENANT_ID,
+        actorId: PLATFORM_ACTOR_ID,
+        requestId: "p9-6-suspend-second"
     });
     assert.equal(active.status, "active");
     assert.equal((await readiness.evaluate({
@@ -589,31 +700,45 @@ test("suspend resume ve archive yalnız mevcut lifecycle durumlarını kullanır
         tenant: suspended
     })).canActivate, false);
 
-    const resumed = await management.update({
+    const resumed = await lifecycle.resume({
         tenantId: SECOND_TENANT_ID,
         actorId: PLATFORM_ACTOR_ID,
-        now: new Date("2026-09-09T09:17:00.000Z"),
-        patch: { status: "active" }
+        requestId: "p9-6-resume-second"
     });
     assert.equal(resumed.status, "active");
 
-    await management.update({
+    await lifecycle.suspend({
         tenantId: SECOND_TENANT_ID,
         actorId: PLATFORM_ACTOR_ID,
-        now: new Date("2026-09-09T09:18:00.000Z"),
-        patch: { status: "suspended" }
+        requestId: "p9-6-resuspend-second"
     });
-    const archived = await management.update({
+    const archived = await lifecycle.archive({
         tenantId: SECOND_TENANT_ID,
         actorId: PLATFORM_ACTOR_ID,
-        now: new Date("2026-09-09T09:19:00.000Z"),
-        patch: { status: "archived" }
+        requestId: "p9-6-archive-second"
     });
     assert.equal((await readiness.evaluate({
         tenantId: SECOND_TENANT_ID,
         tenant: archived
     })).canActivate, false);
     assert.strictEqual(state.records.get(FIRST_TENANT_ID), firstTenant);
+    for (const action of ["activate", "suspend", "resume", "archive"]) {
+        await assert.rejects(
+            () => lifecycle[action]({
+                tenantId: SECOND_TENANT_ID,
+                actorId: PLATFORM_ACTOR_ID
+            }),
+            error => error?.code === "TENANT_LIFECYCLE_INVALID_TRANSITION"
+        );
+    }
+    assert.equal(audit.length, 5);
+    assert.deepEqual(audit.map(event => event.requestId), [
+        "p9-6-activate-second",
+        "p9-6-suspend-second",
+        "p9-6-resume-second",
+        "p9-6-resuspend-second",
+        "p9-6-archive-second"
+    ]);
 
     assert.deepEqual(Array.from(TENANT_STATUSES), [
         "provisioning", "active", "suspended", "archived"
@@ -692,7 +817,8 @@ test("iki tenant aynı merkezi path/runtime modelini kullanır ve V1 izolasyonu 
         "src/onboarding/tenant-member-bootstrap-contract.js",
         "src/onboarding/tenant-member-bootstrap-service.js",
         "src/onboarding/domain-readiness-service.js",
-        "src/entitlements/commercial-plan-preview-service.js"
+        "src/entitlements/commercial-plan-preview-service.js",
+        "src/tenant/tenant-lifecycle-service.js"
     ].map(file => fs.readFileSync(path.join(platformRoot, file), "utf8"))
         .join("\n");
 

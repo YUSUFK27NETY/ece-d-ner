@@ -1606,7 +1606,6 @@
                 const payload = {
                     displayName: elements.displayName.value,
                     plan: elements.plan.value,
-                    status: elements.status.value,
                     features: featuresFromForm(),
                     profile: profileFromForm()
                 };

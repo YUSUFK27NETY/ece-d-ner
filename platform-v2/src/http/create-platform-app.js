@@ -5,6 +5,7 @@ const path = require("node:path");
 const { createRequirePlatformAdmin } = require("../auth/require-platform-admin");
 const { createTenantOnboardingService } = require("../tenant/onboarding-service");
 const { createTenantManagementService } = require("../tenant/tenant-management-service");
+const { createTenantLifecycleService } = require("../tenant/tenant-lifecycle-service");
 const { requireTenantId } = require("../tenant/tenant-id");
 const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
 const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
@@ -48,6 +49,15 @@ function normalizeTopTenantLimit(value = 10) {
     }
 
     return limit;
+}
+
+function hasLifecycleRequestInput(req) {
+    const contentLength = req.get("content-length");
+
+    return req.body !== undefined ||
+        contentLength !== undefined && contentLength !== "0" ||
+        req.get("transfer-encoding") !== undefined ||
+        Reflect.ownKeys(req.query).length > 0;
 }
 
 const SECURITY_ALERT_RESPONSE_FIELDS = Object.freeze([
@@ -200,6 +210,11 @@ function createPlatformApp({
     const tenantManagement = createTenantManagementService({
         tenantRegistry,
         auditWriter
+    });
+    const tenantLifecycle = createTenantLifecycleService({
+        tenantRegistry,
+        auditWriter,
+        customerReadinessService
     });
     const platformCors = createPlatformCorsMiddleware(allowedOrigins);
     const adminPublicDir = path.join(__dirname, "../../public/admin");
@@ -602,6 +617,26 @@ function createPlatformApp({
         }
     });
 
+    for (const action of ["activate", "suspend", "resume", "archive"]) {
+        app.post(`/api/platform/tenants/:tenantId/lifecycle/${action}`, async (req, res) => {
+            try {
+                if (hasLifecycleRequestInput(req)) {
+                    throw new TypeError("Lifecycle isteği gövde veya sorgu kabul etmez.");
+                }
+
+                const tenant = await tenantLifecycle[action]({
+                    tenantId: req.params.tenantId,
+                    actorId: req.platformActor.uid,
+                    requestId: req.requestId
+                });
+
+                return res.json({ success: true, tenant });
+            } catch (error) {
+                return sendPlatformError(res, error);
+            }
+        });
+    }
+
     app.patch("/api/platform/tenants/:tenantId", async (req, res) => {
         try {
             if (!req.is("application/json")) {
@@ -664,6 +699,26 @@ function sendPlatformError(res, error) {
         return res.status(404).json({
             success: false,
             message: "İşletme bulunamadı."
+        });
+    }
+
+    if (error?.code === "TENANT_LIFECYCLE_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "Tenant lifecycle işlemi şu anda kullanılamıyor."
+        });
+    }
+
+    if (new Set([
+        "TENANT_LIFECYCLE_ACTION_REQUIRED",
+        "TENANT_LIFECYCLE_INVALID_TRANSITION",
+        "TENANT_LIFECYCLE_STATE_CHANGED",
+        "TENANT_ACTIVATION_NOT_READY",
+        "TENANT_RESUME_NOT_READY"
+    ]).has(error?.code)) {
+        return res.status(409).json({
+            success: false,
+            message: error.message
         });
     }
 

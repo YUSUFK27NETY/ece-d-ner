@@ -141,14 +141,21 @@ Platform V2 staging ortamında, yetkili operatör tarafından uygulanır.
     detail, catalog, order, operations ve security kaynaklarına erişim denemeleri
     fail-closed olmalıdır. Başarılı tek bir forged erişim hard stop'tur.
 13. **Aktivasyonu kontrollü yap:** Yalnız `canActivate=true` genuine sonucu ve
-    gerekli operasyon onayı varsa mevcut Platform Admin lifecycle update'iyle
-    `active` yap. Readiness sonucu mutation değildir; otomatik aktivasyon yoktur.
-14. **Suspend/resume provası yap:** İkinci tenantı açıkça `suspended` yap;
+    gerekli operasyon onayı varsa ayrı Platform Admin
+    `POST /api/platform/tenants/:tenantId/lifecycle/activate` işlemiyle `active`
+    yap. Generic tenant PATCH durum değiştiremez. Readiness sonucu mutation
+    değildir; otomatik aktivasyon yoktur.
+14. **Suspend/resume provası yap:** Ayrı kontrollü
+    `POST /api/platform/tenants/:tenantId/lifecycle/suspend` ve
+    `POST /api/platform/tenants/:tenantId/lifecycle/resume` işlemleriyle ikinci
+    tenantı açıkça `suspended` yap;
     `canActivate=false` ve baseline etkisiz olmalıdır. Abort nedeni giderilmiş,
     readiness yeniden doğrulanmış ve onay verilmişse yalnız mevcut `active`
     durumuna explicit dönüşü prova et; yeni bir rollback durumu uydurma.
 15. **Archive/handoff yap:** Provayı tamamladıktan ve kanıtı aldıktan sonra ikinci
-    tenantı önce `suspended`, sonra `archived` yap. Archived kayıtta
+    tenantı önce `suspended`, sonra ayrı
+    `POST /api/platform/tenants/:tenantId/lifecycle/archive` işlemiyle `archived`
+    yap. Archived kayıtta
     `canActivate=false` doğrula. Otomatik reactivation, silme veya provider cleanup
     çalıştırma; sonraki işlem ayrı kontrollü lifecycle kararıdır.
 16. **Baseline karşılaştır:** İlk adımda alınan baseline ile tenant detail,
