@@ -271,6 +271,11 @@ function createOrderService({
             const safeOrderId = requireOrderId(orderId);
             const current = await orders.getById(authorized.tenantId, safeOrderId);
             if (!current) throw safeError("ORDER_NOT_FOUND", "Sipariş bulunamadı.");
+            if (status === current.status) {
+                requireAdminActor(authorized.context);
+                requireRequestId(requestId);
+                return projectAdminOrder(current);
+            }
             const now = requireClockNow(clock);
             const next = applyOrderStatus(current, status, now);
             if (next === current) return projectAdminOrder(current);

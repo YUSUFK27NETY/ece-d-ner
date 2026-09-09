@@ -180,11 +180,11 @@ test("second tenant gerçek catalog create/list/update/archive akışı first te
         context,
         tenantId: "second-tenant",
         productId: "second-product",
-        patch: { price: 240, description: "updated" },
+        patch: { price: 240, description: "catalog-private-description-marker" },
         requestId: "req-update-1"
     });
     assert.equal(updated.price, 240);
-    assert.equal(updated.description, "updated");
+    assert.equal(updated.description, "catalog-private-description-marker");
 
     const archived = await service.archive({
         context,
@@ -218,7 +218,7 @@ test("second tenant gerçek catalog create/list/update/archive akışı first te
         assert.deepEqual(event.metadata, { productId: "second-product" });
         const serialized = JSON.stringify(event);
         assert.equal(serialized.includes("Second Döner"), false);
-        assert.equal(serialized.includes("240"), false);
+        assert.equal(serialized.includes("catalog-private-description-marker"), false);
     }
 });
 

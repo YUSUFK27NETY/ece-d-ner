@@ -79,7 +79,7 @@ function makeOrderRepository() {
 async function fixture({ secondPlan = "starter" } = {}) {
     const tenants = new Map([
         ["first-tenant", tenant("first-tenant")],
-        ["second-tenant", tenant("second-tenant", secondPlan)]
+        ["second-tenant", tenant("second-tenant")]
     ]);
     const tenantRegistry = {
         async getById(id) { return tenants.get(id) || null; },
@@ -132,6 +132,9 @@ async function fixture({ secondPlan = "starter" } = {}) {
         idempotencyKey: IDEM,
         requestId: "req-seed"
     });
+    if (secondPlan !== "starter") {
+        tenants.set("second-tenant", tenant("second-tenant", secondPlan));
+    }
 
     const auth = {
         async verifyIdToken(token) {
