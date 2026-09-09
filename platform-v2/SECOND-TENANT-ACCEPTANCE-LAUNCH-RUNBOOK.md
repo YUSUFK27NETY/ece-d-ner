@@ -11,6 +11,12 @@ onboard edilebildiğini doğrular.
 Repo içindeki P9-6 paketi yalnız sentetik verili otomatik acceptance testleri ve
 bu operasyon prosedüründen oluşur. Canlı staging'e bağlanmaz; provider, billing,
 DNS/SSL/WAF, identity-provider veya production backup mutationı çalıştırmaz.
+Sonraki Phase 9 paketleri bu runbook'un repo acceptance kapsamını gerçek
+second-tenant catalog → trusted public order → admin order akışı, atomic lifecycle
+persistence ve genuine plan/adminBootstrap/security readiness kaynaklarıyla
+genişletmiştir. Live staging sırasında final Phase 9 branch/runtime davranışı
+esas alınır; eski paket-sınırı varsayımları readiness sonucu üretmek için
+kullanılmaz.
 
 Durable tenant durumları değişmez:
 
@@ -76,8 +82,9 @@ Focused testler şu sınırları doğrular:
    her iki HTTP yüzeyi GET-only kalır.
 10. Suspend/resume provası yalnız mevcut durumlarla yapılır; archived tenant
     activation için fail-closed kalır.
-11. Catalog/order/admin path ve yetki kontrolleri aynı tenant sınırını kullanır;
-    V1 veya tenant-specific runtime yolu eklenmez.
+11. Gerçek second-tenant catalog → trusted public order → admin order akışı aynı
+    tenant sınırında çalışır; canonical pricing/idempotency korunur, first tenant
+    değişmez ve V1 veya tenant-specific runtime yolu eklenmez.
 
 Full CI içindeki secret scanner tracked files ile Git history'yi tarar. Scanner
 invariantı değişmez: yalnız tam private-key block finding üretir; tek başına
@@ -114,17 +121,21 @@ Platform V2 staging ortamında, yetkili operatör tarafından uygulanır.
    seç. Geçerli hedef için preview al; `automaticApply=false` ve persisted planın
    değişmediğini doğrula. Catalog dışı sentetik hedefin güvenli 400 ile
    reddedildiğini doğrula.
-6. **Admin bootstrap durumunu incele:** P9-3 contract intent'i mevcut kontrollü
-   test adapterıyla değerlendir. Sonuç `external_identity_required` ise bunu açık
-   blocker olarak kaydet; gerçek invitation/enrollment yapma.
+6. **Admin bootstrap readiness'i incele:** Customer Readiness içindeki exact
+   tenant-bound `adminBootstrap` kaynağını oku. Yalnız durable ve doğrulanmış
+   completion evidence `ready` üretebilir; external identity işi gerekiyorsa veya
+   completion evidence eksik/geçersizse sonucu dürüstçe blocker/pending/unavailable
+   olarak kaydet. Gerçek invitation/enrollment yapma.
 7. **Domain truthfulness kontrolü:** Sentetik ve zararsız bir domain metadata'sı
    kaydedilmiş olsa bile trusted verification evidence yoksa `verified`
    görünmediğini doğrula. DNS/SSL kaydı oluşturma veya değiştirme.
 8. **Customer Readiness'i oku:** Exact ikinci tenant endpointinden yedi source
-   kartını incele. Required kaynaklardan biri `blocked|unavailable|pending` ise
-   `canActivate=false` bekle ve aktivasyon yapma. Current runtime'da plan,
-   adminBootstrap veya security adapterı bağlı değilse bunların `unavailable`
-   kalması doğrudur; bu sonucu değiştirmek P9-6 scope'u değildir.
+   kartını incele. Final Phase 9 runtime'da plan, adminBootstrap ve security
+   genuine readiness kaynaklarıdır; eksik, malformed veya doğrulanmamış evidence
+   için sahte `ready` üretilemez. Required kaynaklardan biri
+   `blocked|unavailable|pending` ise `canActivate=false` bekle ve aktivasyon yapma.
+   Yalnız tüm required kaynaklar genuine evidence ile `ready` olduğunda mevcut
+   readiness-gated lifecycle activation yoluna geç.
 9. **Operations/Backup görünürlüğünü kontrol et:** İkinci tenant operations
    özetinin exact tenantId taşıdığını doğrula. Verified backup evidence yoksa
    `unknown|pending|unavailable` sonucu kabul et; production schedule veya
