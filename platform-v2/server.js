@@ -1,6 +1,9 @@
 const { createPlatformFirebase } = require("./src/firebase/create-platform-firebase");
 const { createFirestoreTenantRegistry } = require("./src/firestore/firestore-tenant-registry");
 const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-writer");
+const {
+    createFirestoreAdminBootstrapEvidenceProvider
+} = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
 const { createPlatformApp } = require("./src/http/create-platform-app");
 const {
     normalizeFirebaseWebConfig,
@@ -56,6 +59,9 @@ const {
 const {
     createPlanReadinessAdapter
 } = require("./src/onboarding/plan-readiness-adapter");
+const {
+    addAdminBootstrapReadinessSource
+} = require("./src/onboarding/admin-bootstrap-readiness-adapter");
 const {
     createDomainReadinessService
 } = require("./src/onboarding/domain-readiness-service");
@@ -153,17 +159,22 @@ function startPlatformServer() {
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
     const domainReadinessService = createDomainReadinessService();
+    const adminBootstrapEvidenceProvider =
+        createFirestoreAdminBootstrapEvidenceProvider({ db });
     const customerReadinessService = createCustomerReadinessService({
-        sourceAdapters: Object.freeze({
-            ...createCustomerReadinessSourceAdapters({
-                checkReadiness,
-                backupEvidenceProvider,
-                domainReadinessService
+        sourceAdapters: addAdminBootstrapReadinessSource({
+            sourceAdapters: Object.freeze({
+                ...createCustomerReadinessSourceAdapters({
+                    checkReadiness,
+                    backupEvidenceProvider,
+                    domainReadinessService
+                }),
+                plan: createPlanReadinessAdapter({
+                    guardrailsConfig,
+                    entitlementService
+                })
             }),
-            plan: createPlanReadinessAdapter({
-                guardrailsConfig,
-                entitlementService
-            })
+            evidenceProvider: adminBootstrapEvidenceProvider
         })
     });
     const capacityService = createCapacitySloService({ config: scalabilityConfig });
