@@ -2,6 +2,7 @@ const { createPlatformFirebase } = require("./src/firebase/create-platform-fireb
 const { createFirestoreTenantRegistry } = require("./src/firestore/firestore-tenant-registry");
 const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-writer");
 const { createFirestoreAuditReader } = require("./src/firestore/firestore-audit-reader");
+const { createFirestoreProductRepository } = require("./src/firestore/firestore-product-repository");
 const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
@@ -9,6 +10,7 @@ const {
     createFirestoreSecurityReviewEvidenceProvider
 } = require("./src/firestore/firestore-security-review-evidence-provider");
 const { createPlatformApp } = require("./src/http/create-platform-app");
+const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
 const {
     attachLastAuditEndpoint
 } = require("./src/http/attach-last-audit-endpoint");
@@ -41,6 +43,7 @@ const {
 } = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const { createCatalogService } = require("./src/catalog/catalog-service");
 const {
     createCommercialPlanPreviewService
 } = require("./src/entitlements/commercial-plan-preview-service");
@@ -159,6 +162,12 @@ function startPlatformServer() {
         config: guardrailsConfig,
         securitySignals
     });
+    const productRepository = createFirestoreProductRepository({ db });
+    const catalogService = createCatalogService({
+        tenantRegistry,
+        productRepository,
+        entitlementService
+    });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
         entitlementService
@@ -245,6 +254,7 @@ function startPlatformServer() {
         tenantOperations,
         finOpsService
     });
+    attachCatalogAdminEndpoints({ app, catalogService });
     attachLastAuditEndpoint({
         app,
         tenantRegistry,
