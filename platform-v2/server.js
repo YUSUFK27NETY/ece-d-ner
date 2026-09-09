@@ -14,6 +14,9 @@ const { createPlatformApp } = require("./src/http/create-platform-app");
 const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
 const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-endpoints");
 const {
+    attachConfiguredPublicOrderRuntime
+} = require("./src/http/attach-configured-public-order-runtime");
+const {
     attachLastAuditEndpoint
 } = require("./src/http/attach-last-audit-endpoint");
 const {
@@ -266,6 +269,12 @@ function startPlatformServer() {
     });
     attachCatalogAdminEndpoints({ app, catalogService });
     attachOrderAdminEndpoints({ app, orderService });
+    attachConfiguredPublicOrderRuntime({
+        app,
+        db,
+        tenantRegistry,
+        orderService
+    });
     attachLastAuditEndpoint({
         app,
         tenantRegistry,
