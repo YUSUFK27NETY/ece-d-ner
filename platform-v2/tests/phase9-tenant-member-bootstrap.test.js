@@ -20,6 +20,7 @@ const {
 } = require("../src/onboarding/tenant-member-bootstrap-contract");
 const {
     DUPLICATE_CODE,
+    UNAVAILABLE_CODE,
     createTenantMemberBootstrapService
 } = require("../src/onboarding/tenant-member-bootstrap-service");
 const {
@@ -163,7 +164,7 @@ test("tenant_admin staff ve viewer mevcut RBAC gereği member yönetemez", async
     }
 });
 
-test("cross-tenant girişim registry ve audit öncesi mevcut boundary semantiğiyle kapanır", async () => {
+test("cross-tenant girişim fail-closed kapanır, registryye dokunmaz ve safe audit üretir", async () => {
     const { service, registryState, audit } = createHarness();
 
     await assert.rejects(
@@ -172,6 +173,61 @@ test("cross-tenant girişim registry ve audit öncesi mevcut boundary semantiği
         })),
         error => error?.code === "TENANT_SCOPE_MISMATCH"
     );
+    assert.equal(registryState.createCalls, 0);
+    assert.equal(audit.length, 1);
+    assert.equal(audit[0].tenantId, "second-tenant");
+    assert.equal(audit[0].actorId, "owner-1");
+    assert.equal(audit[0].requestId, "request-123");
+    assert.equal(audit[0].action, "tenant.member_bootstrap.intent.denied");
+    assert.deepEqual(audit[0].metadata, {
+        reasonCode: "TENANT_SCOPE_MISMATCH"
+    });
+    assert.equal(JSON.stringify(audit[0]).includes("subject_01HX9K6QF6A1"), false);
+});
+
+test("cross-tenant denial audit writer arızası generic unavailable ile fail-closed kalır", async () => {
+    const registryState = atomicRegistry();
+    const service = createTenantMemberBootstrapService({
+        registry: registryState.registry,
+        auditWriter: {
+            async write() {
+                const error = new Error("raw-denial-audit-marker");
+                error.token = "raw-denial-token-marker";
+                throw error;
+            }
+        },
+        clock: () => new Date(NOW)
+    });
+
+    await assert.rejects(
+        () => service.createIntent(command({
+            context: ownerContext("other-tenant")
+        })),
+        error => error?.code === UNAVAILABLE_CODE &&
+            !error.message.includes("raw-denial-audit-marker") &&
+            !error.message.includes("raw-denial-token-marker")
+    );
+    assert.equal(registryState.createCalls, 0);
+});
+
+test("hostile subjectRef accessor authorization veya denial audit yolunda çalıştırılmaz", async () => {
+    const { service, registryState, audit } = createHarness();
+    const input = command({ context: ownerContext("other-tenant") });
+    let getterCalls = 0;
+    Object.defineProperty(input, "subjectRef", {
+        enumerable: true,
+        get() {
+            getterCalls += 1;
+            throw new Error("subject getter marker");
+        }
+    });
+
+    await assert.rejects(() => service.createIntent(input), error => {
+        assert.equal(error instanceof TypeError, true);
+        assert.equal(error.message.includes("marker"), false);
+        return true;
+    });
+    assert.equal(getterCalls, 0);
     assert.equal(registryState.createCalls, 0);
     assert.equal(audit.length, 0);
 });
