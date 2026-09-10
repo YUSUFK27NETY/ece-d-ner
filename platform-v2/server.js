@@ -5,6 +5,9 @@ const { createFirestoreAuditReader } = require("./src/firestore/firestore-audit-
 const { createFirestoreProductRepository } = require("./src/firestore/firestore-product-repository");
 const { createFirestoreOrderRepository } = require("./src/firestore/firestore-order-repository");
 const {
+    createFirestoreTenantMemberBindingRepository
+} = require("./src/firestore/firestore-tenant-member-binding-repository");
+const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
 const {
@@ -16,6 +19,9 @@ const {
 const { createPlatformApp } = require("./src/http/create-platform-app");
 const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
 const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-endpoints");
+const {
+    attachTenantMemberIdentityEndpoints
+} = require("./src/http/attach-tenant-member-identity-endpoints");
 const {
     attachConfiguredPublicOrderRuntime
 } = require("./src/http/attach-configured-public-order-runtime");
@@ -93,6 +99,9 @@ const {
 const {
     createPublicRouteDomainEvidenceProvider
 } = require("./src/onboarding/public-route-domain-evidence-provider");
+const {
+    createTenantInitialOwnerBootstrapService
+} = require("./src/onboarding/tenant-initial-owner-bootstrap-service");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -131,6 +140,13 @@ function startPlatformServer() {
     const scalabilityConfig = loadPlatformScalabilityConfig();
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
+    const tenantMemberBindingRepository =
+        createFirestoreTenantMemberBindingRepository({ db });
+    const initialOwnerBootstrapService = createTenantInitialOwnerBootstrapService({
+        auth,
+        tenantRegistry,
+        bindingRepository: tenantMemberBindingRepository
+    });
     const auditWriter = createFirestoreAuditWriter({ db });
     const auditReader = createFirestoreAuditReader({ db });
     const lastAuditReadModel = createLastAuditReadModel({ auditReader });
@@ -278,6 +294,13 @@ function startPlatformServer() {
         commercialPlanPreviewService,
         tenantOperations,
         finOpsService
+    });
+    attachTenantMemberIdentityEndpoints({
+        app,
+        auth,
+        bindingReader: tenantMemberBindingRepository,
+        initialOwnerBootstrapService,
+        allowedOrigins
     });
     attachCatalogAdminEndpoints({ app, catalogService });
     attachOrderAdminEndpoints({ app, orderService });
