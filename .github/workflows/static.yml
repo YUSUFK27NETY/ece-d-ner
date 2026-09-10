@@ -42,9 +42,15 @@ jobs:
       - name: Diagnostic — Phase 8 tests
         if: always()
         run: node --test platform-v2/tests/phase8-*.test.js
-      - name: Diagnostic — Phase 9 tests except domain route runtime
+      - name: Diagnostic — Phase 9 business runtime tests
         if: always()
-        run: find platform-v2/tests -maxdepth 1 -name 'phase9-*.test.js' ! -name 'phase9-domain-route-runtime.test.js' -print0 | sort -z | xargs -0 node --test
+        run: node --test platform-v2/tests/phase9-business-*.test.js
+      - name: Diagnostic — Phase 9 readiness and lifecycle tests
+        if: always()
+        run: find platform-v2/tests -maxdepth 1 -name 'phase9-*.test.js' ! -name 'phase9-business-*.test.js' ! -name 'phase9-domain-route-runtime.test.js' ! -name 'phase9-second-tenant-acceptance.test.js' -print0 | sort -z | xargs -0 node --test
+      - name: Diagnostic — Phase 9 second tenant acceptance
+        if: always()
+        run: node --test platform-v2/tests/phase9-second-tenant-acceptance.test.js
       - name: Diagnostic — Phase 9 domain route runtime
         if: always()
         run: node --test platform-v2/tests/phase9-domain-route-runtime.test.js
