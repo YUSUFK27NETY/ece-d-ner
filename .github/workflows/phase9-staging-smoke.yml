@@ -1,0 +1,68 @@
+name: Phase 9 temporary staging smoke
+
+on:
+  push:
+    branches: ["phase9-live-smoke-diagnostic"]
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Health is live and hardened
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://business-platform-v2-phase9-staging.onrender.com'
+          code="$(curl --silent --show-error --max-time 30 --dump-header /tmp/health.headers --output /tmp/health.json --write-out '%{http_code}' "$base/health")"
+          test "$code" = '200'
+          BODY="$(cat /tmp/health.json)" node -e '
+            const body = JSON.parse(process.env.BODY);
+            if (body?.success !== true || body?.status !== "ok" || body?.service !== "platform-v2-admin-api") process.exit(1);
+          '
+          grep -qi '^x-request-id:' /tmp/health.headers
+          grep -qi '^content-security-policy:' /tmp/health.headers
+          echo 'health=passed status=200'
+
+      - name: Firestore readiness is live
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://business-platform-v2-phase9-staging.onrender.com'
+          code="$(curl --silent --show-error --max-time 30 --output /tmp/ready.json --write-out '%{http_code}' "$base/ready")"
+          test "$code" = '200'
+          BODY="$(cat /tmp/ready.json)" node -e '
+            const body = JSON.parse(process.env.BODY);
+            if (body?.success !== true || body?.status !== "ready" || body?.service !== "platform-v2-admin-api") process.exit(1);
+          '
+          echo 'readiness=passed status=200'
+
+      - name: Platform Admin API rejects missing identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://business-platform-v2-phase9-staging.onrender.com'
+          code="$(curl --silent --show-error --max-time 30 --output /tmp/admin.json --write-out '%{http_code}' "$base/api/platform/plans")"
+          test "$code" = '401'
+          BODY="$(cat /tmp/admin.json)" node -e '
+            const body = JSON.parse(process.env.BODY);
+            if (body?.success !== false) process.exit(1);
+          '
+          echo 'platform_admin_missing_identity=denied status=401'
+
+      - name: Public order route requires trusted attestation
+        shell: bash
+        run: |
+          set -euo pipefail
+          base='https://business-platform-v2-phase9-staging.onrender.com'
+          code="$(curl --silent --show-error --max-time 30 --header 'Content-Type: application/json' --header 'Idempotency-Key: p9-live-smoke-no-route-0001' --output /tmp/public.json --write-out '%{http_code}' --data '{"customer":{"name":"Synthetic User","phone":"05000000000"},"fulfillment":{"type":"dine_in","tableNumber":"T1"},"items":[{"productId":"synthetic-missing-product","quantity":1}]}' "$base/api/public/orders")"
+          test "$code" = '404'
+          BODY="$(cat /tmp/public.json)" node -e '
+            let body;
+            try { body = JSON.parse(process.env.BODY); } catch { process.exit(2); }
+            if (body?.success !== false || body?.message !== "Sipariş yönlendirmesi kullanılamıyor.") process.exit(3);
+          '
+          echo 'public_order_missing_attestation=denied status=404 route=enabled'
