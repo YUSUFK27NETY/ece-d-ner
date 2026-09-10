@@ -14,6 +14,9 @@ const {
     createFirestoreSecurityReviewEvidenceProvider
 } = require("./src/firestore/firestore-security-review-evidence-provider");
 const {
+    createFirestoreSecurityReviewEvidenceWriter
+} = require("./src/firestore/firestore-security-review-evidence-writer");
+const {
     createFirestorePublicRouteReader
 } = require("./src/firestore/firestore-public-route-reader");
 const { createPlatformApp } = require("./src/http/create-platform-app");
@@ -22,6 +25,9 @@ const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-end
 const {
     attachTenantMemberIdentityEndpoints
 } = require("./src/http/attach-tenant-member-identity-endpoints");
+const {
+    attachSecurityLaunchReviewEndpoint
+} = require("./src/http/attach-security-launch-review-endpoint");
 const {
     attachConfiguredPublicOrderRuntime
 } = require("./src/http/attach-configured-public-order-runtime");
@@ -102,6 +108,9 @@ const {
 const {
     createTenantInitialOwnerBootstrapService
 } = require("./src/onboarding/tenant-initial-owner-bootstrap-service");
+const {
+    createSecurityLaunchReviewService
+} = require("./src/onboarding/security-launch-review-service");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -228,6 +237,13 @@ function startPlatformServer() {
         createFirestoreAdminBootstrapEvidenceProvider({ db });
     const securityReviewEvidenceProvider =
         createFirestoreSecurityReviewEvidenceProvider({ db });
+    const securityReviewEvidenceWriter =
+        createFirestoreSecurityReviewEvidenceWriter({ db });
+    const securityLaunchReviewService = createSecurityLaunchReviewService({
+        tenantRegistry,
+        securityAlertReader,
+        evidenceWriter: securityReviewEvidenceWriter
+    });
     const customerReadinessService = createCustomerReadinessService({
         sourceAdapters: addSecurityReadinessSource({
             sourceAdapters: addAdminBootstrapReadinessSource({
@@ -301,6 +317,10 @@ function startPlatformServer() {
         bindingReader: tenantMemberBindingRepository,
         initialOwnerBootstrapService,
         allowedOrigins
+    });
+    attachSecurityLaunchReviewEndpoint({
+        app,
+        securityLaunchReviewService
     });
     attachCatalogAdminEndpoints({ app, catalogService });
     attachOrderAdminEndpoints({ app, orderService });
