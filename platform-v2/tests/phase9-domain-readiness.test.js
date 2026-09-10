@@ -363,7 +363,7 @@ test("mevcut profile normalization korunur ve ikinci domain alanı oluşmaz", ()
     );
 });
 
-test("runtime metadata-only domain adapterını bağlar; mutation SDK/path veya V1 import etmez", () => {
+test("runtime trusted public-route domain evidence bağlar; mutation SDK/path veya V1 import etmez", () => {
     const adapters = createCustomerReadinessSourceAdapters({
         checkReadiness: async () => ({
             ready: true,
@@ -388,7 +388,9 @@ test("runtime metadata-only domain adapterını bağlar; mutation SDK/path veya 
         "utf8"
     );
 
-    assert.match(serverSource, /createDomainReadinessService\(\)/);
+    assert.match(serverSource, /createRuntimeDomainReadinessService\(\{\s*db\s*\}\)/);
+    assert.match(serverSource, /createPublicRouteDomainEvidenceProvider\(\{\s*routeReader\s*\}\)/);
+    assert.match(serverSource, /createDomainReadinessService\(\{\s*evidenceProvider,\s*clock\s*\}\)/);
     assert.match(serverSource, /backupEvidenceProvider,[\s\S]*domainReadinessService/);
     assert.doesNotMatch(domainSource, /cloudflare|firebase-admin|aws-sdk|ece-d.ner|v1\/|\.\.\/\.\.\/server/iu);
     assert.doesNotMatch(domainSource, /\.(?:createRecord|update|patch|delete|upload|issue|provision|connect|verify)\s*\(/iu);

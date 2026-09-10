@@ -27,38 +27,9 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Diagnostic — static checks
-        if: always()
-        run: npm run check
-      - name: Diagnostic — root tests
-        if: always()
-        run: node --test tests/*.test.js
-      - name: Diagnostic — Platform V2 baseline tests
-        if: always()
-        run: find platform-v2/tests -maxdepth 1 -name '*.test.js' ! -name 'phase6-*.test.js' ! -name 'phase7-*.test.js' ! -name 'phase8-*.test.js' ! -name 'phase9-*.test.js' -print0 | sort -z | xargs -0 node --test
-      - name: Diagnostic — Phase 6 and 7 tests
-        if: always()
-        run: node --test platform-v2/tests/phase6-*.test.js platform-v2/tests/phase7-*.test.js
-      - name: Diagnostic — Phase 8 tests
-        if: always()
-        run: node --test platform-v2/tests/phase8-*.test.js
-      - name: Diagnostic — Phase 9 business runtime tests
-        if: always()
-        run: node --test platform-v2/tests/phase9-business-*.test.js
-      - name: Diagnostic — Phase 9 readiness and lifecycle tests
-        if: always()
-        run: find platform-v2/tests -maxdepth 1 -name 'phase9-*.test.js' ! -name 'phase9-business-*.test.js' ! -name 'phase9-domain-route-runtime.test.js' ! -name 'phase9-second-tenant-acceptance.test.js' -print0 | sort -z | xargs -0 node --test
-      - name: Diagnostic — Phase 9 second tenant acceptance
-        if: always()
-        run: node --test platform-v2/tests/phase9-second-tenant-acceptance.test.js
-      - name: Diagnostic — Phase 9 domain route runtime
-        if: always()
-        run: node --test platform-v2/tests/phase9-domain-route-runtime.test.js
-      - name: Diagnostic — history secret scan
-        if: always()
-        run: npm run security:secrets
+      - name: Run syntax and behavior tests
+        run: npm run ci
       - name: Audit production dependencies
-        if: always()
         run: npm run security:dependencies
 
   deploy:
