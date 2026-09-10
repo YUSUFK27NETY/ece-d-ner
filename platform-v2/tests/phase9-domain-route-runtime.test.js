@@ -52,13 +52,18 @@ test("active exact durable public route domain readiness'i verified yapar", asyn
         tenant: tenant()
     });
 
-    assert.deepEqual(readiness, {
-        schemaVersion: 1,
-        tenantId: TENANT_ID,
-        domain: DOMAIN,
-        state: "verified",
-        observedAt: OBSERVED_AT
-    });
+    assert.deepEqual(Reflect.ownKeys(readiness), [
+        "schemaVersion",
+        "tenantId",
+        "domain",
+        "state",
+        "observedAt"
+    ]);
+    assert.equal(readiness.schemaVersion, 1);
+    assert.equal(readiness.tenantId, TENANT_ID);
+    assert.equal(readiness.domain, DOMAIN);
+    assert.equal(readiness.state, "verified");
+    assert.equal(readiness.observedAt, OBSERVED_AT);
 });
 
 test("inactive durable public route verified üretmez, pending kalır", async () => {
