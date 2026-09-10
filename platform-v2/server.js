@@ -10,6 +10,9 @@ const {
 const {
     createFirestoreSecurityReviewEvidenceProvider
 } = require("./src/firestore/firestore-security-review-evidence-provider");
+const {
+    createFirestorePublicRouteReader
+} = require("./src/firestore/firestore-public-route-reader");
 const { createPlatformApp } = require("./src/http/create-platform-app");
 const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
 const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-endpoints");
@@ -87,6 +90,9 @@ const {
 const {
     createDomainReadinessService
 } = require("./src/onboarding/domain-readiness-service");
+const {
+    createPublicRouteDomainEvidenceProvider
+} = require("./src/onboarding/public-route-domain-evidence-provider");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -106,6 +112,12 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
 
     const storageProvider = createR2ObjectStorageProvider(loadR2BackupConfig(env));
     return createBackupOperationsEvidenceProvider({ storageProvider, db });
+}
+
+function createRuntimeDomainReadinessService({ db, clock = Date.now }) {
+    const routeReader = createFirestorePublicRouteReader({ db });
+    const evidenceProvider = createPublicRouteDomainEvidenceProvider({ routeReader });
+    return createDomainReadinessService({ evidenceProvider, clock });
 }
 
 function createRuntimeSecurityOperations({ db, config, securityAlertSink = null }) {
@@ -195,7 +207,7 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
-    const domainReadinessService = createDomainReadinessService();
+    const domainReadinessService = createRuntimeDomainReadinessService({ db });
     const adminBootstrapEvidenceProvider =
         createFirestoreAdminBootstrapEvidenceProvider({ db });
     const securityReviewEvidenceProvider =
@@ -300,6 +312,7 @@ if (require.main === module) {
 module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     createConfiguredBackupEvidenceProvider,
+    createRuntimeDomainReadinessService,
     createRuntimeSecurityOperations,
     startPlatformServer
 };
