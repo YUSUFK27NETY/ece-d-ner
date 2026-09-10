@@ -66,3 +66,5 @@ jobs:
             if (body?.success !== false || body?.message !== "Sipariş yönlendirmesi kullanılamıyor.") process.exit(3);
           '
           echo 'public_order_missing_attestation=denied status=404 route=enabled'
+
+# trigger: 2026-09-10T17:00Z
