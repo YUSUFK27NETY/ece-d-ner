@@ -14,6 +14,8 @@ const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_SECRET_ACCESS_KEY"
 ]);
 const BACKUP_DRILL_TENANT_ENV = "PLATFORM_BACKUP_DRILL_TENANT_ID";
+const PHASE9_ACTIVATION_TENANT_ENV = "PLATFORM_PHASE9_ACTIVATE_TENANT_ID";
+const PHASE9_ACTIVATION_ADMIN_EMAIL_ENV = "PLATFORM_PHASE9_ACTIVATION_ADMIN_EMAIL";
 
 function hasRequestInput(req) {
     const contentLength = req.get("content-length");
@@ -57,6 +59,28 @@ function scheduleConfiguredBackupDrill({
 
     schedule(() => {
         loadDrill();
+    });
+    return true;
+}
+
+function scheduleConfiguredPhase9Activation({
+    env = process.env,
+    schedule = fn => setTimeout(fn, 1500),
+    loadActivation = () => require("../../scripts/run-phase9-controlled-activation")
+} = {}) {
+    const tenantId = String(env[PHASE9_ACTIVATION_TENANT_ENV] ?? "").trim();
+    const adminEmail = String(env[PHASE9_ACTIVATION_ADMIN_EMAIL_ENV] ?? "").trim();
+    if (!tenantId || !adminEmail) {
+        return false;
+    }
+
+    schedule(() => {
+        const activation = loadActivation();
+        if (!activation || typeof activation.runPhase9ControlledActivation !== "function") {
+            console.error("PHASE9_ACTIVATION_FAILED stage=scheduler code=ACTIVATION_RUNNER_INVALID");
+            return;
+        }
+        void activation.runPhase9ControlledActivation(env);
     });
     return true;
 }
@@ -109,6 +133,7 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
     });
     const attached = attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
     scheduleConfiguredBackupDrill({ env });
+    scheduleConfiguredPhase9Activation({ env });
     return attached;
 }
 
@@ -116,9 +141,12 @@ module.exports = {
     BACKUP_CONNECTIVITY_DIAGNOSTIC_PATH,
     R2_BACKUP_CONFIG_KEYS,
     BACKUP_DRILL_TENANT_ENV,
+    PHASE9_ACTIVATION_TENANT_ENV,
+    PHASE9_ACTIVATION_ADMIN_EMAIL_ENV,
     hasRequestInput,
     sendBackupDiagnosticError,
     scheduleConfiguredBackupDrill,
+    scheduleConfiguredPhase9Activation,
     attachBackupConnectivityDiagnosticEndpoint,
     attachConfiguredBackupConnectivityDiagnosticEndpoint
 };
