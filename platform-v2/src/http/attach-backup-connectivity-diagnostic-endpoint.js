@@ -15,7 +15,6 @@ const R2_BACKUP_CONFIG_KEYS = Object.freeze([
 ]);
 const BACKUP_DRILL_TENANT_ENV = "PLATFORM_BACKUP_DRILL_TENANT_ID";
 const PHASE9_ACTIVATION_TENANT_ENV = "PLATFORM_PHASE9_ACTIVATE_TENANT_ID";
-const PHASE9_ACTIVATION_ADMIN_EMAIL_ENV = "PLATFORM_PHASE9_ACTIVATION_ADMIN_EMAIL";
 
 function hasRequestInput(req) {
     const contentLength = req.get("content-length");
@@ -69,8 +68,7 @@ function scheduleConfiguredPhase9Activation({
     loadActivation = () => require("../../scripts/run-phase9-controlled-activation")
 } = {}) {
     const tenantId = String(env[PHASE9_ACTIVATION_TENANT_ENV] ?? "").trim();
-    const adminEmail = String(env[PHASE9_ACTIVATION_ADMIN_EMAIL_ENV] ?? "").trim();
-    if (!tenantId || !adminEmail) {
+    if (!tenantId) {
         return false;
     }
 
@@ -142,7 +140,6 @@ module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     BACKUP_DRILL_TENANT_ENV,
     PHASE9_ACTIVATION_TENANT_ENV,
-    PHASE9_ACTIVATION_ADMIN_EMAIL_ENV,
     hasRequestInput,
     sendBackupDiagnosticError,
     scheduleConfiguredBackupDrill,
