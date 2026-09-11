@@ -18,6 +18,8 @@ const PHASE9_ACTIVATION_TENANT_ENV = "PLATFORM_PHASE9_ACTIVATE_TENANT_ID";
 const PHASE9_ACCEPTANCE_TENANT_ENV = "PLATFORM_PHASE9_ACCEPTANCE_TENANT_ID";
 const PHASE9_ACCEPTANCE_BASELINE_TENANT_ENV =
     "PLATFORM_PHASE9_ACCEPTANCE_BASELINE_TENANT_ID";
+const PHASE9_ROUTE_FIXTURE_TENANT_ENV = "PLATFORM_PHASE9_ROUTE_FIXTURE_TENANT_ID";
+const PHASE9_ROUTE_FIXTURE_MODE_ENV = "PLATFORM_PHASE9_ROUTE_FIXTURE_MODE";
 
 function hasRequestInput(req) {
     const contentLength = req.get("content-length");
@@ -110,6 +112,28 @@ function scheduleConfiguredPhase9Acceptance({
     return true;
 }
 
+function scheduleConfiguredPhase9RouteFixture({
+    env = process.env,
+    schedule = fn => setTimeout(fn, 1500),
+    loadFixture = () => require("../../scripts/run-phase9-route-fixture")
+} = {}) {
+    const tenantId = String(env[PHASE9_ROUTE_FIXTURE_TENANT_ENV] ?? "").trim();
+    const mode = String(env[PHASE9_ROUTE_FIXTURE_MODE_ENV] ?? "").trim();
+    if (!tenantId || !["setup", "cleanup"].includes(mode)) {
+        return false;
+    }
+
+    schedule(() => {
+        const fixture = loadFixture();
+        if (!fixture || typeof fixture.runPhase9RouteFixture !== "function") {
+            console.error("PHASE9_ROUTE_FIXTURE_FAILED stage=scheduler code=ROUTE_FIXTURE_RUNNER_INVALID");
+            return;
+        }
+        void fixture.runPhase9RouteFixture(env);
+    });
+    return true;
+}
+
 function attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService }) {
     if (!app || typeof app.get !== "function") {
         throw new TypeError("Backup connectivity diagnostic endpoint app geçersiz.");
@@ -160,6 +184,7 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
     scheduleConfiguredBackupDrill({ env });
     scheduleConfiguredPhase9Activation({ env });
     scheduleConfiguredPhase9Acceptance({ env });
+    scheduleConfiguredPhase9RouteFixture({ env });
     return attached;
 }
 
@@ -170,11 +195,14 @@ module.exports = {
     PHASE9_ACTIVATION_TENANT_ENV,
     PHASE9_ACCEPTANCE_TENANT_ENV,
     PHASE9_ACCEPTANCE_BASELINE_TENANT_ENV,
+    PHASE9_ROUTE_FIXTURE_TENANT_ENV,
+    PHASE9_ROUTE_FIXTURE_MODE_ENV,
     hasRequestInput,
     sendBackupDiagnosticError,
     scheduleConfiguredBackupDrill,
     scheduleConfiguredPhase9Activation,
     scheduleConfiguredPhase9Acceptance,
+    scheduleConfiguredPhase9RouteFixture,
     attachBackupConnectivityDiagnosticEndpoint,
     attachConfiguredBackupConnectivityDiagnosticEndpoint
 };
