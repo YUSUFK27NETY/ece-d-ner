@@ -12,7 +12,10 @@ const {
 } = require("../src/storage/r2-object-storage-provider");
 const {
     BACKUP_DRILL_TENANT_ENV,
-    scheduleConfiguredBackupDrill
+    PHASE9_ACTIVATION_TENANT_ENV,
+    PHASE9_ACTIVATION_ADMIN_EMAIL_ENV,
+    scheduleConfiguredBackupDrill,
+    scheduleConfiguredPhase9Activation
 } = require("../src/http/attach-backup-connectivity-diagnostic-endpoint");
 
 const TENANT_ID = "phase9-live-second-20260910";
@@ -204,6 +207,75 @@ test("startup backup drill env yoksa hiçbir şey schedule etmez", () => {
     }), false);
     assert.equal(scheduled, false);
     assert.equal(loaded, false);
+});
+
+test("controlled activation yalnız tenant ve admin email birlikte verilirse bir kez schedule edilir", async () => {
+    const scheduled = [];
+    const calls = [];
+    const env = {
+        [PHASE9_ACTIVATION_TENANT_ENV]: TENANT_ID,
+        [PHASE9_ACTIVATION_ADMIN_EMAIL_ENV]: "platform-admin@example.test"
+    };
+
+    assert.equal(scheduleConfiguredPhase9Activation({
+        env,
+        schedule(fn) {
+            scheduled.push(fn);
+        },
+        loadActivation() {
+            return {
+                async runPhase9ControlledActivation(receivedEnv) {
+                    calls.push(receivedEnv);
+                }
+            };
+        }
+    }), true);
+    assert.equal(scheduled.length, 1);
+    assert.equal(calls.length, 0);
+
+    scheduled[0]();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(calls, [env]);
+});
+
+test("controlled activation eksik trigger env ile schedule edilmez", () => {
+    for (const env of [
+        {},
+        { [PHASE9_ACTIVATION_TENANT_ENV]: TENANT_ID },
+        { [PHASE9_ACTIVATION_ADMIN_EMAIL_ENV]: "platform-admin@example.test" }
+    ]) {
+        let scheduled = false;
+        let loaded = false;
+        assert.equal(scheduleConfiguredPhase9Activation({
+            env,
+            schedule() {
+                scheduled = true;
+            },
+            loadActivation() {
+                loaded = true;
+                return {};
+            }
+        }), false);
+        assert.equal(scheduled, false);
+        assert.equal(loaded, false);
+    }
+});
+
+test("controlled activation runner readiness, lifecycle ve audit doğrulamasını HTTP üzerinden yapar", () => {
+    const workspace = path.resolve(__dirname, "../..");
+    const source = fs.readFileSync(
+        path.join(workspace, "platform-v2/scripts/run-phase9-controlled-activation.js"),
+        "utf8"
+    );
+    assert.match(source, /activationReadiness !== "ready"/);
+    assert.match(source, /readiness\.canActivate !== true/);
+    assert.match(source, /checks\?\.backup\?\.status !== "ready"/);
+    assert.match(source, /\/lifecycle\/activate/);
+    assert.match(source, /method: "POST"/);
+    assert.match(source, /\/last-audit/);
+    assert.match(source, /lastAudit\.action !== "tenant\.lifecycle\.activated"/);
+    assert.match(source, /PHASE9_ACTIVATION_OK/);
+    assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:customToken|idToken|apiKey)/);
 });
 
 test("backup drill hata logu yalnız stage/code/kind taşır ve güvenli keyring sınıfları kullanır", () => {
