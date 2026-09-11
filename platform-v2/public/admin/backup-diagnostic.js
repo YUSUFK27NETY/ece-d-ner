@@ -66,7 +66,10 @@
         }
         if (value.ok === false &&
             (!value.error || typeof value.error.code !== "string" ||
-                (value.error.status !== null && !Number.isInteger(value.error.status)))) {
+                (value.error.status !== null && !Number.isInteger(value.error.status)) ||
+                (value.error.providerCode !== null &&
+                    (typeof value.error.providerCode !== "string" ||
+                        !/^[A-Za-z][A-Za-z0-9]{0,63}$/.test(value.error.providerCode))))) {
             throw new Error("Backup diagnostic sonucu doğrulanamadı.");
         }
         return value;
@@ -94,10 +97,13 @@
             const status = diagnostic.error.status === null
                 ? "HTTP status yok"
                 : `HTTP ${diagnostic.error.status}`;
+            const providerCode = diagnostic.error.providerCode
+                ? ` · ${diagnostic.error.providerCode}`
+                : "";
             elements.result.textContent =
-                `R2 listObjects FAIL · ${diagnostic.error.code} · ${status}`;
+                `R2 listObjects FAIL · ${diagnostic.error.code} · ${status}${providerCode}`;
             setMessage(
-                "Güvenli hata kodu alındı. Credential veya secret değeri gösterilmedi.",
+                "Güvenli R2 hata sınıfı alındı. Credential, secret ve hata gövdesi gösterilmedi.",
                 "error"
             );
         } catch (error) {

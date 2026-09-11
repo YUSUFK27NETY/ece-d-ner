@@ -21,8 +21,15 @@ function projectStorageError(error) {
         SAFE_R2_ERROR_CODES.has(rawCode)
         ? rawCode
         : "R2_REQUEST_FAILED";
+    const rawProviderCode = typeof error?.providerCode === "string"
+        ? error.providerCode
+        : "";
+    const providerCode = /^R2_HTTP_[1-5][0-9]{2}$/.test(code) &&
+        /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(rawProviderCode)
+        ? rawProviderCode
+        : null;
 
-    return Object.freeze({ code, status });
+    return Object.freeze({ code, status, providerCode });
 }
 
 function createBackupConnectivityDiagnosticService({ tenantRegistry, storageProvider }) {

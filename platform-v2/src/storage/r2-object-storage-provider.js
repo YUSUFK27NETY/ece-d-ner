@@ -122,10 +122,23 @@ function xmlFirst(xml, tag) {
     return xmlTagValues(xml, tag)[0] ?? null;
 }
 
-function createStorageError(response, operation) {
+function sanitizeProviderErrorCode(value) {
+    const code = String(value ?? "").trim();
+    return /^[A-Za-z][A-Za-z0-9]{0,63}$/.test(code) ? code : null;
+}
+
+async function createStorageError(response, operation) {
+    let providerCode = null;
+    try {
+        providerCode = sanitizeProviderErrorCode(xmlFirst(await response.text(), "Code"));
+    } catch {
+        providerCode = null;
+    }
+
     const error = new Error(`R2 ${operation} isteği başarısız (${response.status}).`);
     error.code = response.status === 404 ? "NOT_FOUND" : `R2_HTTP_${response.status}`;
     error.status = response.status;
+    error.providerCode = providerCode;
     return error;
 }
 
@@ -193,7 +206,7 @@ class R2ObjectStorageProvider extends ObjectStorageProvider {
             body: method === "GET" || method === "HEAD" ? undefined : payload
         });
 
-        if (!response.ok) throw createStorageError(response, operation);
+        if (!response.ok) throw await createStorageError(response, operation);
         return response;
     }
 
@@ -295,6 +308,7 @@ module.exports = {
     awsEncode,
     buildCanonicalQuery,
     signRequest,
+    sanitizeProviderErrorCode,
     R2ObjectStorageProvider,
     createR2ObjectStorageProvider
 };

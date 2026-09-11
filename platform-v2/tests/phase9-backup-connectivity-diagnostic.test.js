@@ -7,6 +7,9 @@ const {
     projectStorageError,
     createBackupConnectivityDiagnosticService
 } = require("../src/onboarding/backup-connectivity-diagnostic-service");
+const {
+    createR2ObjectStorageProvider
+} = require("../src/storage/r2-object-storage-provider");
 
 const TENANT_ID = "phase9-live-second-20260910";
 
@@ -50,16 +53,17 @@ test("backup connectivity diagnostic exact tenant prefix ile yalnız listObjects
     }]);
 });
 
-test("R2 HTTP error yalnız safe code/status olarak projekte edilir", async () => {
-    const secretMarker = "must-never-leak-secret";
+test("R2 HTTP error yalnız safe code/status/providerCode olarak projekte edilir", async () => {
+    const detailMarker = "must-never-leak-response-detail";
     const service = createBackupConnectivityDiagnosticService({
         tenantRegistry: tenantRegistry(),
         storageProvider: {
             async listObjects() {
-                const error = new Error(secretMarker);
+                const error = new Error(detailMarker);
                 error.code = "R2_HTTP_403";
                 error.status = 403;
-                error.authorization = secretMarker;
+                error.providerCode = "SignatureDoesNotMatch";
+                error.authorization = detailMarker;
                 throw error;
             }
         }
@@ -70,18 +74,67 @@ test("R2 HTTP error yalnız safe code/status olarak projekte edilir", async () =
         ok: false,
         tenantId: TENANT_ID,
         operation: "listObjects",
-        error: { code: "R2_HTTP_403", status: 403 }
+        error: {
+            code: "R2_HTTP_403",
+            status: 403,
+            providerCode: "SignatureDoesNotMatch"
+        }
     });
-    assert.equal(JSON.stringify(result).includes(secretMarker), false);
+    assert.equal(JSON.stringify(result).includes(detailMarker), false);
+});
+
+test("R2 provider XML error body içinden yalnız güvenli Code alanını taşır", async () => {
+    const detailMarker = "never-surface-provider-message";
+    const provider = createR2ObjectStorageProvider({
+        endpoint: "https://example.r2.cloudflarestorage.com",
+        bucket: "phase9-test-bucket",
+        accessKeyId: "test-access-key",
+        secretAccessKey: "test-secret-key",
+        region: "auto"
+    }, {
+        now: () => new Date("2026-09-11T08:00:00.000Z"),
+        fetchImpl: async () => ({
+            ok: false,
+            status: 403,
+            async text() {
+                return `<?xml version="1.0"?><Error><Code>AccessDenied</Code><Message>${detailMarker}</Message></Error>`;
+            }
+        })
+    });
+
+    await assert.rejects(
+        () => provider.listObjects({ prefix: "backups/test/firestore/" }),
+        error => {
+            assert.equal(error.code, "R2_HTTP_403");
+            assert.equal(error.status, 403);
+            assert.equal(error.providerCode, "AccessDenied");
+            assert.equal(error.message.includes(detailMarker), false);
+            return true;
+        }
+    );
+});
+
+test("provider error code güvenli formata uymuyorsa dışarı taşınmaz", () => {
+    const error = new Error("provider internal detail");
+    error.code = "R2_HTTP_403";
+    error.status = 403;
+    error.providerCode = "AccessDenied<unsafe>";
+    assert.deepEqual(projectStorageError(error), {
+        code: "R2_HTTP_403",
+        status: 403,
+        providerCode: null
+    });
 });
 
 test("unknown storage error generic fail-closed projection kullanır", () => {
     const error = new Error("provider internal detail");
     error.code = "SOME_INTERNAL_ERROR";
     error.status = 700;
+    error.providerCode = "AccessDenied";
     assert.deepEqual(projectStorageError(error), {
         code: "R2_REQUEST_FAILED",
-        status: null
+        status: null,
+        providerCode: null
     });
 });
 
