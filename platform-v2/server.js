@@ -29,6 +29,9 @@ const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
 const {
+    attachConfiguredBackupConnectivityDiagnosticEndpoint
+} = require("./src/http/attach-backup-connectivity-diagnostic-endpoint");
+const {
     attachConfiguredPublicOrderRuntime
 } = require("./src/http/attach-configured-public-order-runtime");
 const {
@@ -321,6 +324,10 @@ function startPlatformServer() {
     attachSecurityLaunchReviewEndpoint({
         app,
         securityLaunchReviewService
+    });
+    attachConfiguredBackupConnectivityDiagnosticEndpoint({
+        app,
+        tenantRegistry
     });
     attachCatalogAdminEndpoints({ app, catalogService });
     attachOrderAdminEndpoints({ app, orderService });
