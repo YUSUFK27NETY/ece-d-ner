@@ -23,6 +23,9 @@ const { createPlatformApp } = require("./src/http/create-platform-app");
 const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
 const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-endpoints");
 const {
+    attachSectorTemplateEndpoints
+} = require("./src/http/attach-sector-template-endpoints");
+const {
     attachTenantMemberIdentityEndpoints
 } = require("./src/http/attach-tenant-member-identity-endpoints");
 const {
@@ -314,6 +317,7 @@ function startPlatformServer() {
         tenantOperations,
         finOpsService
     });
+    attachSectorTemplateEndpoints({ app });
     attachTenantMemberIdentityEndpoints({
         app,
         auth,
