@@ -13,6 +13,7 @@ const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ACCESS_KEY_ID",
     "PLATFORM_BACKUP_R2_SECRET_ACCESS_KEY"
 ]);
+const BACKUP_DRILL_TENANT_ENV = "PLATFORM_BACKUP_DRILL_TENANT_ID";
 
 function hasRequestInput(req) {
     const contentLength = req.get("content-length");
@@ -42,6 +43,22 @@ function sendBackupDiagnosticError(res, error) {
         });
     }
     return sendPlatformError(res, error);
+}
+
+function scheduleConfiguredBackupDrill({
+    env = process.env,
+    schedule = setImmediate,
+    loadDrill = () => require("../../scripts/run-backup-drill")
+} = {}) {
+    const tenantId = String(env[BACKUP_DRILL_TENANT_ENV] ?? "").trim();
+    if (!tenantId) {
+        return false;
+    }
+
+    schedule(() => {
+        loadDrill();
+    });
+    return true;
 }
 
 function attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService }) {
@@ -90,14 +107,18 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
         tenantRegistry,
         storageProvider
     });
-    return attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
+    const attached = attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
+    scheduleConfiguredBackupDrill({ env });
+    return attached;
 }
 
 module.exports = {
     BACKUP_CONNECTIVITY_DIAGNOSTIC_PATH,
     R2_BACKUP_CONFIG_KEYS,
+    BACKUP_DRILL_TENANT_ENV,
     hasRequestInput,
     sendBackupDiagnosticError,
+    scheduleConfiguredBackupDrill,
     attachBackupConnectivityDiagnosticEndpoint,
     attachConfiguredBackupConnectivityDiagnosticEndpoint
 };
