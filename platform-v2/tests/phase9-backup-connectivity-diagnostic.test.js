@@ -206,6 +206,16 @@ test("startup backup drill env yoksa hiçbir şey schedule etmez", () => {
     assert.equal(loaded, false);
 });
 
+test("backup drill hata logu yalnız stage/code/kind taşır ve error message sızdırmaz", () => {
+    const workspace = path.resolve(__dirname, "../..");
+    const drillSource = fs.readFileSync(
+        path.join(workspace, "platform-v2/scripts/run-backup-drill.js"),
+        "utf8"
+    );
+    assert.match(drillSource, /BACKUP_DRILL_FAILED stage=\$\{drillStage\} code=\$\{code\} kind=\$\{kind\}/);
+    assert.doesNotMatch(drillSource, /BACKUP_DRILL_FAILED[^\n]*error\?\.message/);
+});
+
 test("server diagnostic endpointi Platform API auth middleware sonrasında attach eder", () => {
     const workspace = path.resolve(__dirname, "../..");
     const serverSource = fs.readFileSync(
