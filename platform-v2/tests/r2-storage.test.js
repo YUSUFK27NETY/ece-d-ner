@@ -45,6 +45,22 @@ test("R2 SigV4 imzası gerekli güvenli headerları üretir", () => {
     assert.ok(!headers.Authorization.includes("secret-value"));
 });
 
+test("R2 SigV4 AWS ListObjects referans vektörüyle birebir eşleşir", () => {
+    const url = new URL("https://examplebucket.s3.amazonaws.com/?max-keys=2&prefix=J");
+    const headers = signRequest({
+        method: "GET",
+        url,
+        accessKeyId: "AKIAIOSFODNN7EXAMPLE",
+        secretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+        region: "us-east-1",
+        now: new Date("2013-05-24T00:00:00.000Z")
+    });
+
+    assert.ok(headers.Authorization.endsWith(
+        "Signature=34b48302e7b5fa45bde8084f4b7868a86f0a534bc59db6670ed5711ef69dc6f7"
+    ));
+});
+
 test("R2 provider put/get/delete işlemlerini bucket ile sınırlar", async () => {
     const calls = [];
     const fetchImpl = async (url, options) => {
@@ -83,7 +99,38 @@ test("R2 provider put/get/delete işlemlerini bucket ile sınırlar", async () =
         assert.ok(call.options.headers.Authorization.startsWith("AWS4-HMAC-SHA256 "));
         assert.ok(!JSON.stringify(call.options.headers).includes("secret-value"));
     }
+    assert.notEqual(calls[0].options.headers["x-amz-content-sha256"], "UNSIGNED-PAYLOAD");
+    assert.equal(calls[1].options.headers["x-amz-content-sha256"], "UNSIGNED-PAYLOAD");
+    assert.notEqual(calls[2].options.headers["x-amz-content-sha256"], "UNSIGNED-PAYLOAD");
     assert.equal(calls[0].options.headers["x-amz-meta-tenantid"], "demo");
+});
+
+test("R2 listObjects Cloudflare uyumlu UNSIGNED-PAYLOAD ile imzalanır", async () => {
+    let observed = null;
+    const provider = createR2ObjectStorageProvider({
+        endpoint: "https://account.r2.cloudflarestorage.com",
+        bucket: "platform-v2-backups-staging",
+        accessKeyId: "ACCESS123",
+        secretAccessKey: "secret-value",
+        region: "auto"
+    }, {
+        fetchImpl: async (url, options) => {
+            observed = { url: String(url), options };
+            return new Response(
+                `<?xml version="1.0"?><ListBucketResult><IsTruncated>false</IsTruncated></ListBucketResult>`,
+                { status: 200 }
+            );
+        },
+        now: () => new Date("2026-09-11T12:00:00.000Z")
+    });
+
+    await provider.listObjects({ prefix: "backups/demo/firestore/" });
+    assert.equal(observed.options.headers["x-amz-content-sha256"], "UNSIGNED-PAYLOAD");
+    assert.ok(observed.options.headers.Authorization.includes(
+        "SignedHeaders=host;x-amz-content-sha256;x-amz-date"
+    ));
+    assert.ok(observed.url.includes("list-type=2"));
+    assert.ok(observed.url.includes("prefix=backups%2Fdemo%2Ffirestore%2F"));
 });
 
 test("R2 listObjects pagination sonuçlarını birleştirir", async () => {

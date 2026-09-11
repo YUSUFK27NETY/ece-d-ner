@@ -55,10 +55,11 @@ function signRequest({
     accessKeyId,
     secretAccessKey,
     region = "auto",
-    now = new Date()
+    now = new Date(),
+    unsignedPayload = false
 }) {
     const payload = Buffer.isBuffer(body) ? body : Buffer.from(body ?? "");
-    const payloadHash = sha256Hex(payload);
+    const payloadHash = unsignedPayload ? "UNSIGNED-PAYLOAD" : sha256Hex(payload);
     const { amzDate, dateStamp } = amzDateParts(now);
     const normalizedHeaders = new Map();
 
@@ -198,7 +199,8 @@ class R2ObjectStorageProvider extends ObjectStorageProvider {
             accessKeyId: this.accessKeyId,
             secretAccessKey: this.secretAccessKey,
             region: this.region,
-            now: this.now()
+            now: this.now(),
+            unsignedPayload: method === "GET" || method === "HEAD"
         });
         const response = await this.fetchImpl(url, {
             method,
