@@ -11,6 +11,7 @@
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script defer src="/admin/config.js"></script>
     <script defer src="/admin/admin.js"></script>
+    <script defer src="/admin/sector-templates.js"></script>
     <script defer src="/admin/customer-readiness-audit.js"></script>
     <script defer src="/admin/admin-actions.js"></script>
 </head>
@@ -85,8 +86,16 @@
                             <input id="display-name" name="displayName" maxlength="120" required>
                         </label>
                         <label>
+                            Sektör şablonu
+                            <select id="sector-template" disabled>
+                                <option value="">Şablonlar yükleniyor...</option>
+                            </select>
+                            <small id="sector-template-summary">Yeni işletmede uygun modülleri tek seçimle açar.</small>
+                        </label>
+                        <label>
                             Sektör
                             <input id="sector" name="sector" placeholder="restaurant" required>
+                            <small>Şablon seçince otomatik dolar; gerekirse oluşturmadan önce değiştirebilirsin.</small>
                         </label>
                         <label>
                             Paket
