@@ -10,6 +10,10 @@ const {
 const {
     createR2ObjectStorageProvider
 } = require("../src/storage/r2-object-storage-provider");
+const {
+    BACKUP_DRILL_TENANT_ENV,
+    scheduleConfiguredBackupDrill
+} = require("../src/http/attach-backup-connectivity-diagnostic-endpoint");
 
 const TENANT_ID = "phase9-live-second-20260910";
 
@@ -162,6 +166,44 @@ test("diagnostic yalnız platform_admin ve provisioning tenant için çalışır
         }),
         TypeError
     );
+});
+
+test("startup backup drill yalnız explicit tenant env ile bir kez schedule edilir", () => {
+    const scheduled = [];
+    let loads = 0;
+    const env = { [BACKUP_DRILL_TENANT_ENV]: TENANT_ID };
+
+    assert.equal(scheduleConfiguredBackupDrill({
+        env,
+        schedule(fn) {
+            scheduled.push(fn);
+        },
+        loadDrill() {
+            loads += 1;
+        }
+    }), true);
+    assert.equal(scheduled.length, 1);
+    assert.equal(loads, 0);
+
+    scheduled[0]();
+    assert.equal(loads, 1);
+});
+
+test("startup backup drill env yoksa hiçbir şey schedule etmez", () => {
+    let scheduled = false;
+    let loaded = false;
+
+    assert.equal(scheduleConfiguredBackupDrill({
+        env: {},
+        schedule() {
+            scheduled = true;
+        },
+        loadDrill() {
+            loaded = true;
+        }
+    }), false);
+    assert.equal(scheduled, false);
+    assert.equal(loaded, false);
 });
 
 test("server diagnostic endpointi Platform API auth middleware sonrasında attach eder", () => {
