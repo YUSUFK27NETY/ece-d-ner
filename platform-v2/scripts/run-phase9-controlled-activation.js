@@ -134,7 +134,7 @@ async function main(env = process.env) {
         throw controlledError(`ACTIVATION_HTTP_${activationCall.response.status}`);
     }
 
-    stage = "verify";
+    stage = "verify-tenant";
     const tenantCall = await platformRequest({
         url: `${baseUrl}/api/platform/tenants/${encodeURIComponent(tenantId)}`,
         idToken
@@ -145,13 +145,40 @@ async function main(env = process.env) {
         throw controlledError("ACTIVATION_POST_VERIFY_FAILED");
     }
 
+    stage = "verify-audit";
+    const auditCall = await platformRequest({
+        url: `${baseUrl}/api/platform/tenants/${encodeURIComponent(tenantId)}/last-audit`,
+        idToken
+    });
+    const lastAudit = auditCall.payload.lastAudit;
+    if (!auditCall.response.ok || auditCall.payload.success !== true ||
+        !lastAudit || lastAudit.tenantId !== tenantId ||
+        lastAudit.status !== "available" ||
+        lastAudit.action !== "tenant.lifecycle.activated") {
+        throw controlledError("ACTIVATION_AUDIT_VERIFY_FAILED");
+    }
+
     stage = "complete";
-    console.log(`PHASE9_ACTIVATION_OK tenant=${tenantId} status=active`);
+    console.log(
+        `PHASE9_ACTIVATION_OK tenant=${tenantId} status=active audit=tenant.lifecycle.activated`
+    );
 }
 
-main().catch(error => {
+function reportFailure(error) {
     console.error(`PHASE9_ACTIVATION_FAILED stage=${stage} code=${sanitizeCode(error?.code)}`);
-});
+}
+
+async function runPhase9ControlledActivation(env = process.env) {
+    try {
+        await main(env);
+    } catch (error) {
+        reportFailure(error);
+    }
+}
+
+if (require.main === module) {
+    void runPhase9ControlledActivation();
+}
 
 module.exports = {
     ACTIVATION_TENANT_ENV,
@@ -161,5 +188,7 @@ module.exports = {
     localBaseUrl,
     exchangeCustomToken,
     platformRequest,
-    main
+    main,
+    reportFailure,
+    runPhase9ControlledActivation
 };
