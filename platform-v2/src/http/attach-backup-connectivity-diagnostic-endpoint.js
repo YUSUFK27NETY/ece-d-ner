@@ -15,6 +15,9 @@ const R2_BACKUP_CONFIG_KEYS = Object.freeze([
 ]);
 const BACKUP_DRILL_TENANT_ENV = "PLATFORM_BACKUP_DRILL_TENANT_ID";
 const PHASE9_ACTIVATION_TENANT_ENV = "PLATFORM_PHASE9_ACTIVATE_TENANT_ID";
+const PHASE9_ACCEPTANCE_TENANT_ENV = "PLATFORM_PHASE9_ACCEPTANCE_TENANT_ID";
+const PHASE9_ACCEPTANCE_BASELINE_TENANT_ENV =
+    "PLATFORM_PHASE9_ACCEPTANCE_BASELINE_TENANT_ID";
 
 function hasRequestInput(req) {
     const contentLength = req.get("content-length");
@@ -83,6 +86,30 @@ function scheduleConfiguredPhase9Activation({
     return true;
 }
 
+function scheduleConfiguredPhase9Acceptance({
+    env = process.env,
+    schedule = fn => setTimeout(fn, 1500),
+    loadAcceptance = () => require("../../scripts/run-phase9-live-acceptance")
+} = {}) {
+    const tenantId = String(env[PHASE9_ACCEPTANCE_TENANT_ENV] ?? "").trim();
+    const baselineTenantId = String(
+        env[PHASE9_ACCEPTANCE_BASELINE_TENANT_ENV] ?? ""
+    ).trim();
+    if (!tenantId || !baselineTenantId) {
+        return false;
+    }
+
+    schedule(() => {
+        const acceptance = loadAcceptance();
+        if (!acceptance || typeof acceptance.runPhase9LiveAcceptance !== "function") {
+            console.error("PHASE9_LIVE_ACCEPTANCE_FAILED stage=scheduler code=ACCEPTANCE_RUNNER_INVALID");
+            return;
+        }
+        void acceptance.runPhase9LiveAcceptance(env);
+    });
+    return true;
+}
+
 function attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService }) {
     if (!app || typeof app.get !== "function") {
         throw new TypeError("Backup connectivity diagnostic endpoint app geçersiz.");
@@ -132,6 +159,7 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
     const attached = attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
     scheduleConfiguredBackupDrill({ env });
     scheduleConfiguredPhase9Activation({ env });
+    scheduleConfiguredPhase9Acceptance({ env });
     return attached;
 }
 
@@ -140,10 +168,13 @@ module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     BACKUP_DRILL_TENANT_ENV,
     PHASE9_ACTIVATION_TENANT_ENV,
+    PHASE9_ACCEPTANCE_TENANT_ENV,
+    PHASE9_ACCEPTANCE_BASELINE_TENANT_ENV,
     hasRequestInput,
     sendBackupDiagnosticError,
     scheduleConfiguredBackupDrill,
     scheduleConfiguredPhase9Activation,
+    scheduleConfiguredPhase9Acceptance,
     attachBackupConnectivityDiagnosticEndpoint,
     attachConfiguredBackupConnectivityDiagnosticEndpoint
 };
