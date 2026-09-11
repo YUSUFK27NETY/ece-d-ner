@@ -3,7 +3,6 @@ const { normalizeFirebaseWebConfig } = require("../src/config/platform-web-confi
 const { requireTenantId } = require("../src/tenant/tenant-id");
 
 const ACTIVATION_TENANT_ENV = "PLATFORM_PHASE9_ACTIVATE_TENANT_ID";
-const ACTIVATION_ADMIN_EMAIL_ENV = "PLATFORM_PHASE9_ACTIVATION_ADMIN_EMAIL";
 
 let stage = "config";
 
@@ -17,14 +16,6 @@ function sanitizeCode(value) {
     return String(value ?? "UNKNOWN")
         .replace(/[^A-Za-z0-9_-]/g, "_")
         .slice(0, 80);
-}
-
-function requireAdminEmail(value) {
-    const email = String(value ?? "").trim();
-    if (!email || email.length > 320 || !email.includes("@")) {
-        throw controlledError("ACTIVATION_ADMIN_EMAIL_INVALID");
-    }
-    return email;
 }
 
 function localBaseUrl(env = process.env) {
@@ -46,6 +37,36 @@ async function parseJsonResponse(response, code) {
         throw controlledError(code);
     }
     return value;
+}
+
+async function findUniquePlatformAdmin(auth) {
+    if (!auth || typeof auth.listUsers !== "function") {
+        throw controlledError("ACTIVATION_AUTH_LIST_UNAVAILABLE");
+    }
+
+    let pageToken;
+    let selected = null;
+    do {
+        const page = await auth.listUsers(1000, pageToken);
+        if (!page || !Array.isArray(page.users)) {
+            throw controlledError("ACTIVATION_AUTH_LIST_INVALID");
+        }
+
+        for (const user of page.users) {
+            if (user?.disabled !== true && user?.customClaims?.platformAdmin === true) {
+                if (selected) {
+                    throw controlledError("ACTIVATION_PLATFORM_ADMIN_AMBIGUOUS");
+                }
+                selected = user;
+            }
+        }
+        pageToken = page.pageToken;
+    } while (pageToken);
+
+    if (!selected || !selected.uid) {
+        throw controlledError("ACTIVATION_PLATFORM_ADMIN_NOT_FOUND");
+    }
+    return selected;
 }
 
 async function exchangeCustomToken({ customToken, apiKey, fetchImpl = globalThis.fetch }) {
@@ -80,7 +101,6 @@ async function platformRequest({ url, idToken, method = "GET", fetchImpl = globa
 async function main(env = process.env) {
     stage = "config";
     const tenantId = requireTenantId(env[ACTIVATION_TENANT_ENV]);
-    const adminEmail = requireAdminEmail(env[ACTIVATION_ADMIN_EMAIL_ENV]);
     const webConfig = normalizeFirebaseWebConfig(env.PLATFORM_FIREBASE_WEB_CONFIG_JSON);
     if (!webConfig?.apiKey) {
         throw controlledError("ACTIVATION_FIREBASE_WEB_CONFIG_MISSING");
@@ -89,10 +109,7 @@ async function main(env = process.env) {
 
     stage = "admin-identity";
     const { auth } = createPlatformFirebase();
-    const user = await auth.getUserByEmail(adminEmail);
-    if (!user || user.disabled === true || user.customClaims?.platformAdmin !== true) {
-        throw controlledError("ACTIVATION_PLATFORM_ADMIN_INVALID");
-    }
+    const user = await findUniquePlatformAdmin(auth);
 
     stage = "auth-exchange";
     const customToken = await auth.createCustomToken(user.uid);
@@ -182,10 +199,9 @@ if (require.main === module) {
 
 module.exports = {
     ACTIVATION_TENANT_ENV,
-    ACTIVATION_ADMIN_EMAIL_ENV,
     controlledError,
-    requireAdminEmail,
     localBaseUrl,
+    findUniquePlatformAdmin,
     exchangeCustomToken,
     platformRequest,
     main,
