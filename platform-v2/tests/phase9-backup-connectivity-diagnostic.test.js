@@ -206,7 +206,7 @@ test("startup backup drill env yoksa hiçbir şey schedule etmez", () => {
     assert.equal(loaded, false);
 });
 
-test("backup drill hata logu yalnız stage/code/kind taşır ve error message sızdırmaz", () => {
+test("backup drill hata logu yalnız stage/code/kind taşır ve güvenli keyring sınıfları kullanır", () => {
     const workspace = path.resolve(__dirname, "../..");
     const drillSource = fs.readFileSync(
         path.join(workspace, "platform-v2/scripts/run-backup-drill.js"),
@@ -214,6 +214,18 @@ test("backup drill hata logu yalnız stage/code/kind taşır ve error message s�
     );
     assert.match(drillSource, /BACKUP_DRILL_FAILED stage=\$\{drillStage\} code=\$\{code\} kind=\$\{kind\}/);
     assert.doesNotMatch(drillSource, /BACKUP_DRILL_FAILED[^\n]*error\?\.message/);
+    for (const code of [
+        "BACKUP_KEYS_JSON_MISSING",
+        "BACKUP_KEYS_JSON_INVALID",
+        "BACKUP_KEYRING_KEYS_INVALID",
+        "BACKUP_KEY_ID_INVALID",
+        "BACKUP_KEY_ID_DUPLICATE",
+        "BACKUP_KEY_INVALID_BASE64",
+        "BACKUP_KEY_INVALID_LENGTH",
+        "BACKUP_ACTIVE_KEY_NOT_FOUND"
+    ]) {
+        assert.match(drillSource, new RegExp(code));
+    }
 });
 
 test("server diagnostic endpointi Platform API auth middleware sonrasında attach eder", () => {
