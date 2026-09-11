@@ -2,7 +2,7 @@ const { createPlatformFirebase } = require("../src/firebase/create-platform-fire
 const { createFirestoreTenantSnapshotProvider } = require("../src/firestore/firestore-tenant-snapshot-provider");
 const { loadR2BackupConfig } = require("../src/config/r2-backup-config");
 const { createR2ObjectStorageProvider } = require("../src/storage/r2-object-storage-provider");
-const { createBackupKeyringFromEnv } = require("../src/backup/backup-keyring");
+const { createBackupKeyring, createBackupKeyringFromEnv } = require("../src/backup/backup-keyring");
 const { createTenantBackupService } = require("../src/backup/tenant-backup-service");
 const { requireTenantId } = require("../src/tenant/tenant-id");
 
@@ -35,6 +35,45 @@ function safeFailureCode(error, stage) {
     return "UNKNOWN";
 }
 
+function createDrillKeyring(env = process.env) {
+    try {
+        return createBackupKeyringFromEnv({
+            activeKeyId: env.PLATFORM_BACKUP_ACTIVE_KEY_ID,
+            keysJson: env.PLATFORM_BACKUP_KEYS_JSON
+        });
+    } catch (error) {
+        if (!(error instanceof TypeError) ||
+            error.message !== "Aktif backup keyId keyring içinde bulunamadı.") {
+            throw error;
+        }
+
+        let keys;
+        try {
+            keys = JSON.parse(String(env.PLATFORM_BACKUP_KEYS_JSON ?? ""));
+        } catch {
+            throw error;
+        }
+
+        if (!keys || typeof keys !== "object" || Array.isArray(keys)) {
+            throw error;
+        }
+
+        const keyIds = Object.keys(keys);
+        if (keyIds.length !== 1) {
+            const fallbackError = new TypeError("Aktif backup keyId keyring içinde bulunamadı.");
+            fallbackError.code = "BACKUP_ACTIVE_KEY_NOT_FOUND_MULTIPLE_KEYS";
+            throw fallbackError;
+        }
+
+        const keyring = createBackupKeyring({
+            activeKeyId: keyIds[0],
+            keys
+        });
+        console.warn(`BACKUP_DRILL_KEYRING_FALLBACK keyId=${keyring.activeKeyId}`);
+        return keyring;
+    }
+}
+
 async function main() {
     drillStage = "tenant-id";
     const tenantId = requireTenantId(process.env.PLATFORM_BACKUP_DRILL_TENANT_ID);
@@ -49,7 +88,7 @@ async function main() {
     const storageProvider = createR2ObjectStorageProvider(loadR2BackupConfig());
 
     drillStage = "keyring";
-    const keyring = createBackupKeyringFromEnv();
+    const keyring = createDrillKeyring();
 
     drillStage = "backup-service";
     const backups = createTenantBackupService({
