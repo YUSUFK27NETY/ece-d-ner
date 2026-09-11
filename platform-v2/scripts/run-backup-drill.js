@@ -8,6 +8,33 @@ const { requireTenantId } = require("../src/tenant/tenant-id");
 
 let drillStage = "tenant-id";
 
+function sanitizeCode(value) {
+    return String(value ?? "UNKNOWN").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80);
+}
+
+function classifyKeyringTypeError(error) {
+    const message = String(error?.message ?? "");
+    const known = [
+        ["PLATFORM_BACKUP_KEYS_JSON tanımlı değil.", "BACKUP_KEYS_JSON_MISSING"],
+        ["PLATFORM_BACKUP_KEYS_JSON geçerli JSON olmalı.", "BACKUP_KEYS_JSON_INVALID"],
+        ["Backup keyring keys nesnesi gerekli.", "BACKUP_KEYRING_KEYS_INVALID"],
+        ["Geçerli bir backup keyId gerekli.", "BACKUP_KEY_ID_INVALID"],
+        ["Backup keyring içinde tekrar eden keyId var.", "BACKUP_KEY_ID_DUPLICATE"],
+        ["Backup encryption key geçerli base64 olmalı.", "BACKUP_KEY_INVALID_BASE64"],
+        ["Backup encryption key tam olarak 32 byte olmalı.", "BACKUP_KEY_INVALID_LENGTH"],
+        ["Aktif backup keyId keyring içinde bulunamadı.", "BACKUP_ACTIVE_KEY_NOT_FOUND"]
+    ];
+    return known.find(([expected]) => message === expected)?.[1] ?? "BACKUP_KEYRING_INVALID";
+}
+
+function safeFailureCode(error, stage) {
+    if (error?.code) return sanitizeCode(error.code);
+    if (stage === "keyring" && error instanceof TypeError) {
+        return classifyKeyringTypeError(error);
+    }
+    return "UNKNOWN";
+}
+
 async function main() {
     drillStage = "tenant-id";
     const tenantId = requireTenantId(process.env.PLATFORM_BACKUP_DRILL_TENANT_ID);
@@ -69,7 +96,7 @@ async function main() {
 }
 
 main().catch(error => {
-    const code = String(error?.code ?? "UNKNOWN").replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80);
+    const code = safeFailureCode(error, drillStage);
     const kind = error instanceof TypeError ? "TYPE_ERROR" : "ERROR";
     console.error(`BACKUP_DRILL_FAILED stage=${drillStage} code=${code} kind=${kind}`);
     process.exitCode = 1;
