@@ -60,6 +60,12 @@ const DEFAULT_PLATFORM_GUARDRAILS_CONFIG = Object.freeze({
             softRequestLimit: null,
             warningThreshold: 0.8,
             dedicatedReviewThreshold: 1
+        }),
+        starter: Object.freeze({
+            allowedFeatures: "*",
+            softRequestLimit: null,
+            warningThreshold: 0.8,
+            dedicatedReviewThreshold: 1
         })
     }),
     tenantOverrides: Object.freeze({}),
