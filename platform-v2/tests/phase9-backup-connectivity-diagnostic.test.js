@@ -13,10 +13,12 @@ const {
 const {
     BACKUP_DRILL_TENANT_ENV,
     PHASE9_ACTIVATION_TENANT_ENV,
-    PHASE9_ACTIVATION_ADMIN_EMAIL_ENV,
     scheduleConfiguredBackupDrill,
     scheduleConfiguredPhase9Activation
 } = require("../src/http/attach-backup-connectivity-diagnostic-endpoint");
+const {
+    findUniquePlatformAdmin
+} = require("../scripts/run-phase9-controlled-activation");
 
 const TENANT_ID = "phase9-live-second-20260910";
 
@@ -209,13 +211,10 @@ test("startup backup drill env yoksa hiçbir şey schedule etmez", () => {
     assert.equal(loaded, false);
 });
 
-test("controlled activation yalnız tenant ve admin email birlikte verilirse bir kez schedule edilir", async () => {
+test("controlled activation yalnız explicit tenant env ile bir kez schedule edilir", async () => {
     const scheduled = [];
     const calls = [];
-    const env = {
-        [PHASE9_ACTIVATION_TENANT_ENV]: TENANT_ID,
-        [PHASE9_ACTIVATION_ADMIN_EMAIL_ENV]: "platform-admin@example.test"
-    };
+    const env = { [PHASE9_ACTIVATION_TENANT_ENV]: TENANT_ID };
 
     assert.equal(scheduleConfiguredPhase9Activation({
         env,
@@ -238,27 +237,54 @@ test("controlled activation yalnız tenant ve admin email birlikte verilirse bir
     assert.deepEqual(calls, [env]);
 });
 
-test("controlled activation eksik trigger env ile schedule edilmez", () => {
-    for (const env of [
-        {},
-        { [PHASE9_ACTIVATION_TENANT_ENV]: TENANT_ID },
-        { [PHASE9_ACTIVATION_ADMIN_EMAIL_ENV]: "platform-admin@example.test" }
-    ]) {
-        let scheduled = false;
-        let loaded = false;
-        assert.equal(scheduleConfiguredPhase9Activation({
-            env,
-            schedule() {
-                scheduled = true;
-            },
-            loadActivation() {
-                loaded = true;
-                return {};
+test("controlled activation trigger env yoksa schedule edilmez", () => {
+    let scheduled = false;
+    let loaded = false;
+    assert.equal(scheduleConfiguredPhase9Activation({
+        env: {},
+        schedule() {
+            scheduled = true;
+        },
+        loadActivation() {
+            loaded = true;
+            return {};
+        }
+    }), false);
+    assert.equal(scheduled, false);
+    assert.equal(loaded, false);
+});
+
+test("controlled activation tek aktif platform admin kimliğini PII loglamadan seçer", async () => {
+    const selected = await findUniquePlatformAdmin({
+        async listUsers() {
+            return {
+                users: [
+                    { uid: "normal-user", customClaims: {} },
+                    { uid: "disabled-admin", disabled: true, customClaims: { platformAdmin: true } },
+                    { uid: "platform-admin-1", disabled: false, customClaims: { platformAdmin: true } }
+                ]
+            };
+        }
+    });
+    assert.equal(selected.uid, "platform-admin-1");
+
+    await assert.rejects(
+        () => findUniquePlatformAdmin({ async listUsers() { return { users: [] }; } }),
+        error => error?.code === "ACTIVATION_PLATFORM_ADMIN_NOT_FOUND"
+    );
+    await assert.rejects(
+        () => findUniquePlatformAdmin({
+            async listUsers() {
+                return {
+                    users: [
+                        { uid: "admin-a", customClaims: { platformAdmin: true } },
+                        { uid: "admin-b", customClaims: { platformAdmin: true } }
+                    ]
+                };
             }
-        }), false);
-        assert.equal(scheduled, false);
-        assert.equal(loaded, false);
-    }
+        }),
+        error => error?.code === "ACTIVATION_PLATFORM_ADMIN_AMBIGUOUS"
+    );
 });
 
 test("controlled activation runner readiness, lifecycle ve audit doğrulamasını HTTP üzerinden yapar", () => {
@@ -275,7 +301,8 @@ test("controlled activation runner readiness, lifecycle ve audit doğrulamasın�
     assert.match(source, /\/last-audit/);
     assert.match(source, /lastAudit\.action !== "tenant\.lifecycle\.activated"/);
     assert.match(source, /PHASE9_ACTIVATION_OK/);
-    assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:customToken|idToken|apiKey)/);
+    assert.doesNotMatch(source, /getUserByEmail/);
+    assert.doesNotMatch(source, /console\.(?:log|error)\([^\n]*(?:customToken|idToken|apiKey|email)/);
 });
 
 test("backup drill hata logu yalnız stage/code/kind taşır ve güvenli keyring sınıfları kullanır", () => {
