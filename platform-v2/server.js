@@ -32,6 +32,9 @@ const {
     attachTenantOwnerRuntime
 } = require("./src/http/attach-tenant-owner-runtime");
 const {
+    attachPublicStorefrontRuntime
+} = require("./src/http/attach-public-storefront-runtime");
+const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
 const {
@@ -74,6 +77,9 @@ const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter"
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
+const {
+    createPublicStorefrontService
+} = require("./src/public/public-storefront-service");
 const {
     createCommercialPlanPreviewService
 } = require("./src/entitlements/commercial-plan-preview-service");
@@ -220,6 +226,11 @@ function startPlatformServer() {
         productRepository,
         entitlementService
     });
+    const storefrontService = createPublicStorefrontService({
+        tenantRegistry,
+        productRepository,
+        entitlementService
+    });
     const orderRepository = createFirestoreOrderRepository({ db });
     const orderService = createOrderService({
         tenantRegistry,
@@ -334,6 +345,10 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachPublicStorefrontRuntime({
+        app,
+        storefrontService
     });
     attachSecurityLaunchReviewEndpoint({
         app,
