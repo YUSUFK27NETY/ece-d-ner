@@ -428,7 +428,7 @@ test("commercial plan preview config-driven ve read-only kalır; unknown target 
     const catalog = service.getCatalog({ context });
 
     assert.deepEqual(catalog.planIds, [
-        "default", "synthetic-base", "synthetic-expanded"
+        "default", "starter", "synthetic-base", "synthetic-expanded"
     ]);
     const preview = service.preview({
         context,
