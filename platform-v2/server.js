@@ -29,6 +29,9 @@ const {
     attachTenantMemberIdentityEndpoints
 } = require("./src/http/attach-tenant-member-identity-endpoints");
 const {
+    attachTenantOwnerRuntime
+} = require("./src/http/attach-tenant-owner-runtime");
+const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
 const {
@@ -324,6 +327,13 @@ function startPlatformServer() {
         bindingReader: tenantMemberBindingRepository,
         initialOwnerBootstrapService,
         allowedOrigins
+    });
+    attachTenantOwnerRuntime({
+        app,
+        webConfig,
+        tenantRegistry,
+        catalogService,
+        orderService
     });
     attachSecurityLaunchReviewEndpoint({
         app,

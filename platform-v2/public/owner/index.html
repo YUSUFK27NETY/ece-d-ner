@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>İşletme Paneli | Platform V2</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/owner.js"></script>
+</head>
+<body>
+    <div id="login-view" class="center-shell">
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">Platform V2</p>
+            <h1>İşletme Paneli</h1>
+            <p class="muted">Kendi işletmenizin ürün ve siparişlerini yönetin.</p>
+            <label>
+                İşletme kodu
+                <input id="tenant-id" autocomplete="off" placeholder="ela-doner" required>
+            </label>
+            <label>
+                E-posta
+                <input id="email" type="email" autocomplete="username" required>
+            </label>
+            <label>
+                Şifre
+                <input id="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p id="login-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="app-view" class="app hidden">
+        <header class="topbar">
+            <div>
+                <p class="eyebrow">İşletme Paneli</p>
+                <h1 id="business-title">İşletme</h1>
+                <p id="business-meta" class="muted"></p>
+            </div>
+            <div class="top-actions">
+                <span id="role-badge" class="badge"></span>
+                <button id="refresh-button" type="button" class="secondary">Yenile</button>
+                <button id="logout-button" type="button" class="danger-ghost">Çıkış</button>
+            </div>
+        </header>
+
+        <main class="shell">
+            <nav class="tabs" aria-label="İşletme paneli bölümleri">
+                <button type="button" class="tab active" data-view="dashboard">Genel</button>
+                <button type="button" class="tab" data-view="products">Ürünler</button>
+                <button type="button" class="tab" data-view="orders">Siparişler</button>
+            </nav>
+
+            <section id="dashboard-view" class="view active">
+                <div class="stats">
+                    <article class="stat"><span>Durum</span><strong id="stat-status">—</strong></article>
+                    <article class="stat"><span>Sektör</span><strong id="stat-sector">—</strong></article>
+                    <article class="stat"><span>Ürün</span><strong id="stat-products">—</strong></article>
+                    <article class="stat"><span>Sipariş</span><strong id="stat-orders">—</strong></article>
+                </div>
+                <section class="panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">Aktif Modüller</p><h2>İşletme özellikleri</h2></div>
+                    </div>
+                    <div id="feature-list" class="chips"></div>
+                </section>
+            </section>
+
+            <section id="products-view" class="view">
+                <section class="panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">Katalog</p><h2>Ürün / Hizmet Yönetimi</h2></div>
+                        <button id="new-product-button" type="button" class="primary compact">+ Yeni ürün</button>
+                    </div>
+                    <p id="products-message" class="message" role="status"></p>
+                    <div id="product-list" class="card-list"></div>
+                </section>
+            </section>
+
+            <section id="orders-view" class="view">
+                <section class="panel">
+                    <div class="section-head">
+                        <div><p class="eyebrow">Operasyon</p><h2>Siparişler</h2></div>
+                        <button id="orders-refresh" type="button" class="secondary compact">Siparişleri yenile</button>
+                    </div>
+                    <p id="orders-message" class="message" role="status"></p>
+                    <div id="order-list" class="card-list"></div>
+                </section>
+            </section>
+        </main>
+    </div>
+
+    <div id="product-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="product-modal-title">
+        <form id="product-form" class="modal-card">
+            <div class="section-head">
+                <h2 id="product-modal-title">Yeni ürün</h2>
+                <button id="product-close" type="button" class="icon-button" aria-label="Kapat">×</button>
+            </div>
+            <input id="product-id" type="hidden">
+            <label>Ad<input id="product-name" maxlength="150" required></label>
+            <label>Kategori<input id="product-category" maxlength="80" required></label>
+            <label>Fiyat (₺)<input id="product-price" type="number" min="0.01" max="100000" step="0.01" required></label>
+            <label>Açıklama<textarea id="product-description" maxlength="500" rows="4"></textarea></label>
+            <label class="check-row"><input id="product-available" type="checkbox" checked> Satışta / görünür</label>
+            <button type="submit" class="primary">Kaydet</button>
+            <p id="product-form-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
