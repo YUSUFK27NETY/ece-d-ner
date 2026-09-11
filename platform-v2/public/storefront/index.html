@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#111827">
+    <title>İşletme | Platform V2</title>
+    <link rel="stylesheet" href="/m/storefront.css">
+    <script defer src="/m/storefront.js"></script>
+</head>
+<body>
+    <div id="loading" class="loading-screen">
+        <div class="loader"></div>
+        <strong>İşletme hazırlanıyor...</strong>
+    </div>
+
+    <div id="error-view" class="error-view hidden">
+        <div class="error-card">
+            <span>⚠️</span>
+            <h1>Sayfa kullanılamıyor</h1>
+            <p id="error-message">İşletme sayfası yüklenemedi.</p>
+            <button id="retry-button" type="button">Tekrar dene</button>
+        </div>
+    </div>
+
+    <div id="storefront" class="hidden">
+        <header class="site-header">
+            <a class="brand" href="#top" aria-label="Ana sayfa">
+                <img id="logo" class="logo hidden" alt="İşletme logosu">
+                <span id="logo-fallback" class="logo-fallback">İ</span>
+                <span class="brand-copy">
+                    <strong id="header-brand">İşletme</strong>
+                    <small id="header-sector">Dijital işletme</small>
+                </span>
+            </a>
+            <div class="header-actions">
+                <button id="share-button" type="button" class="ghost-button">Paylaş</button>
+                <a id="header-whatsapp" class="primary-button hidden" target="_blank" rel="noopener">WhatsApp</a>
+            </div>
+        </header>
+
+        <main id="top">
+            <section class="hero">
+                <div class="hero-glow"></div>
+                <div class="hero-content">
+                    <div id="sector-badge" class="sector-badge">Dijital İşletme</div>
+                    <h1 id="hero-title">İşletme</h1>
+                    <p id="hero-text">Ürünleri, hizmetleri ve işletme bilgilerini tek sayfadan inceleyin.</p>
+                    <div id="hero-actions" class="hero-actions"></div>
+                    <div id="contact-chips" class="contact-chips"></div>
+                </div>
+            </section>
+
+            <section id="module-section" class="section hidden">
+                <div class="section-heading">
+                    <span>ONLINE HİZMETLER</span>
+                    <h2>Nasıl yardımcı olabiliriz?</h2>
+                    <p>İşletmenin aktif dijital hizmetlerini buradan kullanabilirsiniz.</p>
+                </div>
+                <div id="module-grid" class="module-grid"></div>
+            </section>
+
+            <section id="catalog-section" class="section hidden">
+                <div class="section-heading catalog-heading">
+                    <div>
+                        <span id="catalog-kicker">KATALOG</span>
+                        <h2 id="catalog-title">Ürünler & Hizmetler</h2>
+                        <p id="catalog-subtitle">İşletmenin güncel seçeneklerini inceleyin.</p>
+                    </div>
+                    <label class="search-box">
+                        <span>⌕</span>
+                        <input id="catalog-search" type="search" placeholder="Ara..." autocomplete="off">
+                    </label>
+                </div>
+                <div id="category-list" class="category-list"></div>
+                <div id="product-grid" class="product-grid"></div>
+            </section>
+
+            <section id="about-section" class="section compact-section">
+                <div class="info-grid">
+                    <article id="address-card" class="info-card hidden">
+                        <span class="info-icon">⌖</span>
+                        <div><small>Adres</small><p id="address-text"></p></div>
+                    </article>
+                    <article id="phone-card" class="info-card hidden">
+                        <span class="info-icon">☎</span>
+                        <div><small>Telefon</small><p id="phone-text"></p></div>
+                    </article>
+                    <article id="website-card" class="info-card hidden">
+                        <span class="info-icon">↗</span>
+                        <div><small>Web sitesi</small><p><a id="website-link" target="_blank" rel="noopener">Ziyaret et</a></p></div>
+                    </article>
+                    <article id="email-card" class="info-card hidden">
+                        <span class="info-icon">✉</span>
+                        <div><small>E-posta</small><p><a id="email-link"></a></p></div>
+                    </article>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <strong id="footer-brand">İşletme</strong>
+            <span>• Dijital işletme deneyimi</span>
+        </footer>
+
+        <div id="cart-bar" class="cart-bar hidden">
+            <div><small><span id="cart-count">0</span> ürün</small><strong id="cart-total">0 ₺</strong></div>
+            <button id="cart-open" type="button">Sepeti Aç</button>
+        </div>
+
+        <div id="cart-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="cart-title">
+            <div class="modal-card">
+                <div class="modal-head"><h2 id="cart-title">Sipariş Sepeti</h2><button id="cart-close" type="button" class="close-button" aria-label="Kapat">×</button></div>
+                <div id="cart-items" class="cart-items"></div>
+                <div class="cart-total-row"><span>Toplam</span><strong id="modal-total">0 ₺</strong></div>
+                <p id="cart-note" class="muted-note">Siparişiniz işletmenin WhatsApp hattına hazırlanacaktır.</p>
+                <button id="cart-whatsapp" type="button" class="checkout-button">WhatsApp'tan Sipariş Ver</button>
+            </div>
+        </div>
+
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    </div>
+</body>
+</html>
