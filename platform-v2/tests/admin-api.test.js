@@ -218,13 +218,13 @@ test("platform admin tenant oluşturur, listeler ve audit üretir", async () => 
     }
 });
 
-test("platform admin tenant durum, paket, feature ve marka ayarlarını merkezi günceller", async () => {
+test("platform admin lifecycle ile karışık PATCH'i reddeder; hazırlık alanlarını ayrı günceller", async () => {
     const fixture = await startTestServer();
 
     try {
         assert.equal((await createTenant(fixture)).status, 201);
 
-        const updateResponse = await fetch(`${fixture.baseUrl}/api/platform/tenants/ece-doner`, {
+        const mixedResponse = await fetch(`${fixture.baseUrl}/api/platform/tenants/ece-doner`, {
             method: "PATCH",
             headers: adminHeaders({
                 "Content-Type": "application/json"
@@ -242,10 +242,32 @@ test("platform admin tenant durum, paket, feature ve marka ayarlarını merkezi 
                 }
             })
         });
+        assert.equal(mixedResponse.status, 409);
+        assert.equal(fixture.tenants.get("ece-doner").status, "provisioning");
+        assert.equal(fixture.tenants.get("ece-doner").plan, "starter");
+        assert.equal(fixture.auditEvents.length, 1);
+
+        const updateResponse = await fetch(`${fixture.baseUrl}/api/platform/tenants/ece-doner`, {
+            method: "PATCH",
+            headers: adminHeaders({
+                "Content-Type": "application/json"
+            }),
+            body: JSON.stringify({
+                plan: "business",
+                features: {
+                    reservations: true
+                },
+                profile: {
+                    brandName: "Ece Döner",
+                    customDomain: "menu.ece-doner.example.com",
+                    primaryColor: "#112233"
+                }
+            })
+        });
         const updated = await updateResponse.json();
 
         assert.equal(updateResponse.status, 200);
-        assert.equal(updated.tenant.status, "active");
+        assert.equal(updated.tenant.status, "provisioning");
         assert.equal(updated.tenant.plan, "business");
         assert.equal(updated.tenant.features.orders, true);
         assert.equal(updated.tenant.features.reservations, true);

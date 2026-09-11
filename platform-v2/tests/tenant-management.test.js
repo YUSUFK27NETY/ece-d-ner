@@ -68,7 +68,7 @@ test("tenant management sadece izinli alanları günceller ve mevcut feature fla
         requestId: "request-1",
         now: new Date("2026-08-31T15:00:00.000Z"),
         patch: {
-            status: "active",
+            status: "provisioning",
             features: {
                 reservations: true
             },
@@ -78,7 +78,7 @@ test("tenant management sadece izinli alanları günceller ve mevcut feature fla
         }
     });
 
-    assert.equal(updated.status, "active");
+    assert.equal(updated.status, "provisioning");
     assert.equal(updated.features.orders, true);
     assert.equal(updated.features.whatsapp, true);
     assert.equal(updated.features.reservations, true);
@@ -89,6 +89,21 @@ test("tenant management sadece izinli alanları günceller ve mevcut feature fla
     assert.equal(audit.length, 1);
     assert.equal(audit[0].action, "tenant.updated");
     assert.equal(audit[0].requestId, "request-1");
+
+    const beforeLifecycleAttempt = stored;
+    await assert.rejects(
+        () => service.update({
+            tenantId: "ece-doner",
+            patch: {
+                status: "active",
+                plan: "business",
+                profile: { brandName: "Mixed Lifecycle Attempt" }
+            }
+        }),
+        error => error?.code === "TENANT_LIFECYCLE_ACTION_REQUIRED"
+    );
+    assert.strictEqual(stored, beforeLifecycleAttempt);
+    assert.equal(audit.length, 1);
 
     await assert.rejects(
         () => service.update({

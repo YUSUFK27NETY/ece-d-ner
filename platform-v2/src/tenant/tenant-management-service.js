@@ -90,7 +90,13 @@ function createTenantManagementService({ tenantRegistry, auditWriter = null }) {
                     throw new TypeError("Geçersiz tenant durumu.");
                 }
 
-                next.status = status;
+                if (status !== current.status) {
+                    const error = new Error(
+                        "Tenant durum değişikliği kontrollü lifecycle işlemi gerektirir."
+                    );
+                    error.code = "TENANT_LIFECYCLE_ACTION_REQUIRED";
+                    throw error;
+                }
             }
 
             if ("plan" in patch) {

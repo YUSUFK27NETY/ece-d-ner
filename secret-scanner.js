@@ -1,7 +1,10 @@
 "use strict";
 
 const DEFAULT_PUBLIC_VALUES = [
-    "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU"
+    "AIzaSyCfPqMm1Azo6ZS9ee4NNd1y-bFzPv9JaCU",
+    // AWS Signature Version 4 documentation uses this published example key.
+    // It is test-vector material, not a deployable credential.
+    "AKIAIOSFODNN7EXAMPLE"
 ];
 
 const DETECTORS = [

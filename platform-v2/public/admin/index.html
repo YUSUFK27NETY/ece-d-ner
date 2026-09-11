@@ -11,6 +11,7 @@
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script defer src="/admin/config.js"></script>
     <script defer src="/admin/admin.js"></script>
+    <script defer src="/admin/customer-readiness-audit.js"></script>
 </head>
 <body>
     <div id="login-view" class="center-shell">
@@ -92,12 +93,13 @@
                         </label>
                         <label id="status-field" class="hidden">
                             Durum
-                            <select id="status" name="status">
+                            <select id="status" name="status" disabled>
                                 <option value="provisioning">Provisioning</option>
                                 <option value="active">Active</option>
                                 <option value="suspended">Suspended</option>
                                 <option value="archived">Archived</option>
                             </select>
+                            <small>Durum yalnız kontrollü lifecycle işlemiyle değişir.</small>
                         </label>
                     </div>
 
@@ -202,6 +204,69 @@
                             </article>
                         </div>
                         <p id="operations-message" class="message" role="status"></p>
+                    </fieldset>
+
+                    <fieldset id="customer-readiness-panel" class="hidden">
+                        <legend>Müşteri Hazırlığı</legend>
+                        <p id="customer-readiness-message" class="message" role="status"></p>
+                        <div class="customer-readiness-summary">
+                            <article class="metric-card">
+                                <span>Aktivasyon hazırlığı</span>
+                                <strong id="customer-readiness-overall">—</strong>
+                                <small>Server-owned aggregate</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Aktive edilebilir</span>
+                                <strong id="customer-readiness-can-activate">—</strong>
+                                <small>Salt okunur görünürlük</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Durable lifecycle</span>
+                                <strong id="customer-readiness-lifecycle">—</strong>
+                                <small id="customer-readiness-evaluated-at">—</small>
+                            </article>
+                        </div>
+                        <div id="customer-readiness-cards" class="customer-readiness-grid"></div>
+                    </fieldset>
+
+                    <fieldset id="plan-preview-panel" class="hidden">
+                        <legend>Plan Önizleme</legend>
+                        <p id="plan-preview-message" class="message" role="status"></p>
+                        <div class="plan-preview-controls">
+                            <label>
+                                Hedef plan
+                                <select id="plan-preview-target" disabled>
+                                    <option value="">Plan kataloğu yükleniyor...</option>
+                                </select>
+                            </label>
+                            <p class="muted">Salt okunur teknik karşılaştırma. Mevcut Kaydet akışından ayrıdır.</p>
+                        </div>
+                        <div class="plan-preview-summary">
+                            <article class="metric-card">
+                                <span>Mevcut plan</span>
+                                <strong id="plan-preview-current">—</strong>
+                                <small id="plan-preview-current-policy">—</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Hedef plan</span>
+                                <strong id="plan-preview-requested">—</strong>
+                                <small>Config kataloğundan exact seçim</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Otomatik uygulama</span>
+                                <strong id="plan-preview-automatic-apply">—</strong>
+                                <small>Tenant planı değiştirilmez</small>
+                            </article>
+                            <article class="metric-card">
+                                <span>Feature özeti</span>
+                                <strong id="plan-preview-feature-summary">—</strong>
+                                <small>Effective erişim değişimi</small>
+                            </article>
+                        </div>
+                        <h3 class="plan-preview-heading">Feature değişiklikleri</h3>
+                        <div id="plan-preview-features" class="plan-preview-grid"></div>
+                        <h3 class="plan-preview-heading">Limit politikası</h3>
+                        <div id="plan-preview-limits" class="plan-preview-grid"></div>
                     </fieldset>
 
                     <fieldset id="security-alerts-panel" class="hidden">

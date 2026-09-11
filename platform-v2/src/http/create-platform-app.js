@@ -5,10 +5,18 @@ const path = require("node:path");
 const { createRequirePlatformAdmin } = require("../auth/require-platform-admin");
 const { createTenantOnboardingService } = require("../tenant/onboarding-service");
 const { createTenantManagementService } = require("../tenant/tenant-management-service");
+const { createTenantLifecycleService } = require("../tenant/tenant-lifecycle-service");
 const { requireTenantId } = require("../tenant/tenant-id");
 const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
 const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
 const { assertSecurityPosture } = require("../security/security-posture-service");
+const {
+    assertCustomerReadiness
+} = require("../onboarding/customer-readiness-service");
+const {
+    assertCommercialPlanCatalog,
+    assertCommercialPlanPreview
+} = require("../entitlements/commercial-plan-preview-service");
 
 const ADMIN_CSP = [
     "default-src 'self'",
@@ -41,6 +49,15 @@ function normalizeTopTenantLimit(value = 10) {
     }
 
     return limit;
+}
+
+function hasLifecycleRequestInput(req) {
+    const contentLength = req.get("content-length");
+
+    return req.body !== undefined ||
+        contentLength !== undefined && contentLength !== "0" ||
+        req.get("transfer-encoding") !== undefined ||
+        Reflect.ownKeys(req.query).length > 0;
 }
 
 const SECURITY_ALERT_RESPONSE_FIELDS = Object.freeze([
@@ -145,6 +162,8 @@ function createPlatformApp({
     securityOperations = null,
     securityAlertReader = null,
     securityPostureService = null,
+    customerReadinessService = null,
+    commercialPlanPreviewService = null,
     tenantOperations = null,
     finOpsService = null
 }) {
@@ -169,6 +188,15 @@ function createPlatformApp({
         typeof securityPostureService.getPlatformPosture !== "function") {
         throw new TypeError("Security posture service geçersiz.");
     }
+    if (customerReadinessService &&
+        typeof customerReadinessService.evaluate !== "function") {
+        throw new TypeError("Customer readiness service geçersiz.");
+    }
+    if (commercialPlanPreviewService &&
+        (typeof commercialPlanPreviewService.getCatalog !== "function" ||
+            typeof commercialPlanPreviewService.preview !== "function")) {
+        throw new TypeError("Commercial plan preview service geçersiz.");
+    }
 
     const requirePlatformAdmin = createRequirePlatformAdmin({
         auth,
@@ -182,6 +210,11 @@ function createPlatformApp({
     const tenantManagement = createTenantManagementService({
         tenantRegistry,
         auditWriter
+    });
+    const tenantLifecycle = createTenantLifecycleService({
+        tenantRegistry,
+        auditWriter,
+        customerReadinessService
     });
     const platformCors = createPlatformCorsMiddleware(allowedOrigins);
     const adminPublicDir = path.join(__dirname, "../../public/admin");
@@ -361,6 +394,28 @@ function createPlatformApp({
         });
     }
 
+    if (commercialPlanPreviewService) {
+        app.get("/api/platform/plans", (req, res) => {
+            try {
+                const catalog = assertCommercialPlanCatalog(
+                    commercialPlanPreviewService.getCatalog({
+                        context: {
+                            role: req.platformActor.role,
+                            actorId: req.platformActor.uid
+                        }
+                    })
+                );
+                return res.json({ success: true, catalog });
+            } catch {
+                console.error("Commercial plan catalog okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Plan kataloğu alınamadı."
+                });
+            }
+        });
+    }
+
     app.get("/api/platform/tenants", async (req, res) => {
         try {
             const limit = normalizeApiListLimit(
@@ -376,6 +431,102 @@ function createPlatformApp({
             return sendPlatformError(res, error);
         }
     });
+
+    if (customerReadinessService) {
+        app.get("/api/platform/tenants/:tenantId/readiness", async (req, res) => {
+            let tenantId;
+            try {
+                tenantId = requireTenantId(req.params.tenantId);
+                if (tenantId !== req.params.tenantId) {
+                    throw new TypeError();
+                }
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Müşteri hazırlığı tenant kimliği geçersiz."
+                });
+            }
+
+            try {
+                const tenant = await tenantRegistry.getById(tenantId);
+                if (!tenant) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "İşletme bulunamadı."
+                    });
+                }
+
+                const readiness = assertCustomerReadiness(
+                    await customerReadinessService.evaluate({ tenantId, tenant })
+                );
+                return res.json({ success: true, readiness });
+            } catch {
+                console.error("Müşteri hazırlığı okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Müşteri hazırlığı alınamadı."
+                });
+            }
+        });
+    }
+
+    if (commercialPlanPreviewService) {
+        app.get("/api/platform/tenants/:tenantId/plan-preview", async (req, res) => {
+            let tenantId;
+            try {
+                tenantId = requireTenantId(req.params.tenantId);
+                if (tenantId !== req.params.tenantId ||
+                    typeof req.query.targetPlan !== "string") {
+                    throw new TypeError();
+                }
+            } catch {
+                return res.status(400).json({
+                    success: false,
+                    message: "Plan önizleme sorgusu geçersiz."
+                });
+            }
+
+            try {
+                const tenant = await tenantRegistry.getById(tenantId);
+                if (!tenant) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "İşletme bulunamadı."
+                    });
+                }
+
+                const preview = assertCommercialPlanPreview(
+                    commercialPlanPreviewService.preview({
+                        context: {
+                            role: req.platformActor.role,
+                            actorId: req.platformActor.uid
+                        },
+                        tenantId,
+                        tenant,
+                        targetPlan: req.query.targetPlan
+                    })
+                );
+                return res.json({ success: true, preview });
+            } catch (error) {
+                const code = error && typeof error === "object"
+                    ? Object.getOwnPropertyDescriptor(error, "code")
+                    : null;
+                if (code && Object.hasOwn(code, "value") &&
+                    code.value === "TARGET_PLAN_NOT_CONFIGURED") {
+                    return res.status(400).json({
+                        success: false,
+                        message: "Hedef plan yapılandırılmamış."
+                    });
+                }
+
+                console.error("Commercial plan preview okunamadı.");
+                return res.status(500).json({
+                    success: false,
+                    message: "Plan önizlemesi alınamadı."
+                });
+            }
+        });
+    }
 
     app.get("/api/platform/tenants/:tenantId", async (req, res) => {
         try {
@@ -466,6 +617,26 @@ function createPlatformApp({
         }
     });
 
+    for (const action of ["activate", "suspend", "resume", "archive"]) {
+        app.post(`/api/platform/tenants/:tenantId/lifecycle/${action}`, async (req, res) => {
+            try {
+                if (hasLifecycleRequestInput(req)) {
+                    throw new TypeError("Lifecycle isteği gövde veya sorgu kabul etmez.");
+                }
+
+                const tenant = await tenantLifecycle[action]({
+                    tenantId: req.params.tenantId,
+                    actorId: req.platformActor.uid,
+                    requestId: req.requestId
+                });
+
+                return res.json({ success: true, tenant });
+            } catch (error) {
+                return sendPlatformError(res, error);
+            }
+        });
+    }
+
     app.patch("/api/platform/tenants/:tenantId", async (req, res) => {
         try {
             if (!req.is("application/json")) {
@@ -528,6 +699,26 @@ function sendPlatformError(res, error) {
         return res.status(404).json({
             success: false,
             message: "İşletme bulunamadı."
+        });
+    }
+
+    if (error?.code === "TENANT_LIFECYCLE_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "Tenant lifecycle işlemi şu anda kullanılamıyor."
+        });
+    }
+
+    if (new Set([
+        "TENANT_LIFECYCLE_ACTION_REQUIRED",
+        "TENANT_LIFECYCLE_INVALID_TRANSITION",
+        "TENANT_LIFECYCLE_STATE_CHANGED",
+        "TENANT_ACTIVATION_NOT_READY",
+        "TENANT_RESUME_NOT_READY"
+    ]).has(error?.code)) {
+        return res.status(409).json({
+            success: false,
+            message: error.message
         });
     }
 

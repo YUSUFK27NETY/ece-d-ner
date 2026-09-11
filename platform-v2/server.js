@@ -1,7 +1,45 @@
 const { createPlatformFirebase } = require("./src/firebase/create-platform-firebase");
 const { createFirestoreTenantRegistry } = require("./src/firestore/firestore-tenant-registry");
 const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-writer");
+const { createFirestoreAuditReader } = require("./src/firestore/firestore-audit-reader");
+const { createFirestoreProductRepository } = require("./src/firestore/firestore-product-repository");
+const { createFirestoreOrderRepository } = require("./src/firestore/firestore-order-repository");
+const {
+    createFirestoreTenantMemberBindingRepository
+} = require("./src/firestore/firestore-tenant-member-binding-repository");
+const {
+    createFirestoreAdminBootstrapEvidenceProvider
+} = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
+const {
+    createFirestoreSecurityReviewEvidenceProvider
+} = require("./src/firestore/firestore-security-review-evidence-provider");
+const {
+    createFirestoreSecurityReviewEvidenceWriter
+} = require("./src/firestore/firestore-security-review-evidence-writer");
+const {
+    createFirestorePublicRouteReader
+} = require("./src/firestore/firestore-public-route-reader");
 const { createPlatformApp } = require("./src/http/create-platform-app");
+const { attachCatalogAdminEndpoints } = require("./src/http/attach-catalog-admin-endpoints");
+const { attachOrderAdminEndpoints } = require("./src/http/attach-order-admin-endpoints");
+const {
+    attachTenantMemberIdentityEndpoints
+} = require("./src/http/attach-tenant-member-identity-endpoints");
+const {
+    attachSecurityLaunchReviewEndpoint
+} = require("./src/http/attach-security-launch-review-endpoint");
+const {
+    attachConfiguredBackupConnectivityDiagnosticEndpoint
+} = require("./src/http/attach-backup-connectivity-diagnostic-endpoint");
+const {
+    attachConfiguredPublicOrderRuntime
+} = require("./src/http/attach-configured-public-order-runtime");
+const {
+    attachLastAuditEndpoint
+} = require("./src/http/attach-last-audit-endpoint");
+const {
+    createLastAuditReadModel
+} = require("./src/audit/last-audit-read-model");
 const {
     normalizeFirebaseWebConfig,
     normalizeAllowedOrigins
@@ -28,6 +66,11 @@ const {
 } = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const { createCatalogService } = require("./src/catalog/catalog-service");
+const { createOrderService } = require("./src/orders/order-service");
+const {
+    createCommercialPlanPreviewService
+} = require("./src/entitlements/commercial-plan-preview-service");
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
 const { createFinOpsService } = require("./src/finops/finops-service");
 const { createTenantOperationsService } = require("./src/operations/tenant-operations-service");
@@ -44,6 +87,33 @@ const { createTenantCache } = require("./src/cache/tenant-cache");
 const { createInMemoryRolloutStore } = require("./src/rollout/in-memory-rollout-store");
 const { createTenantReleaseRolloutService } = require("./src/rollout/tenant-release-rollout");
 const { createDependencyResilienceService } = require("./src/resilience/dependency-resilience");
+const {
+    createCustomerReadinessService
+} = require("./src/onboarding/customer-readiness-service");
+const {
+    createCustomerReadinessSourceAdapters
+} = require("./src/onboarding/customer-readiness-adapters");
+const {
+    createPlanReadinessAdapter
+} = require("./src/onboarding/plan-readiness-adapter");
+const {
+    addAdminBootstrapReadinessSource
+} = require("./src/onboarding/admin-bootstrap-readiness-adapter");
+const {
+    addSecurityReadinessSource
+} = require("./src/onboarding/security-readiness-adapter");
+const {
+    createDomainReadinessService
+} = require("./src/onboarding/domain-readiness-service");
+const {
+    createPublicRouteDomainEvidenceProvider
+} = require("./src/onboarding/public-route-domain-evidence-provider");
+const {
+    createTenantInitialOwnerBootstrapService
+} = require("./src/onboarding/tenant-initial-owner-bootstrap-service");
+const {
+    createSecurityLaunchReviewService
+} = require("./src/onboarding/security-launch-review-service");
 
 const R2_BACKUP_CONFIG_KEYS = Object.freeze([
     "PLATFORM_BACKUP_R2_ENDPOINT",
@@ -65,6 +135,12 @@ function createConfiguredBackupEvidenceProvider({ db, env = process.env }) {
     return createBackupOperationsEvidenceProvider({ storageProvider, db });
 }
 
+function createRuntimeDomainReadinessService({ db, clock = Date.now }) {
+    const routeReader = createFirestorePublicRouteReader({ db });
+    const evidenceProvider = createPublicRouteDomainEvidenceProvider({ routeReader });
+    return createDomainReadinessService({ evidenceProvider, clock });
+}
+
 function createRuntimeSecurityOperations({ db, config, securityAlertSink = null }) {
     const sink = securityAlertSink || createFirestoreSecurityAlertSink({ db });
     const alertService = createSecurityAlertService({ sink, config });
@@ -76,7 +152,16 @@ function startPlatformServer() {
     const scalabilityConfig = loadPlatformScalabilityConfig();
     const { auth, db } = createPlatformFirebase();
     const tenantRegistry = createFirestoreTenantRegistry({ db });
+    const tenantMemberBindingRepository =
+        createFirestoreTenantMemberBindingRepository({ db });
+    const initialOwnerBootstrapService = createTenantInitialOwnerBootstrapService({
+        auth,
+        tenantRegistry,
+        bindingRepository: tenantMemberBindingRepository
+    });
     const auditWriter = createFirestoreAuditWriter({ db });
+    const auditReader = createFirestoreAuditReader({ db });
+    const lastAuditReadModel = createLastAuditReadModel({ auditReader });
     const webConfig = normalizeFirebaseWebConfig(
         process.env.PLATFORM_FIREBASE_WEB_CONFIG_JSON
     );
@@ -123,6 +208,23 @@ function startPlatformServer() {
         config: guardrailsConfig,
         securitySignals
     });
+    const productRepository = createFirestoreProductRepository({ db });
+    const catalogService = createCatalogService({
+        tenantRegistry,
+        productRepository,
+        entitlementService
+    });
+    const orderRepository = createFirestoreOrderRepository({ db });
+    const orderService = createOrderService({
+        tenantRegistry,
+        productRepository,
+        orderRepository,
+        entitlementService
+    });
+    const commercialPlanPreviewService = createCommercialPlanPreviewService({
+        config: guardrailsConfig,
+        entitlementService
+    });
     const finOpsService = createFinOpsService({
         config: guardrailsConfig,
         costProvider: createConfigCostProvider({
@@ -133,6 +235,38 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const domainReadinessService = createRuntimeDomainReadinessService({ db });
+    const adminBootstrapEvidenceProvider =
+        createFirestoreAdminBootstrapEvidenceProvider({ db });
+    const securityReviewEvidenceProvider =
+        createFirestoreSecurityReviewEvidenceProvider({ db });
+    const securityReviewEvidenceWriter =
+        createFirestoreSecurityReviewEvidenceWriter({ db });
+    const securityLaunchReviewService = createSecurityLaunchReviewService({
+        tenantRegistry,
+        securityAlertReader,
+        evidenceWriter: securityReviewEvidenceWriter
+    });
+    const customerReadinessService = createCustomerReadinessService({
+        sourceAdapters: addSecurityReadinessSource({
+            sourceAdapters: addAdminBootstrapReadinessSource({
+                sourceAdapters: Object.freeze({
+                    ...createCustomerReadinessSourceAdapters({
+                        checkReadiness,
+                        backupEvidenceProvider,
+                        domainReadinessService
+                    }),
+                    plan: createPlanReadinessAdapter({
+                        guardrailsConfig,
+                        entitlementService
+                    })
+                }),
+                evidenceProvider: adminBootstrapEvidenceProvider
+            }),
+            reviewEvidenceProvider: securityReviewEvidenceProvider,
+            securityAlertReader
+        })
+    });
     const capacityService = createCapacitySloService({ config: scalabilityConfig });
     const routingService = createTenantRoutingService({
         registry: createFirestorePlacementRegistry({ db }),
@@ -175,8 +309,38 @@ function startPlatformServer() {
         securityOperations,
         securityAlertReader,
         securityPostureService,
+        customerReadinessService,
+        commercialPlanPreviewService,
         tenantOperations,
         finOpsService
+    });
+    attachTenantMemberIdentityEndpoints({
+        app,
+        auth,
+        bindingReader: tenantMemberBindingRepository,
+        initialOwnerBootstrapService,
+        allowedOrigins
+    });
+    attachSecurityLaunchReviewEndpoint({
+        app,
+        securityLaunchReviewService
+    });
+    attachConfiguredBackupConnectivityDiagnosticEndpoint({
+        app,
+        tenantRegistry
+    });
+    attachCatalogAdminEndpoints({ app, catalogService });
+    attachOrderAdminEndpoints({ app, orderService });
+    attachConfiguredPublicOrderRuntime({
+        app,
+        db,
+        tenantRegistry,
+        orderService
+    });
+    attachLastAuditEndpoint({
+        app,
+        tenantRegistry,
+        lastAuditReadModel
     });
     attachReadinessEndpoint({ app, checkReadiness });
 
@@ -198,6 +362,7 @@ if (require.main === module) {
 module.exports = {
     R2_BACKUP_CONFIG_KEYS,
     createConfiguredBackupEvidenceProvider,
+    createRuntimeDomainReadinessService,
     createRuntimeSecurityOperations,
     startPlatformServer
 };

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#111827">
+    <title>Platform V2 | Backup Diagnostic</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/admin/config.js"></script>
+    <script defer src="/admin/backup-diagnostic.js?v=33441993"></script>
+</head>
+<body>
+    <div class="center-shell">
+        <main class="panel auth-card">
+            <p class="eyebrow">Platform V2</p>
+            <h1>Backup / R2 Diagnostic</h1>
+            <p class="muted">Provisioning tenant için yalnız R2 listObjects bağlantısını kontrollü şekilde test eder. Credential, secret, endpoint veya object key göstermez.</p>
+            <p id="backup-diagnostic-session" class="muted">Oturum kontrol ediliyor...</p>
+
+            <label>
+                Tenant ID
+                <input id="backup-diagnostic-tenant-id" autocomplete="off" placeholder="ornek-isletme" required>
+            </label>
+            <button id="backup-diagnostic-run" type="button" class="secondary">R2 Bağlantısını Teşhis Et</button>
+
+            <section id="backup-diagnostic-summary" class="hidden" aria-live="polite">
+                <p id="backup-diagnostic-result" class="muted"></p>
+            </section>
+
+            <p id="backup-diagnostic-message" class="message" role="status"></p>
+            <p><a href="/admin/">Merkezi yönetime dön</a></p>
+        </main>
+    </div>
+</body>
+</html>

@@ -112,6 +112,10 @@ Phase 8 threat model, trust boundaries/assets/entry points, pentest readiness ch
 
 Phase 8 operational security event coverage ve runtime/contract-only ayrımı için `PHASE8-FINAL-GAP1-OPERATIONAL-SECURITY-EVENTS.md` dosyasına bak.
 
+Phase 9 commercial readiness, activation-readiness modeli ve ikinci tenant onboarding hedefleri için `PHASE9-COMMERCIAL-READINESS-ONBOARDING.md` dosyasına bak.
+
+İkinci sentetik tenant acceptance akışı, canlı staging gate'leri, abort/rollback ve kontrollü harici operasyon ayrımı için `SECOND-TENANT-ACCEPTANCE-LAUNCH-RUNBOOK.md` dosyasına bak.
+
 Merkezi placement metadata'sı tenant iş verisinden ayrı tutulur:
 
 ```text

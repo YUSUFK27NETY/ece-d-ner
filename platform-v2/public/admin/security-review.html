@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#111827">
+    <title>Platform V2 | Launch Security Review</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/admin/config.js"></script>
+    <script defer src="/admin/security-review.js"></script>
+</head>
+<body>
+    <div class="center-shell">
+        <main class="panel auth-card">
+            <p class="eyebrow">Platform V2</p>
+            <h1>Launch Security Review</h1>
+            <p class="muted">Provisioning tenant için mevcut güvenlik uyarılarını inceleyip kontrollü launch review kaydı oluşturur.</p>
+            <p id="security-review-session" class="muted">Oturum kontrol ediliyor...</p>
+
+            <label>
+                Tenant ID
+                <input id="security-review-tenant-id" autocomplete="off" placeholder="ornek-isletme" required>
+            </label>
+            <button id="security-review-load" type="button" class="secondary">Güvenliği Kontrol Et</button>
+
+            <section id="security-review-summary" class="hidden" aria-live="polite">
+                <p id="security-review-status" class="muted"></p>
+                <p id="security-review-counts" class="muted"></p>
+                <div id="security-review-alerts"></div>
+                <label>
+                    <input id="security-review-confirm" type="checkbox" disabled>
+                    Mevcut güvenlik uyarılarını inceledim ve launch security review'ı tamamlıyorum.
+                </label>
+                <button id="security-review-complete" type="button" class="primary" disabled>Security Review Tamamla</button>
+            </section>
+
+            <p id="security-review-message" class="message" role="status"></p>
+            <p><a href="/admin/">Merkezi yönetime dön</a></p>
+        </main>
+    </div>
+</body>
+</html>
