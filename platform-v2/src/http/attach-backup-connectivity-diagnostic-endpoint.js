@@ -129,10 +129,7 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
         tenantRegistry,
         storageProvider
     });
-    const attached = attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
-    scheduleConfiguredBackupDrill({ env });
-    scheduleConfiguredPhase9Activation({ env });
-    return attached;
+    return attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
 }
 
 module.exports = {
