@@ -119,12 +119,17 @@ function createOrderService({
     productRepository,
     orderRepository,
     entitlementService,
+    inventoryDeliveryService = null,
     clock = () => new Date()
 }) {
     const tenants = assertTenantRegistry(tenantRegistry);
     const products = assertProductRepository(productRepository);
     const orders = assertOrderRepository(orderRepository);
     const entitlements = assertEntitlementService(entitlementService);
+    if (inventoryDeliveryService !== null &&
+        (!inventoryDeliveryService || typeof inventoryDeliveryService.prepareCustomerOrder !== "function")) {
+        failDependency("inventory delivery service");
+    }
     if (typeof clock !== "function") failDependency("clock");
 
     async function loadTenant(tenantId) {
@@ -210,6 +215,16 @@ function createOrderService({
                 requestedItems: normalizedRequest.items,
                 productsById
             });
+            const policy = inventoryDeliveryService
+                ? await inventoryDeliveryService.prepareCustomerOrder({
+                    tenant,
+                    tenantId,
+                    normalizedRequest
+                })
+                : Object.freeze({ stockAdjustments: Object.freeze([]) });
+            if (!policy || !Array.isArray(policy.stockAdjustments)) {
+                throw safeError("ORDER_UNAVAILABLE", "Sipariş stok politikası doğrulanamadı.");
+            }
             const now = requireClockNow(clock);
             const order = createOrderRecord({
                 tenantId,
@@ -227,7 +242,11 @@ function createOrderService({
                 metadata: { orderId },
                 now
             });
-            const committed = await orders.commitCreate({ order, auditEvent });
+            const committed = await orders.commitCreate({
+                order,
+                auditEvent,
+                stockAdjustments: policy.stockAdjustments
+            });
             if (!committed || typeof committed !== "object" || !committed.order) {
                 throw safeError("ORDER_UNAVAILABLE", "Sipariş oluşturulamadı.");
             }
