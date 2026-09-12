@@ -6,6 +6,9 @@ const { createFirestoreProductRepository } = require("./src/firestore/firestore-
 const { createFirestoreOrderRepository } = require("./src/firestore/firestore-order-repository");
 const { createFirestoreAppointmentRepository } = require("./src/firestore/firestore-appointment-repository");
 const {
+    createFirestoreInventoryDeliveryRepository
+} = require("./src/firestore/firestore-inventory-delivery-repository");
+const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
 const {
@@ -36,11 +39,17 @@ const {
     attachAppointmentOwnerEndpoints
 } = require("./src/http/attach-appointment-owner-endpoints");
 const {
+    attachInventoryOwnerEndpoints
+} = require("./src/http/attach-inventory-owner-endpoints");
+const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
 const {
     attachPublicAppointmentRuntime
 } = require("./src/http/attach-public-appointment-runtime");
+const {
+    attachPublicFulfillmentRuntime
+} = require("./src/http/attach-public-fulfillment-runtime");
 const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
@@ -85,6 +94,9 @@ const { createEntitlementService } = require("./src/entitlements/entitlement-ser
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
 const { createAppointmentService } = require("./src/appointments/appointment-service");
+const {
+    createInventoryDeliveryService
+} = require("./src/inventory/inventory-delivery-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -239,12 +251,20 @@ function startPlatformServer() {
         productRepository,
         entitlementService
     });
+    const inventoryDeliveryRepository = createFirestoreInventoryDeliveryRepository({ db });
+    const inventoryDeliveryService = createInventoryDeliveryService({
+        tenantRegistry,
+        productRepository,
+        repository: inventoryDeliveryRepository,
+        entitlementService
+    });
     const orderRepository = createFirestoreOrderRepository({ db });
     const orderService = createOrderService({
         tenantRegistry,
         productRepository,
         orderRepository,
-        entitlementService
+        entitlementService,
+        inventoryDeliveryService
     });
     const appointmentRepository = createFirestoreAppointmentRepository({ db });
     const appointmentService = createAppointmentService({
@@ -364,6 +384,10 @@ function startPlatformServer() {
         app,
         appointmentService
     });
+    attachInventoryOwnerEndpoints({
+        app,
+        inventoryDeliveryService
+    });
     attachPublicStorefrontRuntime({
         app,
         storefrontService
@@ -371,6 +395,10 @@ function startPlatformServer() {
     attachPublicAppointmentRuntime({
         app,
         appointmentService
+    });
+    attachPublicFulfillmentRuntime({
+        app,
+        inventoryDeliveryService
     });
     attachSecurityLaunchReviewEndpoint({
         app,
