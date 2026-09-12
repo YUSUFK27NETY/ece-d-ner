@@ -1,5 +1,6 @@
 const { isDeepStrictEqual } = require("node:util");
 const { requireTenantId } = require("../tenant/tenant-id");
+const { requireProductId } = require("../catalog/product-model");
 const {
     TENANT_COLLECTIONS,
     tenantCollection,
@@ -10,6 +11,10 @@ const {
     normalizePersistedOrder,
     requireOrderId
 } = require("../orders/order-model");
+const {
+    MAX_STOCK_QUANTITY,
+    normalizePersistedInventory
+} = require("../inventory/inventory-delivery-model");
 
 const AUDIT_EVENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const ORDER_AUDIT_ACTIONS = Object.freeze([
@@ -83,6 +88,42 @@ function requireOrderAuditEvent(event, tenantId, orderId) {
     return event;
 }
 
+function normalizeStockAdjustments(value = []) {
+    if (!Array.isArray(value) || value.length > 50) {
+        throw new TypeError("Order stock adjustments geçersiz.");
+    }
+    const seen = new Set();
+    return Object.freeze(value.map(item => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+            throw new TypeError("Order stock adjustment geçersiz.");
+        }
+        const productId = requireProductId(item.productId);
+        const quantity = item.quantity;
+        if (seen.has(productId) || !Number.isInteger(quantity) || quantity < 1 || quantity > 99) {
+            throw new TypeError("Order stock adjustment geçersiz.");
+        }
+        seen.add(productId);
+        return Object.freeze({ productId, quantity });
+    }));
+}
+
+function normalizeReservation({ tenantId, orderId, data }) {
+    if (!data || typeof data !== "object" || Array.isArray(data) ||
+        data.schemaVersion !== 1 || data.tenantId !== tenantId || data.orderId !== orderId ||
+        !Array.isArray(data.items) || typeof data.createdAt !== "string" ||
+        !(data.restoredAt === null || typeof data.restoredAt === "string")) {
+        throw new TypeError("Order inventory reservation geçersiz.");
+    }
+    return Object.freeze({
+        schemaVersion: 1,
+        tenantId,
+        orderId,
+        items: normalizeStockAdjustments(data.items),
+        createdAt: data.createdAt,
+        restoredAt: data.restoredAt
+    });
+}
+
 function createFirestoreOrderRepository({ db }) {
     if (!db || typeof db.collection !== "function" ||
         typeof db.doc !== "function" || typeof db.runTransaction !== "function") {
@@ -90,9 +131,17 @@ function createFirestoreOrderRepository({ db }) {
     }
 
     function orderRef(tenantId, orderId) {
+        return db.doc(tenantDocument(tenantId, TENANT_COLLECTIONS.orders, orderId));
+    }
+
+    function inventoryRef(tenantId, productId) {
+        return db.doc(tenantDocument(tenantId, TENANT_COLLECTIONS.inventory, productId));
+    }
+
+    function reservationRef(tenantId, orderId) {
         return db.doc(tenantDocument(
             tenantId,
-            TENANT_COLLECTIONS.orders,
+            TENANT_COLLECTIONS.orderInventoryReservations,
             orderId
         ));
     }
@@ -153,21 +202,18 @@ function createFirestoreOrderRepository({ db }) {
             });
         },
 
-        async commitCreate({ order, auditEvent } = {}) {
+        async commitCreate({ order, auditEvent, stockAdjustments = [] } = {}) {
             const tenantId = requireCanonicalTenantId(order?.tenantId);
             const safeOrder = normalizePersistedOrder({
                 tenantId,
                 orderId: order?.orderId,
                 data: order
             });
-            const safeAudit = requireOrderAuditEvent(
-                auditEvent,
-                tenantId,
-                safeOrder.orderId
-            );
+            const safeAudit = requireOrderAuditEvent(auditEvent, tenantId, safeOrder.orderId);
             if (safeAudit.action !== "order.created") {
                 throw new TypeError("Order create audit action geçersiz.");
             }
+            const adjustments = normalizeStockAdjustments(stockAdjustments);
             const targetRef = orderRef(tenantId, safeOrder.orderId);
             const eventRef = auditRef(tenantId, safeAudit.eventId);
 
@@ -187,12 +233,48 @@ function createFirestoreOrderRepository({ db }) {
                         data: snapshot.data()
                     });
                     if (existing.requestHash !== safeOrder.requestHash) {
-                        throw safeError(
-                            "ORDER_IDEMPOTENCY_CONFLICT",
-                            "Idempotent sipariş isteği önceki istekle uyuşmuyor."
-                        );
+                        throw safeError("ORDER_IDEMPOTENCY_CONFLICT", "Idempotent sipariş isteği önceki istekle uyuşmuyor.");
                     }
                     return Object.freeze({ created: false, order: existing });
+                }
+
+                const stockReads = [];
+                for (const adjustment of adjustments) {
+                    const ref = inventoryRef(tenantId, adjustment.productId);
+                    const inventorySnapshot = await transaction.get(ref);
+                    if (!inventorySnapshot || inventorySnapshot.exists !== true ||
+                        typeof inventorySnapshot.data !== "function") {
+                        throw safeError("ORDER_INVENTORY_STATE_CHANGED", "Ürün stok durumu değişti.");
+                    }
+                    const record = normalizePersistedInventory({
+                        tenantId,
+                        productId: adjustment.productId,
+                        data: inventorySnapshot.data()
+                    });
+                    if (record.trackingEnabled !== true || record.quantity < adjustment.quantity) {
+                        throw safeError("ORDER_OUT_OF_STOCK", "Siparişteki ürünün stoğu yetersiz.");
+                    }
+                    stockReads.push({ ref, record, adjustment });
+                }
+
+                if (stockReads.length && typeof transaction.update !== "function") {
+                    throw new TypeError("Order inventory transaction geçersiz.");
+                }
+                for (const item of stockReads) {
+                    transaction.update(item.ref, {
+                        quantity: item.record.quantity - item.adjustment.quantity,
+                        updatedAt: safeOrder.createdAt
+                    });
+                }
+                if (adjustments.length) {
+                    transaction.create(reservationRef(tenantId, safeOrder.orderId), {
+                        schemaVersion: 1,
+                        tenantId,
+                        orderId: safeOrder.orderId,
+                        items: adjustments.map(item => ({ ...item })),
+                        createdAt: safeOrder.createdAt,
+                        restoredAt: null
+                    });
                 }
                 transaction.create(targetRef, { ...safeOrder });
                 transaction.create(eventRef, { ...safeAudit });
@@ -203,7 +285,8 @@ function createFirestoreOrderRepository({ db }) {
         async commitStatusUpdate({
             expectedOrder,
             nextOrder,
-            auditEvent
+            auditEvent,
+            restoreInventory = false
         } = {}) {
             const tenantId = requireCanonicalTenantId(expectedOrder?.tenantId);
             const expected = normalizePersistedOrder({
@@ -217,14 +300,10 @@ function createFirestoreOrderRepository({ db }) {
                 data: nextOrder
             });
             if (expected.orderId !== next.orderId || expected.requestHash !== next.requestHash ||
-                expected.createdAt !== next.createdAt) {
+                expected.createdAt !== next.createdAt || typeof restoreInventory !== "boolean") {
                 throw new TypeError("Order immutable alanları değiştirilemez.");
             }
-            const safeAudit = requireOrderAuditEvent(
-                auditEvent,
-                tenantId,
-                expected.orderId
-            );
+            const safeAudit = requireOrderAuditEvent(auditEvent, tenantId, expected.orderId);
             if (safeAudit.action !== "order.status.updated" ||
                 safeAudit.metadata.fromStatus !== expected.status ||
                 safeAudit.metadata.toStatus !== next.status) {
@@ -240,12 +319,8 @@ function createFirestoreOrderRepository({ db }) {
                     throw new TypeError("Order update transaction geçersiz.");
                 }
                 const snapshot = await transaction.get(targetRef);
-                if (!snapshot || snapshot.exists !== true ||
-                    typeof snapshot.data !== "function") {
-                    throw safeError(
-                        "ORDER_STATE_CHANGED",
-                        "Sipariş durumu değişti; işlem yeniden değerlendirilmelidir."
-                    );
+                if (!snapshot || snapshot.exists !== true || typeof snapshot.data !== "function") {
+                    throw safeError("ORDER_STATE_CHANGED", "Sipariş durumu değişti; işlem yeniden değerlendirilmelidir.");
                 }
                 const persisted = normalizePersistedOrder({
                     tenantId,
@@ -253,10 +328,49 @@ function createFirestoreOrderRepository({ db }) {
                     data: snapshot.data()
                 });
                 if (!isDeepStrictEqual(persisted, expected)) {
-                    throw safeError(
-                        "ORDER_STATE_CHANGED",
-                        "Sipariş durumu değişti; işlem yeniden değerlendirilmelidir."
-                    );
+                    throw safeError("ORDER_STATE_CHANGED", "Sipariş durumu değişti; işlem yeniden değerlendirilmelidir.");
+                }
+
+                let reservation = null;
+                let stockReads = [];
+                if (restoreInventory && next.status === "cancelled") {
+                    const rRef = reservationRef(tenantId, expected.orderId);
+                    const rSnapshot = await transaction.get(rRef);
+                    if (rSnapshot && rSnapshot.exists === true && typeof rSnapshot.data === "function") {
+                        reservation = { ref: rRef, record: normalizeReservation({
+                            tenantId,
+                            orderId: expected.orderId,
+                            data: rSnapshot.data()
+                        }) };
+                        if (reservation.record.restoredAt === null) {
+                            for (const item of reservation.record.items) {
+                                const ref = inventoryRef(tenantId, item.productId);
+                                const iSnapshot = await transaction.get(ref);
+                                if (!iSnapshot || iSnapshot.exists !== true || typeof iSnapshot.data !== "function") {
+                                    throw safeError("ORDER_INVENTORY_STATE_CHANGED", "İptal stok iadesi doğrulanamadı.");
+                                }
+                                const record = normalizePersistedInventory({
+                                    tenantId,
+                                    productId: item.productId,
+                                    data: iSnapshot.data()
+                                });
+                                if (record.quantity + item.quantity > MAX_STOCK_QUANTITY) {
+                                    throw safeError("ORDER_INVENTORY_STATE_CHANGED", "İptal stok iadesi sınırı aşıyor.");
+                                }
+                                stockReads.push({ ref, record, item });
+                            }
+                        }
+                    }
+                }
+
+                for (const item of stockReads) {
+                    transaction.update(item.ref, {
+                        quantity: item.record.quantity + item.item.quantity,
+                        updatedAt: next.updatedAt
+                    });
+                }
+                if (reservation && reservation.record.restoredAt === null) {
+                    transaction.update(reservation.ref, { restoredAt: next.updatedAt });
                 }
                 transaction.update(targetRef, { ...next });
                 transaction.create(eventRef, { ...safeAudit });
@@ -269,5 +383,6 @@ function createFirestoreOrderRepository({ db }) {
 module.exports = {
     ORDER_AUDIT_ACTIONS,
     createFirestoreOrderRepository,
-    normalizeLimit
+    normalizeLimit,
+    normalizeStockAdjustments
 };
