@@ -7,6 +7,7 @@ const { requireTenantId } = require("../tenant/tenant-id");
 const { createQrSvg } = require("./qr-code");
 
 const CHANNEL_PERMISSION = "settings.manage";
+const UPDATEABLE_CHANNEL_FIELDS = Object.freeze(["whatsapp", "instagramUrl", "googleUrl"]);
 
 function safeError(code, message) {
     const error = new Error(message);
@@ -50,12 +51,34 @@ function whatsappEntitled(tenant, entitlementService) {
     return result?.featureEnabled === true && result?.usedDefaultPlanPolicy !== true;
 }
 
-function createPublicChannelService({ tenantRegistry, entitlementService, publicOrigin, qrRenderer = createQrSvg }) {
+function normalizeChannelPatch(value) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+        throw new TypeError("Public channel patch nesne olmalı.");
+    }
+    const keys = Object.keys(value);
+    if (keys.length === 0 || keys.some(key => !UPDATEABLE_CHANNEL_FIELDS.includes(key))) {
+        throw new TypeError("Public channel patch geçersiz.");
+    }
+    const normalized = {};
+    for (const key of keys) normalized[key] = value[key];
+    return normalized;
+}
+
+function createPublicChannelService({
+    tenantRegistry,
+    entitlementService,
+    tenantManagementService,
+    publicOrigin,
+    qrRenderer = createQrSvg
+}) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function") {
         throw new TypeError("Public channel tenant registry geçersiz.");
     }
     if (!entitlementService || typeof entitlementService.evaluate !== "function") {
         throw new TypeError("Public channel entitlement service geçersiz.");
+    }
+    if (!tenantManagementService || typeof tenantManagementService.update !== "function") {
+        throw new TypeError("Public channel tenant management service geçersiz.");
     }
     if (typeof qrRenderer !== "function") throw new TypeError("Public channel QR renderer geçersiz.");
     const origin = normalizePublicOrigin(publicOrigin);
@@ -81,6 +104,11 @@ function createPublicChannelService({ tenantRegistry, entitlementService, public
             publicAvailable,
             qrAvailable: publicAvailable,
             canonicalPublicUrl,
+            channelSettings: Object.freeze({
+                whatsapp: profile.whatsapp,
+                instagramUrl: profile.instagramUrl,
+                googleUrl: profile.googleUrl
+            }),
             channels: Object.freeze({
                 direct: canonicalPublicUrl,
                 whatsapp: canUseWhatsapp ? whatsappUrl(profile.whatsapp) : null,
@@ -94,6 +122,24 @@ function createPublicChannelService({ tenantRegistry, entitlementService, public
     return Object.freeze({
         async get({ context, tenantId: rawTenantId } = {}) {
             return project(await authorize(context, rawTenantId));
+        },
+
+        async update({ context, tenantId: rawTenantId, patch, requestId = null } = {}) {
+            const tenant = await authorize(context, rawTenantId);
+            if (tenant.status === "archived") {
+                throw safeError("TENANT_ARCHIVED", "Arşivlenmiş tenant güncellenemez.");
+            }
+            const channelPatch = normalizeChannelPatch(patch);
+            const updated = await tenantManagementService.update({
+                tenantId: tenant.tenantId,
+                patch: { profile: channelPatch },
+                actorId: context.actorId,
+                requestId
+            });
+            if (!updated || updated.tenantId !== tenant.tenantId) {
+                throw safeError("TENANT_UPDATE_FAILED", "Tenant güncellemesi doğrulanamadı.");
+            }
+            return project(updated);
         },
 
         async qr({ context, tenantId: rawTenantId } = {}) {
@@ -110,7 +156,9 @@ function createPublicChannelService({ tenantRegistry, entitlementService, public
 
 module.exports = {
     CHANNEL_PERMISSION,
+    UPDATEABLE_CHANNEL_FIELDS,
     createPublicChannelService,
+    normalizeChannelPatch,
     normalizePublicOrigin,
     whatsappUrl
 };
