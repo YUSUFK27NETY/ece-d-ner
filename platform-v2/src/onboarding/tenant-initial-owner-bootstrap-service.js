@@ -347,15 +347,30 @@ function createTenantInitialOwnerBootstrapService({
             } catch {
                 throw safeError("INVITE_AUTH_INVALID", "Davet oturumu doğrulanamadı.");
             }
-            const firebaseUid = requireFirebaseUid(decoded?.uid);
+
+            let firebaseUid;
+            try {
+                firebaseUid = requireFirebaseUid(decoded?.uid);
+            } catch {
+                throw safeError("INVITE_AUTH_INVALID", "Davet oturumu doğrulanamadı.");
+            }
+
             let userRecord;
             try {
                 userRecord = await auth.getUser(firebaseUid);
             } catch {
                 throw safeError("INVITE_AUTH_INVALID", "Davet oturumu doğrulanamadı.");
             }
-            const decodedEmail = normalizeEmail(decoded?.email);
-            const recordEmail = normalizeEmail(userRecord?.email);
+
+            let decodedEmail;
+            let recordEmail;
+            try {
+                decodedEmail = normalizeEmail(decoded?.email);
+                recordEmail = normalizeEmail(userRecord?.email);
+            } catch {
+                throw safeError("INVITE_IDENTITY_NOT_ELIGIBLE", "Davet kimliği uygun değil.");
+            }
+
             if (decodedEmail !== recordEmail || decoded?.email_verified !== true ||
                 userRecord?.emailVerified !== true || userRecord?.disabled !== false ||
                 decoded?.platformAdmin === true || userRecord?.customClaims?.platformAdmin === true) {
@@ -370,7 +385,7 @@ function createTenantInitialOwnerBootstrapService({
                 tenantId: command.tenantId,
                 firebaseUid,
                 observedAt,
-                actorId: firebaseUid,
+                actorId: deriveFirebaseSubjectRef(firebaseUid),
                 requestId: command.requestId,
                 auditSource: INITIAL_OWNER_INVITE_DELIVERY
             });
