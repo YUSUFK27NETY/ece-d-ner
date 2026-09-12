@@ -144,6 +144,7 @@ function createTenantProfile(input = {}) {
         logoUrl: normalizeHttpsUrl(input.logoUrl, "Logo URL"),
         primaryColor: normalizeHexColor(input.primaryColor),
         address: normalizeOptionalString(input.address, "Adres", 500),
+        businessHours: normalizeOptionalString(input.businessHours, "Çalışma saatleri", 500),
         timezone: normalizeTimezone(input.timezone)
     });
 }
