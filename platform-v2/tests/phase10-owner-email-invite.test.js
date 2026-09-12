@@ -163,6 +163,10 @@ test("valid Firebase email-link identity atomically consumes invite and creates 
     assert.equal(harness.acceptInputs.length, 1);
     assert.equal(harness.acceptInputs[0].auditEvent.action, "tenant.initial_owner.bound");
     assert.equal(harness.acceptInputs[0].auditEvent.metadata.source, "firebase_email_link");
+    assert.match(harness.acceptInputs[0].auditEvent.actorId, /^firebase:[0-9a-f]{64}$/);
+    assert.notEqual(harness.acceptInputs[0].auditEvent.actorId, harness.identity.decoded.uid);
+    assert.equal(JSON.stringify(harness.acceptInputs[0].auditEvent).includes("owner@example.com"), false);
+    assert.equal(JSON.stringify(harness.acceptInputs[0].auditEvent).includes(invite.inviteToken), false);
 
     await assert.rejects(
         () => harness.service.acceptInitialOwnerInvite(acceptCommand(invite.inviteToken)),
@@ -198,6 +202,25 @@ test("invite is bound to exact verified email hash", async () => {
     assert.equal(harness.bound, null);
 });
 
+test("malformed or unverified Firebase identity fails with safe invite errors", async () => {
+    const malformedUid = createHarness();
+    const firstInvite = await malformedUid.service.createInitialOwnerInvite(createCommand());
+    malformedUid.identity.decoded.uid = "";
+    await assert.rejects(
+        () => malformedUid.service.acceptInitialOwnerInvite(acceptCommand(firstInvite.inviteToken)),
+        error => error?.code === "INVITE_AUTH_INVALID"
+    );
+
+    const missingEmail = createHarness();
+    const secondInvite = await missingEmail.service.createInitialOwnerInvite(createCommand());
+    missingEmail.identity.decoded.email = undefined;
+    missingEmail.identity.user.email = undefined;
+    await assert.rejects(
+        () => missingEmail.service.acceptInitialOwnerInvite(acceptCommand(secondInvite.inviteToken)),
+        error => error?.code === "INVITE_IDENTITY_NOT_ELIGIBLE"
+    );
+});
+
 test("expired invite and lifecycle drift fail closed", async () => {
     const expired = createHarness();
     const invite = await expired.service.createInitialOwnerInvite(createCommand());
@@ -216,9 +239,10 @@ test("expired invite and lifecycle drift fail closed", async () => {
     );
 });
 
-test("email invite frontends avoid URL email state, local storage and unsafe DOM", () => {
+test("email invite frontends keep custom invite secret out of request query and browser storage", () => {
     const adminHtml = fs.readFileSync(path.join(__dirname, "../public/admin/quick-setup.html"), "utf8");
     const inviteClient = fs.readFileSync(path.join(__dirname, "../public/admin/owner-email-invite.js"), "utf8");
+    const bootstrapClient = fs.readFileSync(path.join(__dirname, "../public/admin/bootstrap-owner.js"), "utf8");
     const acceptHtml = fs.readFileSync(path.join(__dirname, "../public/owner/accept-invite.html"), "utf8");
     const acceptClient = fs.readFileSync(path.join(__dirname, "../public/owner/accept-invite.js"), "utf8");
 
@@ -227,14 +251,20 @@ test("email invite frontends avoid URL email state, local storage and unsafe DOM
     assert.doesNotMatch(adminHtml, /Firebase User UID/);
     assert.match(inviteClient, /sendSignInLinkToEmail/);
     assert.match(inviteClient, /handleCodeInApp: true/);
-    assert.match(inviteClient, /inviteToken/);
+    assert.match(inviteClient, /url\.hash = fragment\.toString\(\)/);
+    assert.match(bootstrapClient, /url\.hash = fragment\.toString\(\)/);
+    assert.doesNotMatch(inviteClient, /searchParams\.set\("inviteToken"/);
+    assert.doesNotMatch(bootstrapClient, /searchParams\.set\("inviteToken"/);
     assert.match(acceptHtml, /Davet edilen e-posta/);
+    assert.match(acceptClient, /new URLSearchParams\(url\.hash/);
     assert.match(acceptClient, /isSignInWithEmailLink/);
     assert.match(acceptClient, /signInWithEmailLink/);
     assert.match(acceptClient, /getIdToken\(true\)/);
+    assert.match(acceptClient, /scrubInviteFragment\(\)/);
     assert.match(acceptClient, /history\.replaceState/);
+    assert.doesNotMatch(acceptClient, /url\.searchParams\.get\("inviteToken"/);
 
-    for (const source of [inviteClient, acceptClient]) {
+    for (const source of [inviteClient, bootstrapClient, acceptClient]) {
         assert.doesNotMatch(source, /localStorage|sessionStorage/);
         assert.doesNotMatch(source, /innerHTML\s*=/);
         assert.doesNotMatch(source, /console\./);
