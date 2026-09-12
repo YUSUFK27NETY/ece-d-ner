@@ -5,10 +5,12 @@ const path = require("node:path");
 const { once } = require("node:events");
 
 const { createTenantProfile } = require("../src/tenant/tenant-profile");
+const { createTenantManagementService } = require("../src/tenant/tenant-management-service");
 const { createQrSvg, MAX_BYTE_PAYLOAD } = require("../src/public/qr-code");
 const {
     createPublicChannelService,
-    normalizePublicOrigin
+    normalizePublicOrigin,
+    whatsappUrl
 } = require("../src/public/public-channel-service");
 const { createPlatformApp } = require("../src/http/create-platform-app");
 const {
@@ -49,6 +51,14 @@ function entitlementService(enabled = true) {
     };
 }
 
+function readOnlyManagementService() {
+    return {
+        async update() {
+            throw new Error("Bu testte mutation beklenmiyor.");
+        }
+    };
+}
+
 test("tenant profile public channel URL'lerini HTTPS ve host allowlist ile doğrular", () => {
     const profile = createTenantProfile({
         instagramUrl: "https://www.instagram.com/ela.doner/",
@@ -74,12 +84,20 @@ test("public origin yalnız canonical güvenli origin kabul eder", () => {
     assert.throws(() => normalizePublicOrigin("https://user:pass@platform.example"), TypeError);
 });
 
+test("WhatsApp linki mevcut storefront ile aynı Türkiye numara normalizasyonunu kullanır", () => {
+    assert.equal(whatsappUrl("0555 111 22 33"), "https://wa.me/905551112233");
+    assert.equal(whatsappUrl("+90 555 111 22 33"), "https://wa.me/905551112233");
+    assert.equal(whatsappUrl("0090 555 111 22 33"), "https://wa.me/905551112233");
+    assert.equal(whatsappUrl("123"), null);
+});
+
 test("channel projection exact tenant ve server-owned canonical URL kullanır", async () => {
     const tenants = new Map([["ela-doner", tenant()]]);
     const captured = [];
     const service = createPublicChannelService({
         tenantRegistry: { async getById(id) { return tenants.get(id) || null; } },
         entitlementService: entitlementService(true),
+        tenantManagementService: readOnlyManagementService(),
         publicOrigin: "https://business-platform-v2-production.onrender.com",
         qrRenderer(payload) {
             captured.push(payload);
@@ -91,6 +109,7 @@ test("channel projection exact tenant ve server-owned canonical URL kullanır", 
     assert.equal(channels.canonicalPublicUrl, "https://business-platform-v2-production.onrender.com/m/ela-doner");
     assert.equal(channels.channels.direct, channels.canonicalPublicUrl);
     assert.equal(channels.channels.whatsapp, "https://wa.me/905551112233");
+    assert.equal(channels.channelSettings.whatsapp, "+905551112233");
     assert.match(channels.channels.instagram, /^https:\/\/instagram\.com\//);
     assert.match(channels.channels.google, /^https:\/\/www\.google\.com\//);
     assert.equal(channels.publicAvailable, true);
@@ -112,6 +131,7 @@ test("suspended/archived tenant paylaşım projection'ı görülebilir ama QR ü
         const service = createPublicChannelService({
             tenantRegistry: { async getById() { return record; } },
             entitlementService: entitlementService(true),
+            tenantManagementService: readOnlyManagementService(),
             publicOrigin: "https://platform.example"
         });
         const context = { role: "tenant_owner", actorId: "actor-1", tenantId: "ela-doner" };
@@ -125,12 +145,31 @@ test("suspended/archived tenant paylaşım projection'ı görülebilir ama QR ü
     }
 });
 
+test("archived tenant channel mutation yapamaz", async () => {
+    const record = tenant("ela-doner", "archived");
+    const service = createPublicChannelService({
+        tenantRegistry: { async getById() { return record; } },
+        entitlementService: entitlementService(true),
+        tenantManagementService: readOnlyManagementService(),
+        publicOrigin: "https://platform.example"
+    });
+    await assert.rejects(
+        service.update({
+            context: { role: "tenant_owner", actorId: "actor-1", tenantId: "ela-doner" },
+            tenantId: "ela-doner",
+            patch: { whatsapp: "+905550001122" }
+        }),
+        error => error?.code === "TENANT_ARCHIVED"
+    );
+});
+
 test("WhatsApp channel plan/feature entitlement fail-closed davranır", async () => {
     for (const [featureFlag, entitled] of [[false, true], [true, false]]) {
         const record = tenant("ela-doner", "active", featureFlag);
         const service = createPublicChannelService({
             tenantRegistry: { async getById() { return record; } },
             entitlementService: entitlementService(entitled),
+            tenantManagementService: readOnlyManagementService(),
             publicOrigin: "https://platform.example"
         });
         const channels = await service.get({
@@ -151,11 +190,12 @@ test("QR renderer production canonical URL ve max tenant uzunluğunu dependency 
     assert.doesNotMatch(svg, /business-platform-v2-production/);
 });
 
-test("owner channel endpoint exact Firebase tenant binding ve lifecycle uygular", async () => {
+test("owner channel endpoint exact Firebase tenant binding, audit ve lifecycle uygular", async () => {
     const records = new Map([
         ["ela-doner", tenant("ela-doner", "active")],
         ["baska-isletme", tenant("baska-isletme", "active")]
     ]);
+    const auditEvents = [];
     const ownerSubject = deriveFirebaseSubjectRef("owner-1");
     const auth = {
         async verifyIdToken(token) {
@@ -169,6 +209,15 @@ test("owner channel endpoint exact Firebase tenant binding ve lifecycle uygular"
         async create(value) { records.set(value.tenantId, value); return value; },
         async update(id, value) { records.set(id, value); return value; }
     };
+    const tenantManagementService = createTenantManagementService({
+        tenantRegistry,
+        auditWriter: {
+            async write(event) {
+                auditEvents.push(event);
+                return event;
+            }
+        }
+    });
     const app = createPlatformApp({ auth, tenantRegistry });
     attachTenantMemberIdentityEndpoints({
         app,
@@ -188,6 +237,7 @@ test("owner channel endpoint exact Firebase tenant binding ve lifecycle uygular"
         publicChannelService: createPublicChannelService({
             tenantRegistry,
             entitlementService: entitlementService(true),
+            tenantManagementService,
             publicOrigin: "https://platform.example",
             qrRenderer: () => "<svg xmlns=\"http://www.w3.org/2000/svg\"></svg>"
         })
@@ -210,10 +260,67 @@ test("owner channel endpoint exact Firebase tenant binding ve lifecycle uygular"
         });
         assert.equal(cross.status, 403);
 
+        const update = await fetch(`${base}/api/tenant/tenants/ela-doner/owner/channels`, {
+            method: "PATCH",
+            headers: {
+                Authorization: "Bearer owner-token",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                whatsapp: "0555 111 22 33",
+                instagramUrl: "https://www.instagram.com/ela.doner/",
+                googleUrl: "https://maps.app.goo.gl/ela-doner"
+            })
+        });
+        assert.equal(update.status, 200);
+        const updatedBody = await update.json();
+        assert.equal(updatedBody.channels.channels.whatsapp, "https://wa.me/905551112233");
+        assert.match(updatedBody.channels.channels.instagram, /^https:\/\/www\.instagram\.com\//);
+        assert.equal(records.get("ela-doner").profile.whatsapp, "0555 111 22 33");
+        assert.equal(auditEvents.length, 1);
+        assert.equal(auditEvents[0].action, "tenant.updated");
+        assert.deepEqual(auditEvents[0].metadata, { fields: ["profile"] });
+        const serializedAudit = JSON.stringify(auditEvents[0]);
+        assert.doesNotMatch(serializedAudit, /0555|instagram\.com|maps\.app\.goo\.gl/);
+
+        const invalidProtocol = await fetch(`${base}/api/tenant/tenants/ela-doner/owner/channels`, {
+            method: "PATCH",
+            headers: {
+                Authorization: "Bearer owner-token",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ instagramUrl: "javascript:alert(1)" })
+        });
+        assert.equal(invalidProtocol.status, 400);
+        assert.equal(auditEvents.length, 1);
+
+        const unrelatedField = await fetch(`${base}/api/tenant/tenants/ela-doner/owner/channels`, {
+            method: "PATCH",
+            headers: {
+                Authorization: "Bearer owner-token",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ website: "https://evil.example" })
+        });
+        assert.equal(unrelatedField.status, 400);
+        assert.equal(auditEvents.length, 1);
+
         const query = await fetch(`${base}/api/tenant/tenants/ela-doner/owner/channels/qr.svg?url=https://evil.example`, {
             headers: { Authorization: "Bearer owner-token" }
         });
         assert.equal(query.status, 400);
+
+        records.set("ela-doner", { ...records.get("ela-doner"), status: "archived" });
+        const archivedUpdate = await fetch(`${base}/api/tenant/tenants/ela-doner/owner/channels`, {
+            method: "PATCH",
+            headers: {
+                Authorization: "Bearer owner-token",
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ whatsapp: "+905550001122" })
+        });
+        assert.equal(archivedUpdate.status, 409);
+        assert.equal(auditEvents.length, 1);
     } finally {
         server.close();
         await once(server, "close");
@@ -226,12 +333,16 @@ test("owner paylaşım frontend safe DOM kullanır, credential localStorage'a ya
     const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
     assert.match(html, /Canonical URL/);
     assert.match(html, /QR SVG indir/);
+    assert.match(html, /Instagram URL/);
+    assert.match(html, /Google \/ Maps URL/);
     assert.match(script, /getIdToken\(\)/);
+    assert.match(script, /method: "PATCH"/);
     assert.match(script, /textContent/);
     assert.match(script, /replaceChildren/);
     assert.doesNotMatch(script, /innerHTML\s*=/);
     assert.doesNotMatch(script, /localStorage/);
     assert.doesNotMatch(script, /setItem\([^\n]*(password|token)/i);
+    assert.match(server, /createTenantManagementService/);
     assert.match(server, /createPublicChannelService/);
     assert.match(server, /attachPublicChannelOwnerEndpoints/);
     assert.match(server, /RENDER_EXTERNAL_URL/);
