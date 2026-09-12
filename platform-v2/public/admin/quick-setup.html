@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#111827">
+    <title>Platform V2 | Hızlı Kurulum</title>
+    <link rel="stylesheet" href="/admin/quick-setup.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/admin/config.js"></script>
+    <script defer src="/admin/quick-setup.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">Platform V2 · P10-11</p>
+            <h1>Hızlı Kurulum Sihirbazı</h1>
+            <p class="muted">Tenant oluştur, owner bağla, hazırlığı doğrula ve teslimat kanallarını tek akışta hazırla.</p>
+        </div>
+        <div class="top-actions">
+            <a class="button secondary" href="/admin/">Merkezi Yönetim</a>
+            <span id="wizard-session" class="muted">Oturum bekleniyor…</span>
+        </div>
+    </header>
+
+    <main class="wizard-shell">
+        <p id="wizard-message" class="message" role="status"></p>
+
+        <nav class="steps" aria-label="Kurulum adımları">
+            <a href="#step-business">1 · İşletme</a>
+            <a href="#step-profile">2 · Profil</a>
+            <a href="#step-content">3 · İçerik & Owner</a>
+            <a href="#step-readiness">4 · Hazırlık</a>
+            <a href="#step-preview">5 · Önizleme & Aktivasyon</a>
+            <a href="#step-delivery">6 · Teslimat</a>
+        </nav>
+
+        <section id="step-business" class="panel">
+            <div class="section-head">
+                <div><p class="eyebrow">Adım 1</p><h2>İşletme ve sektör şablonu</h2></div>
+                <span id="tenant-status" class="badge">Yeni</span>
+            </div>
+            <p class="muted">Şablon yalnız yeni tenant için öneri üretir. Modülleri kaydetmeden önce değiştirebilirsin; mevcut tenant açıldığında şablon yeniden uygulanmaz.</p>
+            <div class="grid two">
+                <label>Tenant ID<input id="tenant-id" autocomplete="off" placeholder="ornek-isletme" maxlength="63"></label>
+                <label>İşletme adı<input id="display-name" maxlength="120"></label>
+                <label>Sektör şablonu<select id="template-id"><option value="">Şablonlar yükleniyor…</option></select></label>
+                <label>Sektör<input id="sector" readonly></label>
+                <label>Paket<input id="plan" value="starter" maxlength="64"></label>
+            </div>
+            <p id="template-summary" class="muted"></p>
+            <fieldset>
+                <legend>Önerilen modüller</legend>
+                <div id="feature-grid" class="feature-grid"></div>
+            </fieldset>
+            <div class="actions">
+                <button id="load-tenant" type="button" class="secondary">Mevcut tenantı aç</button>
+                <button id="save-business" type="button" class="primary">Oluştur / Kaydet</button>
+            </div>
+        </section>
+
+        <section id="step-profile" class="panel">
+            <div class="section-head"><div><p class="eyebrow">Adım 2</p><h2>Marka, iletişim ve çalışma saatleri</h2></div><span id="profile-state" class="badge">Bekliyor</span></div>
+            <div class="grid two">
+                <label>Marka adı<input id="brand-name" maxlength="120"></label>
+                <label>Telefon<input id="phone" maxlength="32"></label>
+                <label>WhatsApp<input id="whatsapp" maxlength="32"></label>
+                <label>E-posta<input id="contact-email" type="email" maxlength="254"></label>
+                <label>Instagram URL<input id="instagram-url" type="url" placeholder="https://instagram.com/..."></label>
+                <label>Google / Maps URL<input id="google-url" type="url" placeholder="https://maps.app.goo.gl/..."></label>
+                <label>Web sitesi<input id="website" type="url" placeholder="https://..."></label>
+                <label>Logo URL<input id="logo-url" type="url" placeholder="https://..."></label>
+                <label>Ana renk<input id="primary-color" maxlength="7" placeholder="#111827"></label>
+                <label>Saat dilimi<input id="timezone" maxlength="64" value="Europe/Istanbul"></label>
+                <label class="span-two">Adres<textarea id="address" maxlength="500" rows="2"></textarea></label>
+                <label class="span-two">Çalışma saatleri<textarea id="business-hours" maxlength="500" rows="2" placeholder="Pzt-Cmt 09:00-22:00 · Pazar kapalı"></textarea></label>
+            </div>
+            <div class="actions"><button id="save-profile" type="button" class="primary">Profil ayarlarını kaydet</button></div>
+        </section>
+
+        <section id="step-content" class="panel">
+            <div class="section-head"><div><p class="eyebrow">Adım 3</p><h2>Minimum içerik ve ilk owner</h2></div><span id="content-state" class="badge">Bekliyor</span></div>
+            <div id="minimum-checks" class="check-grid"></div>
+            <div class="split">
+                <div class="subpanel">
+                    <h3>İlk katalog / hizmet öğesi</h3>
+                    <p id="catalog-status" class="muted">Tenant seçilmedi.</p>
+                    <div class="grid two compact-grid">
+                        <label>Ad<input id="product-name" maxlength="150"></label>
+                        <label>Kategori<input id="product-category" maxlength="80" value="Genel"></label>
+                        <label>Fiyat (₺)<input id="product-price" type="number" min="0.01" max="100000" step="0.01"></label>
+                    </div>
+                    <button id="create-product" type="button" class="secondary">İlk öğeyi ekle</button>
+                </div>
+                <div class="subpanel">
+                    <h3>Tenant Owner</h3>
+                    <p class="muted">P10-11 geçiş akışı: mevcut güvenli Firebase UID bootstrap kullanılır. P10-12’de e-posta davetiyle değiştirilecek.</p>
+                    <label>Firebase User UID<input id="owner-uid" autocomplete="off" maxlength="128"></label>
+                    <div class="actions">
+                        <a id="firebase-users" class="button secondary" href="#">Firebase kullanıcıları</a>
+                        <button id="bind-owner" type="button" class="primary">Owner bağla</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="step-readiness" class="panel">
+            <div class="section-head"><div><p class="eyebrow">Adım 4</p><h2>Server-owned hazırlık</h2></div><span id="readiness-state" class="badge">Bekliyor</span></div>
+            <p class="muted">Aktivasyon kararı bu ekrandan türetilmez; backend readiness ve lifecycle servisleri kaynak gerçeğidir.</p>
+            <div id="readiness-checks" class="check-grid"></div>
+            <div class="actions">
+                <button id="refresh-readiness" type="button" class="secondary">Hazırlığı yenile</button>
+                <a id="security-review-link" class="button secondary" href="#">Security Review</a>
+                <a id="backup-link" class="button secondary" href="#">Backup Diagnostic</a>
+            </div>
+        </section>
+
+        <section id="step-preview" class="panel">
+            <div class="section-head"><div><p class="eyebrow">Adım 5</p><h2>Yetkili önizleme ve aktivasyon</h2></div><span id="activation-state" class="badge">Bekliyor</span></div>
+            <p class="muted">Bu önizleme Platform Admin oturumundaki kaydedilmiş tenant verisinden üretilir; provisioning tenant için public storefront açılmaz.</p>
+            <article id="tenant-preview" class="preview-card"></article>
+            <div class="actions">
+                <button id="activate-tenant" type="button" class="primary" disabled>Tenantı aktifleştir</button>
+            </div>
+        </section>
+
+        <section id="step-delivery" class="panel">
+            <div class="section-head"><div><p class="eyebrow">Adım 6</p><h2>Teslimat ve paylaşım kanalları</h2></div><span id="delivery-state" class="badge">Bekliyor</span></div>
+            <p class="muted">Canonical müşteri linki ve QR server tarafından üretilir. QR yalnız active tenant için kullanılabilir.</p>
+            <div id="delivery-links" class="delivery-grid"></div>
+            <div id="qr-box" class="qr-box hidden">
+                <div id="qr-preview" class="qr-preview"></div>
+                <button id="download-qr" type="button" class="secondary">QR SVG indir</button>
+            </div>
+        </section>
+    </main>
+</body>
+</html>
