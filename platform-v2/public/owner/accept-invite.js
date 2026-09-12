@@ -23,10 +23,11 @@
         acceptButton.disabled = !enabled;
     }
 
-    function invitationState() {
-        const url = new URL(window.location.href);
-        const tenantId = url.searchParams.get("tenantId") || "";
-        const inviteToken = url.searchParams.get("inviteToken") || "";
+    function invitationState(emailLink) {
+        const url = new URL(emailLink);
+        const fragment = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
+        const tenantId = fragment.get("tenantId") || "";
+        const inviteToken = fragment.get("inviteToken") || "";
         if (!TENANT_ID_PATTERN.test(tenantId) || !INVITE_TOKEN_PATTERN.test(inviteToken)) {
             throw new Error("Owner davet bağlantısı geçersiz.");
         }
@@ -64,7 +65,12 @@
         return result;
     }
 
-    function scrubSensitiveUrl(tenantId) {
+    function scrubInviteFragment() {
+        const url = new URL(window.location.href);
+        window.history.replaceState({}, document.title, `${url.pathname}${url.search}`);
+    }
+
+    function scrubAfterSuccess(tenantId) {
         window.history.replaceState({}, document.title, `/owner/accept-invite.html?tenantId=${encodeURIComponent(tenantId)}`);
     }
 
@@ -75,16 +81,18 @@
     }
     if (firebase.apps.length === 0) firebase.initializeApp(firebaseConfig);
 
+    const firebaseEmailLink = window.location.href;
     let inviteState;
     try {
-        inviteState = invitationState();
+        inviteState = invitationState(firebaseEmailLink);
+        scrubInviteFragment();
     } catch (error) {
         setEnabled(false);
         setMessage(error.message, "error");
         return;
     }
 
-    if (!firebase.auth().isSignInWithEmailLink(window.location.href)) {
+    if (!firebase.auth().isSignInWithEmailLink(firebaseEmailLink)) {
         setEnabled(false);
         setMessage("Bu bağlantı geçerli bir Firebase e-posta giriş bağlantısı değil.", "error");
         return;
@@ -103,13 +111,13 @@
 
         setEnabled(false);
         try {
-            const credential = await firebase.auth().signInWithEmailLink(email, window.location.href);
+            const credential = await firebase.auth().signInWithEmailLink(email, firebaseEmailLink);
             const user = credential?.user || firebase.auth().currentUser;
             if (!user) throw new Error("Firebase owner oturumu oluşturulamadı.");
             const idToken = await user.getIdToken(true);
             await acceptServerInvite(inviteState.tenantId, inviteState.inviteToken, idToken);
             emailInput.value = "";
-            scrubSensitiveUrl(inviteState.tenantId);
+            scrubAfterSuccess(inviteState.tenantId);
             ownerConsoleLink.href = `/owner/?tenantId=${encodeURIComponent(inviteState.tenantId)}`;
             next.hidden = false;
             form.hidden = true;
