@@ -146,7 +146,6 @@
             const suffix = item.unit ? ` ${item.unit}` : "";
             items.append(text("li", `${item.description} — ${item.quantity}${suffix}`));
         }
-        if (quote.note) card.append();
 
         const offer = document.createElement("div");
         offer.className = "offer-grid";
