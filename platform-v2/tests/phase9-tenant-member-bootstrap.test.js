@@ -387,13 +387,13 @@ test("ROLE_PERMISSIONS ve durable tenant status sözleşmeleri değişmeden kal�
     assert.deepEqual(ROLE_PERMISSIONS, {
         platform_admin: ["*"],
         tenant_owner: [
-            "tenant.read", "tenant.update", "catalog.manage", "orders.manage",
+            "tenant.read", "tenant.update", "catalog.manage", "orders.manage", "appointments.manage",
             "members.manage", "settings.manage", "audit.read",
             "tenant.telemetry.read", "tenant.cost.read", "tenant.security.read",
             "tenant.operations.read"
         ],
         tenant_admin: [
-            "tenant.read", "tenant.update", "catalog.manage", "orders.manage",
+            "tenant.read", "tenant.update", "catalog.manage", "orders.manage", "appointments.manage",
             "settings.manage", "audit.read", "tenant.telemetry.read",
             "tenant.cost.read", "tenant.security.read", "tenant.operations.read"
         ],

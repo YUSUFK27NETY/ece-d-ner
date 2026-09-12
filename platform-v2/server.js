@@ -4,6 +4,7 @@ const { createFirestoreAuditWriter } = require("./src/firestore/firestore-audit-
 const { createFirestoreAuditReader } = require("./src/firestore/firestore-audit-reader");
 const { createFirestoreProductRepository } = require("./src/firestore/firestore-product-repository");
 const { createFirestoreOrderRepository } = require("./src/firestore/firestore-order-repository");
+const { createFirestoreAppointmentRepository } = require("./src/firestore/firestore-appointment-repository");
 const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
@@ -32,8 +33,14 @@ const {
     attachTenantOwnerRuntime
 } = require("./src/http/attach-tenant-owner-runtime");
 const {
+    attachAppointmentOwnerEndpoints
+} = require("./src/http/attach-appointment-owner-endpoints");
+const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
+const {
+    attachPublicAppointmentRuntime
+} = require("./src/http/attach-public-appointment-runtime");
 const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
@@ -77,6 +84,7 @@ const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter"
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
+const { createAppointmentService } = require("./src/appointments/appointment-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -238,6 +246,12 @@ function startPlatformServer() {
         orderRepository,
         entitlementService
     });
+    const appointmentRepository = createFirestoreAppointmentRepository({ db });
+    const appointmentService = createAppointmentService({
+        tenantRegistry,
+        appointmentRepository,
+        entitlementService
+    });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
         entitlementService
@@ -346,9 +360,17 @@ function startPlatformServer() {
         catalogService,
         orderService
     });
+    attachAppointmentOwnerEndpoints({
+        app,
+        appointmentService
+    });
     attachPublicStorefrontRuntime({
         app,
         storefrontService
+    });
+    attachPublicAppointmentRuntime({
+        app,
+        appointmentService
     });
     attachSecurityLaunchReviewEndpoint({
         app,

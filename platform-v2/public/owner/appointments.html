@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Randevu Yönetimi | Platform V2</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/appointments.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/appointments.js"></script>
+</head>
+<body>
+    <header class="topbar appointment-topbar">
+        <div>
+            <p class="eyebrow">Platform V2 · Operasyon</p>
+            <h1>Randevu Yönetimi</h1>
+            <p id="tenant-label" class="muted">İşletme yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+            <a id="back-link" class="secondary owner-link" href="/owner/">← İşletme paneli</a>
+            <button id="refresh-button" type="button" class="primary compact">Yenile</button>
+        </div>
+    </header>
+
+    <main class="appointment-owner-shell">
+        <section id="auth-required" class="panel appointment-auth hidden">
+            <h2>Owner oturumu gerekli</h2>
+            <p class="muted">Randevu yönetimi için işletme panelinden giriş yapın.</p>
+            <a id="login-link" class="primary owner-link" href="/owner/">Giriş ekranına dön</a>
+        </section>
+
+        <section id="appointments-app" class="hidden">
+            <div class="stats appointment-stats">
+                <article class="stat"><span>Hizmet</span><strong id="stat-services">0</strong></article>
+                <article class="stat"><span>Personel</span><strong id="stat-staff">0</strong></article>
+                <article class="stat"><span>Bekleyen</span><strong id="stat-pending">0</strong></article>
+                <article class="stat"><span>Onaylı</span><strong id="stat-confirmed">0</strong></article>
+            </div>
+
+            <p id="page-message" class="message" role="status" aria-live="polite"></p>
+
+            <section class="panel appointment-section">
+                <div class="section-head">
+                    <div><p class="eyebrow">Hizmetler</p><h2>Randevu hizmetleri</h2></div>
+                    <button id="new-service" type="button" class="primary compact">+ Hizmet</button>
+                </div>
+                <div id="service-list" class="appointment-list"></div>
+            </section>
+
+            <section class="panel appointment-section">
+                <div class="section-head">
+                    <div><p class="eyebrow">Personel</p><h2>Personel ve çalışma saatleri</h2></div>
+                    <button id="new-staff" type="button" class="primary compact">+ Personel</button>
+                </div>
+                <div id="staff-list" class="appointment-list"></div>
+            </section>
+
+            <section class="panel appointment-section">
+                <div class="section-head">
+                    <div><p class="eyebrow">Takvim</p><h2>Randevular</h2></div>
+                    <label class="appointment-filter">Durum
+                        <select id="booking-filter">
+                            <option value="all">Tümü</option>
+                            <option value="pending">Bekliyor</option>
+                            <option value="confirmed">Onaylı</option>
+                            <option value="completed">Tamamlandı</option>
+                            <option value="cancelled">İptal</option>
+                        </select>
+                    </label>
+                </div>
+                <div id="booking-list" class="appointment-list"></div>
+            </section>
+        </section>
+    </main>
+
+    <div id="service-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="service-modal-title">
+        <form id="service-form" class="modal-card appointment-modal-card">
+            <div class="section-head">
+                <h2 id="service-modal-title">Yeni hizmet</h2>
+                <button id="service-close" type="button" class="icon-button" aria-label="Kapat">×</button>
+            </div>
+            <input id="service-id" type="hidden">
+            <label>Hizmet adı<input id="service-name" maxlength="120" required></label>
+            <label>Süre (dakika)<input id="service-duration" type="number" min="15" max="480" step="15" value="30" required></label>
+            <label>Fiyat (₺, isteğe bağlı)<input id="service-price" type="number" min="0" max="1000000" step="0.01"></label>
+            <label class="check-row"><input id="service-active" type="checkbox" checked> Aktif</label>
+            <button type="submit" class="primary">Kaydet</button>
+            <p id="service-form-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="staff-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="staff-modal-title">
+        <form id="staff-form" class="modal-card appointment-modal-card">
+            <div class="section-head">
+                <h2 id="staff-modal-title">Yeni personel</h2>
+                <button id="staff-close" type="button" class="icon-button" aria-label="Kapat">×</button>
+            </div>
+            <input id="staff-id" type="hidden">
+            <label>Personel adı<input id="staff-name" maxlength="120" required></label>
+            <fieldset class="service-fieldset">
+                <legend>Verdiği hizmetler</legend>
+                <div id="staff-service-options" class="check-grid"></div>
+            </fieldset>
+            <label class="check-row"><input id="staff-active" type="checkbox" checked> Aktif</label>
+            <button type="submit" class="primary">Kaydet</button>
+            <p id="staff-form-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="availability-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="availability-title">
+        <form id="availability-form" class="modal-card availability-card">
+            <div class="section-head">
+                <div><p class="eyebrow">Haftalık program</p><h2 id="availability-title">Müsaitlik</h2></div>
+                <button id="availability-close" type="button" class="icon-button" aria-label="Kapat">×</button>
+            </div>
+            <p class="muted">Saatler 15 dakikalık adımlarla kaydedilir. Kapalı günleri işaretlemeyin.</p>
+            <div id="availability-days" class="availability-days"></div>
+            <button type="submit" class="primary">Programı Kaydet</button>
+            <p id="availability-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

@@ -95,6 +95,12 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
         etag: true,
         maxAge: "5m"
     }));
+    app.get("/m/:tenantId/appointments", (req, res) => {
+        if (!canonicalTenantId(req.params.tenantId)) {
+            return res.status(404).send("İşletme bulunamadı.");
+        }
+        return res.sendFile(path.join(publicDir, "appointments.html"));
+    });
     app.get("/m/:tenantId", (req, res) => {
         if (!canonicalTenantId(req.params.tenantId)) {
             return res.status(404).send("İşletme bulunamadı.");
