@@ -5,7 +5,8 @@
     const ids = [
         "auth-panel", "login-form", "tenant-id", "email", "password", "auth-message", "app", "refresh",
         "workspace-message", "public-status", "canonical-url", "copy-url", "open-url", "qr-preview", "qr-message",
-        "download-qr", "channel-list"
+        "download-qr", "channel-form", "channel-whatsapp", "channel-instagram", "channel-google", "save-channels",
+        "channel-list"
     ];
     const el = Object.fromEntries(ids.map(id => [id.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), document.getElementById(id)]));
     if (Object.values(el).some(value => value === null) || typeof firebase === "undefined" || !firebase.auth) return;
@@ -44,8 +45,11 @@
         return `/api/tenant/tenants/${encodeURIComponent(state.tenantId)}/owner/channels${suffix}`;
     }
 
-    async function api(path) {
-        const response = await fetch(path, { headers: { Authorization: `Bearer ${await token()}` } });
+    async function api(path, options = {}) {
+        const headers = new Headers(options.headers || {});
+        headers.set("Authorization", `Bearer ${await token()}`);
+        if (options.body) headers.set("Content-Type", "application/json");
+        const response = await fetch(path, { ...options, headers });
         let body = null;
         try { body = await response.json(); } catch { body = null; }
         if (!response.ok) throw new Error(body?.message || `İstek başarısız (${response.status}).`);
@@ -77,6 +81,13 @@
         el.canonicalUrl.value = channels.canonicalPublicUrl;
         el.openUrl.href = channels.canonicalPublicUrl;
         el.publicStatus.textContent = channels.publicAvailable ? "Yayında" : `Kapalı · ${channels.status}`;
+        el.channelWhatsapp.value = channels.channelSettings?.whatsapp || "";
+        el.channelInstagram.value = channels.channelSettings?.instagramUrl || "";
+        el.channelGoogle.value = channels.channelSettings?.googleUrl || "";
+        const archived = channels.status === "archived";
+        for (const input of [el.channelWhatsapp, el.channelInstagram, el.channelGoogle, el.saveChannels]) {
+            input.disabled = archived;
+        }
         el.channelList.replaceChildren(
             channelCard("Direct link", channels.channels?.direct),
             channelCard("WhatsApp", channels.channels?.whatsapp),
@@ -139,6 +150,33 @@
             message(el.workspaceMessage, "Canonical bağlantı kopyalandı.", "success");
         } catch {
             message(el.workspaceMessage, "Bağlantı panoya kopyalanamadı.", "error");
+        }
+    });
+
+    el.channelForm.addEventListener("submit", async event => {
+        event.preventDefault();
+        el.saveChannels.disabled = true;
+        message(el.workspaceMessage);
+        try {
+            const body = await api(ownerPath(), {
+                method: "PATCH",
+                body: JSON.stringify({
+                    whatsapp: el.channelWhatsapp.value,
+                    instagramUrl: el.channelInstagram.value,
+                    googleUrl: el.channelGoogle.value
+                })
+            });
+            if (!body?.channels || body.channels.tenantId !== state.tenantId) {
+                throw new Error("Kanal güncellemesi doğrulanamadı.");
+            }
+            state.channels = body.channels;
+            renderChannels();
+            await loadQr();
+            message(el.workspaceMessage, "Kanal ayarları kaydedildi.", "success");
+        } catch (error) {
+            message(el.workspaceMessage, error.message, "error");
+        } finally {
+            el.saveChannels.disabled = state.channels?.status === "archived";
         }
     });
 
