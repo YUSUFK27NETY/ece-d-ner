@@ -174,7 +174,8 @@ test("quick setup frontend restartable akış, server readiness ve güvenli DOM 
 test("ana admin sektör şablonları CRM dahil feature setini hardcode etmeden üretir", () => {
     const script = fs.readFileSync(path.join(__dirname, "../public/admin/sector-templates.js"), "utf8");
     assert.match(script, /crm: "CRM"/);
-    assert.match(script, /Object\.keys\(rawFeatures\)/);
+    assert.match(script, /Object\.keys\(/);
+    assert.match(script, /state\.featureKeys/);
     assert.match(script, /renderFeatureGrid/);
     assert.match(script, /replaceChildren/);
     assert.doesNotMatch(script, /const FEATURE_KEYS/);
