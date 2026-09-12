@@ -17,7 +17,7 @@
     <div id="auth-panel" class="center-shell">
         <form id="login-form" class="panel auth-card" autocomplete="on">
             <p class="eyebrow">Platform V2</p><h1>Paylaşım & Kanallar</h1>
-            <p class="muted">İşletmenizin yayın bağlantısını ve teslim kanallarını görüntüleyin.</p>
+            <p class="muted">İşletmenizin yayın bağlantısını ve teslim kanallarını yönetin.</p>
             <label>İşletme kodu<input id="tenant-id" autocomplete="off" placeholder="firma-kodu" required></label>
             <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
             <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
@@ -55,6 +55,16 @@
                     <p id="qr-message" class="muted"></p>
                     <a id="download-qr" class="primary channels-link disabled" download>QR SVG indir</a>
                 </section>
+            </section>
+            <section class="panel channel-settings-panel">
+                <div class="section-head"><div><p class="eyebrow">Kanal Ayarları</p><h2>İletişim ve sosyal bağlantılar</h2></div></div>
+                <form id="channel-form" class="channel-form" novalidate>
+                    <label>WhatsApp<input id="channel-whatsapp" maxlength="32" placeholder="+905551112233"></label>
+                    <label>Instagram URL<input id="channel-instagram" type="url" placeholder="https://instagram.com/..." maxlength="2048"></label>
+                    <label>Google / Maps URL<input id="channel-google" type="url" placeholder="https://www.google.com/maps/..." maxlength="2048"></label>
+                    <div class="channel-form-actions"><button id="save-channels" type="submit" class="primary">Kanalları kaydet</button></div>
+                </form>
+                <p class="muted">Instagram ve Google bağlantıları yalnız HTTPS ve izin verilen resmi hostlardan kabul edilir.</p>
             </section>
             <section class="panel channel-preview-panel">
                 <div class="section-head"><div><p class="eyebrow">Teslim Önizlemesi</p><h2>Yapılandırılmış kanallar</h2></div></div>
