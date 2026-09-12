@@ -313,7 +313,8 @@ function createOrderService({
             await orders.commitStatusUpdate({
                 expectedOrder: current,
                 nextOrder: next,
-                auditEvent
+                auditEvent,
+                restoreInventory: inventoryDeliveryService !== null && next.status === "cancelled"
             });
             return projectAdminOrder(next);
         }
