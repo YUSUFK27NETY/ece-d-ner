@@ -11,6 +11,9 @@ const TENANT_COLLECTIONS = Object.freeze({
     appointments: "appointments",
     appointmentLocks: "appointmentLocks",
     quotes: "quotes",
+    crmContacts: "crmContacts",
+    crmRequests: "crmRequests",
+    crmTasks: "crmTasks",
     settings: "settings",
     members: "members",
     audit: "audit"

@@ -13,6 +13,7 @@ const {
 } = require("../src/entitlements/commercial-plan-preview-service");
 const { createPlatformApp } = require("../src/http/create-platform-app");
 const { createTenantRecord } = require("../src/tenant/tenant-record");
+const { FEATURE_CATALOG } = require("../src/tenant/feature-catalog");
 
 function configFixture() {
     return loadPlatformGuardrailsConfig(JSON.stringify({
@@ -263,7 +264,7 @@ test("valid preview yalnız sabit safe projection döndürür ve fiyat alanı ta
         ]);
         assert.equal(body.preview.tenantId, "tenant-a");
         assert.equal(body.preview.automaticApply, false);
-        assert.equal(body.preview.features.length, 9);
+        assert.equal(body.preview.features.length, Object.keys(FEATURE_CATALOG).length);
         assert.deepEqual(Object.keys(body.preview.limits), [
             "softRequestLimit",
             "warningThreshold",

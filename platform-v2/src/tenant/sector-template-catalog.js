@@ -133,22 +133,22 @@ const SECTOR_TEMPLATE_CATALOG = Object.freeze([
         id: "manufacturing-b2b",
         label: "Fabrika / Üretici / B2B",
         sector: "manufacturing-b2b",
-        description: "Ürün kataloğu, teklif/RFQ, WhatsApp ve kurumsal galeri.",
-        enabledFeatures: ["catalog", "quotes", "whatsapp", "gallery"]
+        description: "Ürün kataloğu, teklif/RFQ, CRM, WhatsApp ve kurumsal galeri.",
+        enabledFeatures: ["catalog", "quotes", "crm", "whatsapp", "gallery"]
     }),
     createSectorTemplate({
         id: "wholesale-b2b",
         label: "Toptancı / Bayi / B2B",
         sector: "wholesale-b2b",
-        description: "Katalog, stok, teklif/RFQ, WhatsApp ve galeri.",
-        enabledFeatures: ["catalog", "inventory", "quotes", "whatsapp", "gallery"]
+        description: "Katalog, stok, teklif/RFQ, CRM, WhatsApp ve galeri.",
+        enabledFeatures: ["catalog", "inventory", "quotes", "crm", "whatsapp", "gallery"]
     }),
     createSectorTemplate({
         id: "professional-services",
         label: "Profesyonel Hizmet / Danışmanlık",
         sector: "professional-services",
-        description: "Randevu, teklif talebi, WhatsApp ve kurumsal galeri.",
-        enabledFeatures: ["appointments", "quotes", "whatsapp", "gallery"]
+        description: "Randevu, teklif talebi, CRM, WhatsApp ve kurumsal galeri.",
+        enabledFeatures: ["appointments", "quotes", "crm", "whatsapp", "gallery"]
     }),
     createSectorTemplate({
         id: "general",

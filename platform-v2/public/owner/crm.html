@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>CRM | İşletme Paneli</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/crm.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/crm.js"></script>
+</head>
+<body>
+    <div id="auth-panel" class="center-shell">
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">Platform V2</p><h1>CRM</h1>
+            <label>İşletme kodu<input id="tenant-id" autocomplete="off" placeholder="firma-kodu" required></label>
+            <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
+            <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p id="auth-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="app" class="app hidden">
+        <header class="topbar">
+            <div><p class="eyebrow">CRM / Operasyon</p><h1>Müşteri, Talep ve Görevler</h1><p class="muted">Satış fırsatlarını ve günlük işleri tek tenant içinde yönetin.</p></div>
+            <div class="top-actions"><a class="secondary crm-link" href="/owner/">Panele dön</a><button id="refresh" type="button" class="secondary">Yenile</button></div>
+        </header>
+        <main class="shell">
+            <nav class="tabs" aria-label="İşletme paneli bölümleri">
+                <a class="tab" href="/owner/">Genel</a><a class="tab" href="/owner/orders.html">Siparişler</a>
+                <a class="tab" href="/owner/appointments.html">Randevular</a><a class="tab" href="/owner/inventory.html">Stok & Teslimat</a>
+                <a class="tab" href="/owner/quotes.html">Teklifler</a><a class="tab active" href="/owner/crm.html">CRM</a>
+            </nav>
+
+            <p id="workspace-message" class="message" role="status"></p>
+            <section class="stats crm-stats">
+                <article class="stat"><span>Müşteri</span><strong id="stat-contacts">—</strong></article>
+                <article class="stat"><span>Talep</span><strong id="stat-requests">—</strong></article>
+                <article class="stat"><span>Dönüşüm</span><strong id="stat-conversion">—</strong></article>
+                <article class="stat"><span>Geciken görev</span><strong id="stat-overdue">—</strong></article>
+            </section>
+
+            <section class="crm-grid">
+                <section class="panel">
+                    <div class="section-head"><div><p class="eyebrow">Müşteri</p><h2>Yeni müşteri</h2></div></div>
+                    <form id="contact-form" class="crm-form">
+                        <label>Ad / Yetkili<input id="contact-name" maxlength="120" required></label>
+                        <label>Firma<input id="contact-company" maxlength="120"></label>
+                        <div class="form-two"><label>E-posta<input id="contact-email" type="email" maxlength="254"></label><label>Telefon<input id="contact-phone" maxlength="32"></label></div>
+                        <label>Etiketler<input id="contact-tags" maxlength="250" placeholder="vip, bayi, sıcak"></label>
+                        <label>İç not<textarea id="contact-note" rows="2" maxlength="2000"></textarea></label>
+                        <button class="primary" type="submit">Müşteri ekle</button>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="section-head"><div><p class="eyebrow">Talep</p><h2>Yeni talep</h2></div></div>
+                    <form id="request-form" class="crm-form">
+                        <label>Müşteri<select id="request-contact" required></select></label>
+                        <label>Başlık<input id="request-title" maxlength="160" required></label>
+                        <div class="form-two"><label>Kaynak<select id="request-source"><option value="manual">Manuel</option><option value="website">Web</option><option value="phone">Telefon</option><option value="whatsapp">WhatsApp</option><option value="instagram">Instagram</option><option value="google">Google</option><option value="quote">Teklif</option><option value="order">Sipariş</option><option value="appointment">Randevu</option><option value="other">Diğer</option></select></label><label>Son tarih<input id="request-due" type="datetime-local"></label></div>
+                        <div class="form-two"><label>Tahmini değer<input id="request-value" type="number" min="0" step="0.01"></label><label>Para birimi<input id="request-currency" maxlength="3" value="TRY"></label></div>
+                        <label>Açıklama<textarea id="request-description" rows="2" maxlength="3000"></textarea></label>
+                        <button class="primary" type="submit">Talep ekle</button>
+                    </form>
+                </section>
+
+                <section class="panel">
+                    <div class="section-head"><div><p class="eyebrow">Görev</p><h2>Yeni görev</h2></div></div>
+                    <form id="task-form" class="crm-form">
+                        <label>Başlık<input id="task-title" maxlength="160" required></label>
+                        <div class="form-two"><label>Öncelik<select id="task-priority"><option value="low">Düşük</option><option value="normal" selected>Normal</option><option value="high">Yüksek</option></select></label><label>Son tarih<input id="task-due" type="datetime-local"></label></div>
+                        <label>Talebe bağla<select id="task-request"><option value="">Bağlantı yok</option></select></label>
+                        <label>İç not<textarea id="task-note" rows="2" maxlength="2000"></textarea></label>
+                        <button class="primary" type="submit">Görev ekle</button>
+                    </form>
+                </section>
+            </section>
+
+            <section class="panel crm-section"><div class="section-head"><div><p class="eyebrow">Müşteriler</p><h2>Müşteri listesi</h2></div><select id="contact-filter"><option value="">Tümü</option><option value="active">Aktif</option><option value="inactive">Pasif</option></select></div><div id="contact-list" class="card-list"></div></section>
+            <section class="panel crm-section"><div class="section-head"><div><p class="eyebrow">Talepler</p><h2>Talep havuzu</h2></div><select id="request-filter"><option value="">Tümü</option><option value="new">Yeni</option><option value="in_progress">İşleniyor</option><option value="converted">Dönüştü</option><option value="closed">Kapalı</option></select></div><div id="request-list" class="card-list"></div></section>
+            <section class="panel crm-section"><div class="section-head"><div><p class="eyebrow">Görevler</p><h2>Görev listesi</h2></div><select id="task-filter"><option value="">Tümü</option><option value="open">Açık</option><option value="done">Tamamlandı</option><option value="cancelled">İptal</option></select></div><div id="task-list" class="card-list"></div></section>
+        </main>
+    </div>
+</body>
+</html>
