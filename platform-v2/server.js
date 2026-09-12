@@ -46,6 +46,9 @@ const {
 const { attachQuoteOwnerEndpoints } = require("./src/http/attach-quote-owner-endpoints");
 const { attachCrmOwnerEndpoints } = require("./src/http/attach-crm-owner-endpoints");
 const {
+    attachPublicChannelOwnerEndpoints
+} = require("./src/http/attach-public-channel-owner-endpoints");
+const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
 const {
@@ -107,6 +110,7 @@ const { createCrmService } = require("./src/crm/crm-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
+const { createPublicChannelService } = require("./src/public/public-channel-service");
 const {
     createCommercialPlanPreviewService
 } = require("./src/entitlements/commercial-plan-preview-service");
@@ -258,6 +262,13 @@ function startPlatformServer() {
         productRepository,
         entitlementService
     });
+    const publicChannelService = createPublicChannelService({
+        tenantRegistry,
+        entitlementService,
+        publicOrigin: process.env.PLATFORM_PUBLIC_ORIGIN ||
+            process.env.RENDER_EXTERNAL_URL ||
+            `http://127.0.0.1:${process.env.PLATFORM_PORT || process.env.PORT || 3100}`
+    });
     const inventoryDeliveryRepository = createFirestoreInventoryDeliveryRepository({ db });
     const inventoryDeliveryService = createInventoryDeliveryService({
         tenantRegistry,
@@ -398,6 +409,10 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachPublicChannelOwnerEndpoints({
+        app,
+        publicChannelService
     });
     attachAppointmentOwnerEndpoints({
         app,
