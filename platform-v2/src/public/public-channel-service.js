@@ -38,7 +38,8 @@ function normalizePublicOrigin(value) {
 
 function whatsappUrl(phone) {
     if (!phone) return null;
-    const digits = String(phone).replace(/\D/g, "");
+    let digits = String(phone).replace(/\D/g, "").replace(/^00/, "");
+    if (digits.startsWith("0")) digits = `90${digits.slice(1)}`;
     return /^[1-9][0-9]{7,14}$/.test(digits) ? `https://wa.me/${digits}` : null;
 }
 
