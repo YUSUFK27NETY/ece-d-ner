@@ -25,10 +25,12 @@ function sendChannelError(res, error) {
     if (new Set(["TENANT_SCOPE_MISMATCH", "PERMISSION_DENIED"]).has(error?.code)) {
         return res.status(403).json({ success: false, message: "Bu işlem için yetki yok." });
     }
-    if (error?.code === "PUBLIC_CHANNELS_NOT_AVAILABLE") {
+    if (new Set(["PUBLIC_CHANNELS_NOT_AVAILABLE", "TENANT_ARCHIVED"]).has(error?.code)) {
         return res.status(409).json({
             success: false,
-            message: "QR mevcut işletme durumunda kullanılamıyor."
+            message: error.code === "TENANT_ARCHIVED"
+                ? "Arşivlenmiş işletme güncellenemez."
+                : "QR mevcut işletme durumunda kullanılamıyor."
         });
     }
     if (error instanceof TypeError) {
@@ -39,10 +41,11 @@ function sendChannelError(res, error) {
 }
 
 function attachPublicChannelOwnerEndpoints({ app, publicChannelService }) {
-    if (!app || typeof app.get !== "function") {
+    if (!app || typeof app.get !== "function" || typeof app.patch !== "function") {
         throw new TypeError("Public channel owner endpoint app geçersiz.");
     }
     if (!publicChannelService || typeof publicChannelService.get !== "function" ||
+        typeof publicChannelService.update !== "function" ||
         typeof publicChannelService.qr !== "function") {
         throw new TypeError("Public channel service geçersiz.");
     }
@@ -53,6 +56,23 @@ function attachPublicChannelOwnerEndpoints({ app, publicChannelService }) {
             const channels = await publicChannelService.get({
                 context: actorContext(req),
                 tenantId: req.params.tenantId
+            });
+            return res.json({ success: true, channels });
+        } catch (error) {
+            return sendChannelError(res, error);
+        }
+    });
+
+    app.patch(OWNER_CHANNEL_BASE, async (req, res) => {
+        try {
+            if (Reflect.ownKeys(req.query).length > 0) {
+                throw new TypeError("Public channel güncellemesi query kabul etmez.");
+            }
+            const channels = await publicChannelService.update({
+                context: actorContext(req),
+                tenantId: req.params.tenantId,
+                patch: req.body,
+                requestId: req.requestId || null
             });
             return res.json({ success: true, channels });
         } catch (error) {
