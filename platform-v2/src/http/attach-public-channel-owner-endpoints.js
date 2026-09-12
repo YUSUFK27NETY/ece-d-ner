@@ -1,6 +1,7 @@
 "use strict";
 
 const OWNER_CHANNEL_BASE = "/api/tenant/tenants/:tenantId/owner/channels";
+const PLATFORM_DELIVERY_BASE = "/api/platform/tenants/:tenantId/delivery";
 
 function hasCallerInput(req) {
     const contentLength = req.get("content-length");
@@ -15,6 +16,17 @@ function actorContext(req) {
         role: req.tenantActor.role,
         actorId: req.tenantActor.actorId,
         tenantId: req.tenantActor.tenantId
+    });
+}
+
+function platformActorContext(req) {
+    if (!req.platformActor || req.platformActor.role !== "platform_admin" ||
+        typeof req.platformActor.uid !== "string" || !req.platformActor.uid) {
+        throw new TypeError("Platform delivery actor bağlamı geçersiz.");
+    }
+    return Object.freeze({
+        role: req.platformActor.role,
+        actorId: req.platformActor.uid
     });
 }
 
@@ -49,6 +61,35 @@ function attachPublicChannelOwnerEndpoints({ app, publicChannelService }) {
         typeof publicChannelService.qr !== "function") {
         throw new TypeError("Public channel service geçersiz.");
     }
+
+    app.get(PLATFORM_DELIVERY_BASE, async (req, res) => {
+        try {
+            if (hasCallerInput(req)) throw new TypeError("Platform delivery sorgusu parametre kabul etmez.");
+            const channels = await publicChannelService.get({
+                context: platformActorContext(req),
+                tenantId: req.params.tenantId
+            });
+            return res.json({ success: true, delivery: channels });
+        } catch (error) {
+            return sendChannelError(res, error);
+        }
+    });
+
+    app.get(`${PLATFORM_DELIVERY_BASE}/qr.svg`, async (req, res) => {
+        try {
+            if (hasCallerInput(req)) throw new TypeError("Platform QR isteği parametre kabul etmez.");
+            const qr = await publicChannelService.qr({
+                context: platformActorContext(req),
+                tenantId: req.params.tenantId
+            });
+            res.type("image/svg+xml");
+            res.set("Content-Disposition", `inline; filename="${qr.filename}"`);
+            res.set("Cache-Control", "private, no-store");
+            return res.send(qr.svg);
+        } catch (error) {
+            return sendChannelError(res, error);
+        }
+    });
 
     app.get(OWNER_CHANNEL_BASE, async (req, res) => {
         try {
@@ -101,6 +142,7 @@ function attachPublicChannelOwnerEndpoints({ app, publicChannelService }) {
 
 module.exports = {
     OWNER_CHANNEL_BASE,
+    PLATFORM_DELIVERY_BASE,
     attachPublicChannelOwnerEndpoints,
     sendChannelError
 };
