@@ -3,6 +3,11 @@ const { requireTenantId } = require("../tenant/tenant-id");
 const TENANT_COLLECTIONS = Object.freeze({
     products: "products",
     orders: "orders",
+    appointmentServices: "appointmentServices",
+    appointmentStaff: "appointmentStaff",
+    appointmentAvailability: "appointmentAvailability",
+    appointments: "appointments",
+    appointmentLocks: "appointmentLocks",
     settings: "settings",
     members: "members",
     audit: "audit"
