@@ -191,3 +191,13 @@
     installQuickSetupLink();
     syncAvailability();
 })();
+
+(() => {
+    "use strict";
+    if (document.querySelector('script[data-plan-package-presets="true"]')) return;
+    const script = document.createElement("script");
+    script.src = "/admin/plan-packages.js";
+    script.async = true;
+    script.dataset.planPackagePresets = "true";
+    document.head.append(script);
+})();
