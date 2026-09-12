@@ -60,6 +60,9 @@ function sendPublicAppointmentError(res, error) {
     ]).has(error?.code)) {
         return res.status(404).json({ success: false, message: "Randevu hizmeti kullanılamıyor." });
     }
+    if (error?.code === "APPOINTMENT_DATE_UNAVAILABLE") {
+        return res.status(400).json({ success: false, message: "Randevu tarihi kullanılamıyor." });
+    }
     if (new Set([
         "APPOINTMENT_SLOT_UNAVAILABLE",
         "APPOINTMENT_SLOT_TAKEN",
@@ -71,6 +74,9 @@ function sendPublicAppointmentError(res, error) {
                 ? "Bu randevu isteği daha önce farklı bilgilerle kullanılmış."
                 : "Seçilen saat artık müsait değil."
         });
+    }
+    if (error?.code === "APPOINTMENT_UNAVAILABLE") {
+        return res.status(503).json({ success: false, message: "Randevu sistemi şu anda kullanılamıyor." });
     }
     if (error instanceof TypeError) {
         return res.status(400).json({ success: false, message: "Randevu isteği geçersiz." });
