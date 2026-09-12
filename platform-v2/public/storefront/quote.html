@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="robots" content="noindex,follow">
+    <meta name="theme-color" content="#111827">
+    <title>Teklif Talebi | Platform V2</title>
+    <link rel="stylesheet" href="/m/quote.css">
+    <script defer src="/m/quote.js"></script>
+</head>
+<body>
+    <main class="shell">
+        <header class="head">
+            <a id="back-link" href="#">← İşletmeye dön</a>
+            <p class="eyebrow">B2B / RFQ</p>
+            <h1 id="brand-title">Teklif Talebi</h1>
+            <p class="muted">İhtiyacınızı ve miktarları gönderin. İşletme teklifinizi panelinden değerlendirsin.</p>
+        </header>
+
+        <form id="quote-form" class="panel" novalidate>
+            <section class="grid two">
+                <label>Firma adı<input id="company-name" maxlength="160" required></label>
+                <label>Ülke<input id="country" maxlength="80" required></label>
+                <label>Yetkili kişi<input id="contact-name" maxlength="120" required></label>
+                <label>E-posta<input id="email" type="email" maxlength="254"></label>
+                <label>Telefon<input id="phone" inputmode="tel" maxlength="32"></label>
+            </section>
+
+            <section class="items-section">
+                <div class="section-head">
+                    <div><p class="eyebrow">Talep Listesi</p><h2>Ürün / hizmet ve miktar</h2></div>
+                    <button id="add-item" type="button" class="secondary">+ Kalem ekle</button>
+                </div>
+                <div id="items" class="items"></div>
+            </section>
+
+            <label>Not<textarea id="note" maxlength="1200" rows="5" placeholder="Teknik detay, teslim beklentisi veya diğer bilgiler"></textarea></label>
+            <p class="muted small">E-posta veya telefon alanlarından en az biri gereklidir.</p>
+            <button id="submit-button" type="submit" class="primary">Teklif Talebi Gönder</button>
+            <p id="form-message" class="message" role="status" aria-live="polite"></p>
+        </form>
+
+        <section id="success-view" class="panel success hidden" aria-live="polite">
+            <div class="success-icon">✓</div>
+            <h2>Talebiniz alındı</h2>
+            <p>Takip kodu: <strong id="quote-code"></strong></p>
+            <p class="muted">İşletme teklifinizi kendi panelinden inceleyebilir.</p>
+            <a id="success-back" class="primary link-button" href="#">İşletme sayfasına dön</a>
+        </section>
+    </main>
+</body>
+</html>
