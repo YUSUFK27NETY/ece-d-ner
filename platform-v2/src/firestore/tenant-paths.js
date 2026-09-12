@@ -10,6 +10,7 @@ const TENANT_COLLECTIONS = Object.freeze({
     appointmentAvailability: "appointmentAvailability",
     appointments: "appointments",
     appointmentLocks: "appointmentLocks",
+    quotes: "quotes",
     settings: "settings",
     members: "members",
     audit: "audit"

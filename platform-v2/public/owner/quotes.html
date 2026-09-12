@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Teklifler | İşletme Paneli</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/quotes.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/quotes.js"></script>
+</head>
+<body>
+    <div id="auth-panel" class="center-shell">
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">Platform V2</p>
+            <h1>Teklif Yönetimi</h1>
+            <label>İşletme kodu<input id="tenant-id" autocomplete="off" placeholder="firma-kodu" required></label>
+            <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
+            <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p id="auth-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="app" class="app hidden">
+        <header class="topbar">
+            <div><p class="eyebrow">B2B / RFQ</p><h1>Teklif Talepleri</h1><p class="muted">Firma taleplerini inceleyin ve teklif durumunu yönetin.</p></div>
+            <div class="top-actions"><a class="secondary button-link" href="/owner/">Panele dön</a><button id="refresh" type="button" class="secondary">Yenile</button></div>
+        </header>
+        <main class="shell">
+            <nav class="tabs" aria-label="İşletme paneli bölümleri">
+                <a class="tab" href="/owner/">Genel</a>
+                <a class="tab" href="/owner/orders.html">Siparişler</a>
+                <a class="tab" href="/owner/appointments.html">Randevular</a>
+                <a class="tab" href="/owner/inventory.html">Stok & Teslimat</a>
+                <a class="tab active" href="/owner/quotes.html">Teklifler</a>
+            </nav>
+            <section class="panel">
+                <div class="section-head quote-toolbar">
+                    <div><p class="eyebrow">Filtre</p><h2>Talep listesi</h2></div>
+                    <label>Durum
+                        <select id="status-filter">
+                            <option value="">Tümü</option>
+                            <option value="new">Yeni</option>
+                            <option value="reviewing">İnceleniyor</option>
+                            <option value="quoted">Teklif verildi</option>
+                            <option value="won">Kazanıldı</option>
+                            <option value="lost">Kaybedildi</option>
+                            <option value="cancelled">İptal</option>
+                        </select>
+                    </label>
+                </div>
+                <p id="list-message" class="message" role="status"></p>
+                <div id="quote-list" class="quote-list"></div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
