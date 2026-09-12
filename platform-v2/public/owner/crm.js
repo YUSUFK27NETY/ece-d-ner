@@ -109,7 +109,9 @@
     }
 
     function refreshRelations() {
-        const contactOptions = state.contacts.filter(item => item.status === "active").map(item => option(item.contactId, contactName(item.contactId)));
+        const contactOptions = state.contacts
+            .filter(item => item.status === "active")
+            .map(item => option(item.contactId, contactName(item.contactId)));
         el.requestContact.replaceChildren(...contactOptions);
         el.taskRequest.replaceChildren(option("", "Bağlantı yok"), ...state.requests
             .filter(item => ["new", "in_progress"].includes(item.status))
@@ -117,9 +119,11 @@
     }
 
     function renderContacts() {
+        const selectedStatus = el.contactFilter.value;
+        const contacts = state.contacts.filter(contact => !selectedStatus || contact.status === selectedStatus);
         el.contactList.replaceChildren();
-        if (!state.contacts.length) { el.contactList.append(node("p", "Müşteri bulunmuyor.", "empty")); return; }
-        for (const contact of state.contacts) {
+        if (!contacts.length) { el.contactList.append(node("p", "Müşteri bulunmuyor.", "empty")); return; }
+        for (const contact of contacts) {
             const card = node("article", "", "item-card");
             const row = node("div", "", "crm-card-row");
             const info = document.createElement("div");
@@ -149,9 +153,11 @@
     }
 
     function renderRequests() {
+        const selectedStatus = el.requestFilter.value;
+        const requests = state.requests.filter(request => !selectedStatus || request.status === selectedStatus);
         el.requestList.replaceChildren();
-        if (!state.requests.length) { el.requestList.append(node("p", "Talep bulunmuyor.", "empty")); return; }
-        for (const request of state.requests) {
+        if (!requests.length) { el.requestList.append(node("p", "Talep bulunmuyor.", "empty")); return; }
+        for (const request of requests) {
             const card = node("article", "", "item-card");
             const row = node("div", "", "crm-card-row");
             const info = document.createElement("div");
@@ -215,7 +221,6 @@
 
     async function loadContacts() {
         const params = new URLSearchParams({ limit: "100" });
-        if (el.contactFilter.value) params.set("status", el.contactFilter.value);
         const body = await api(`${ownerPath("/contacts")}?${params}`);
         state.contacts = Array.isArray(body?.contacts) ? body.contacts : [];
         renderContacts(); refreshRelations();
@@ -223,7 +228,6 @@
 
     async function loadRequests() {
         const params = new URLSearchParams({ limit: "100" });
-        if (el.requestFilter.value) params.set("status", el.requestFilter.value);
         const body = await api(`${ownerPath("/requests")}?${params}`);
         state.requests = Array.isArray(body?.requests) ? body.requests : [];
         renderRequests(); refreshRelations();
@@ -296,8 +300,8 @@
     });
 
     el.refresh.addEventListener("click", () => loadAll().catch(error => message(el.workspaceMessage, error.message, "error")));
-    el.contactFilter.addEventListener("change", () => loadContacts().catch(error => message(el.workspaceMessage, error.message, "error")));
-    el.requestFilter.addEventListener("change", () => loadRequests().catch(error => message(el.workspaceMessage, error.message, "error")));
+    el.contactFilter.addEventListener("change", renderContacts);
+    el.requestFilter.addEventListener("change", renderRequests);
     el.taskFilter.addEventListener("change", () => loadTasks().catch(error => message(el.workspaceMessage, error.message, "error")));
 
     const firebaseConfig = window.OWNER_BOOTSTRAP?.firebase;
