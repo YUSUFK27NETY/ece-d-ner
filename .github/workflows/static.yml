@@ -28,7 +28,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Run syntax and behavior tests
-        run: npm run ci
+        run: |
+          set -o pipefail
+          npm run ci 2>&1 | tee ci-diagnostic.log
+      - name: Upload CI diagnostic
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ci-diagnostic
+          path: ci-diagnostic.log
+          if-no-files-found: error
+          retention-days: 1
       - name: Audit production dependencies
         run: npm run security:dependencies
 
