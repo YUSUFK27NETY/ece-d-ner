@@ -163,6 +163,12 @@ function normalizeTaskInput(input, { partial = false } = {}) {
     return out;
 }
 
+function pick(data, keys) {
+    const out = {};
+    for (const key of keys) out[key] = data[key];
+    return out;
+}
+
 function normalizeStored({ tenantId, entityId, data, kind }) {
     if (!isPlainRecord(data)) throw new TypeError("CRM kayıt verisi geçersiz.");
     const safeTenantId = requireTenantId(tenantId);
@@ -174,9 +180,19 @@ function normalizeStored({ tenantId, entityId, data, kind }) {
     const updatedAt = optionalIso(data.updatedAt, "CRM güncellenme tarihi");
     if (!createdAt || !updatedAt) throw new TypeError("CRM kayıt tarihi geçersiz.");
     let normalized;
-    if (kind === "contact") normalized = normalizeContactInput(data);
-    else if (kind === "request") normalized = normalizeRequestInput(data);
-    else normalized = normalizeTaskInput(data);
+    if (kind === "contact") {
+        normalized = normalizeContactInput(pick(data, ["name", "company", "email", "phone", "status", "tags", "note"]));
+    } else if (kind === "request") {
+        normalized = normalizeRequestInput(pick(data, [
+            "contactId", "title", "description", "source", "status", "valueMinor", "currency", "dueAt", "note"
+        ]));
+    } else if (kind === "task") {
+        normalized = normalizeTaskInput(pick(data, [
+            "title", "status", "priority", "dueAt", "relatedType", "relatedId", "assigneeId", "note"
+        ]));
+    } else {
+        throw new TypeError("CRM kayıt türü geçersiz.");
+    }
     return Object.freeze({
         schemaVersion: 1,
         tenantId: safeTenantId,
