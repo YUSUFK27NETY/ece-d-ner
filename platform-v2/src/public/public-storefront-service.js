@@ -52,7 +52,8 @@ function projectPublicProduct(product) {
         name: safe.name,
         category: safe.category,
         price: safe.price,
-        description: safe.description
+        description: safe.description,
+        imageUrl: safe.imageUrl
     });
 }
 

@@ -8,6 +8,10 @@ const {
     normalizeIncludeArchived
 } = require("./attach-catalog-admin-endpoints");
 const { normalizeOrderListLimit } = require("./attach-order-admin-endpoints");
+const {
+    MAX_MEDIA_BYTES,
+    createConfiguredProductMediaUploadService
+} = require("../media/product-media-upload-service");
 
 const OWNER_API_BASE = "/api/tenant/tenants/:tenantId/owner";
 const OWNER_CSP = [
@@ -118,10 +122,18 @@ function sendOwnerBusinessError(res, error) {
             message: "İşlem mevcut işletme/kayıt durumuyla uyumlu değil."
         });
     }
-    if (new Set(["CATALOG_UNAVAILABLE", "ORDER_UNAVAILABLE"]).has(error?.code)) {
+    if (new Set(["MEDIA_TYPE_UNSUPPORTED", "MEDIA_SIZE_INVALID", "MEDIA_SIGNATURE_INVALID"])
+        .has(error?.code)) {
+        return res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+    if (new Set(["CATALOG_UNAVAILABLE", "ORDER_UNAVAILABLE", "MEDIA_STORAGE_UNAVAILABLE"])
+        .has(error?.code)) {
         return res.status(503).json({
             success: false,
-            message: "İşletme verileri şu anda kullanılamıyor."
+            message: "İşletme verileri veya medya depolama şu anda kullanılamıyor."
         });
     }
     return sendPlatformError(res, error);
@@ -132,7 +144,8 @@ function attachTenantOwnerRuntime({
     webConfig = null,
     tenantRegistry,
     catalogService,
-    orderService
+    orderService,
+    mediaUploadService = undefined
 }) {
     if (!app || typeof app.use !== "function" || typeof app.get !== "function" ||
         typeof app.post !== "function" || typeof app.patch !== "function") {
@@ -153,6 +166,15 @@ function attachTenantOwnerRuntime({
         throw new TypeError("Tenant owner runtime order service geçersiz.");
     }
 
+    const resolvedMediaUploadService = mediaUploadService === undefined
+        ? createConfiguredProductMediaUploadService()
+        : mediaUploadService;
+    if (resolvedMediaUploadService !== null &&
+        (!resolvedMediaUploadService ||
+            typeof resolvedMediaUploadService.uploadProductImage !== "function")) {
+        throw new TypeError("Tenant owner media upload service geçersiz.");
+    }
+
     const ownerPublicDir = path.join(__dirname, "../../public/owner");
 
     app.use("/owner", (req, res, next) => {
@@ -161,7 +183,10 @@ function attachTenantOwnerRuntime({
     });
     app.get("/owner/config.js", (req, res) => {
         res.type("application/javascript");
-        res.send(`window.OWNER_BOOTSTRAP = ${JSON.stringify({ firebase: webConfig })};`);
+        res.send(`window.OWNER_BOOTSTRAP = ${JSON.stringify({
+            firebase: webConfig,
+            mediaUploadAvailable: resolvedMediaUploadService !== null
+        })};`);
     });
     app.use("/owner", express.static(ownerPublicDir, {
         index: "index.html",
@@ -192,6 +217,61 @@ function attachTenantOwnerRuntime({
             return sendOwnerBusinessError(res, error);
         }
     });
+
+    const productMediaPath = `${OWNER_API_BASE}/media/products/:productId/image`;
+    if (resolvedMediaUploadService === null) {
+        app.post(productMediaPath, (req, res) => res.status(503).json({
+            success: false,
+            message: "Görsel yükleme henüz yapılandırılmamış."
+        }));
+    } else {
+        const rawImageParser = express.raw({
+            type: () => true,
+            limit: MAX_MEDIA_BYTES
+        });
+        app.post(productMediaPath, rawImageParser, async (req, res) => {
+            try {
+                if (Reflect.ownKeys(req.query).length > 0) {
+                    throw new TypeError("Media upload sorgu parametresi kabul etmez.");
+                }
+                const products = await catalogService.list({
+                    context: actorContext(req),
+                    tenantId: req.params.tenantId,
+                    limit: 200,
+                    includeArchived: false
+                });
+                const product = products.find(item => item.productId === req.params.productId);
+                if (!product) {
+                    return res.status(404).json({
+                        success: false,
+                        message: "Ürün bulunamadı."
+                    });
+                }
+                const media = await resolvedMediaUploadService.uploadProductImage({
+                    tenantId: req.params.tenantId,
+                    productId: product.productId,
+                    body: req.body,
+                    contentType: req.get("content-type")
+                });
+                return res.status(201).json({ success: true, media });
+            } catch (error) {
+                return sendOwnerBusinessError(res, error);
+            }
+        });
+        app.use(productMediaPath, (error, req, res, next) => {
+            if (error?.type === "entity.too.large") {
+                return res.status(413).json({
+                    success: false,
+                    message: "Görsel en fazla 5 MB olabilir."
+                });
+            }
+            console.error("Owner media upload middleware hatası:", error?.message || "unknown");
+            return res.status(500).json({
+                success: false,
+                message: "Görsel yüklenemedi."
+            });
+        });
+    }
 
     const catalogBase = `${OWNER_API_BASE}/catalog/products`;
     app.get(catalogBase, async (req, res) => {

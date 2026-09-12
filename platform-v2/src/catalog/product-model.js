@@ -85,6 +85,25 @@ function optionalText(value, label, max) {
     return normalized;
 }
 
+function optionalHttpsUrl(value, label = "imageUrl") {
+    if (value === undefined || value === null || value === "") {
+        return "";
+    }
+    if (typeof value !== "string" || value !== value.trim() || value.length > 2048) {
+        fail(label);
+    }
+    let parsed;
+    try {
+        parsed = new URL(value);
+    } catch {
+        fail(label);
+    }
+    if (parsed.protocol !== "https:" || parsed.username || parsed.password) {
+        fail(label);
+    }
+    return parsed.toString();
+}
+
 function requirePrice(value) {
     if (typeof value !== "number" || !Number.isFinite(value) ||
         value <= 0 || value > MAX_PRODUCT_PRICE) {
@@ -118,7 +137,7 @@ function requireNow(now) {
 function normalizeDraft(input) {
     const draft = assertExactRecord(
         input,
-        ["name", "category", "price", "description", "available"],
+        ["name", "category", "price", "description", "available", "imageUrl"],
         ["name", "category", "price"],
         "draft"
     );
@@ -127,6 +146,7 @@ function normalizeDraft(input) {
         category: requireText(ownDataValue(draft, "category"), "category", 1, 80),
         price: requirePrice(ownDataValue(draft, "price")),
         description: optionalText(ownDataValue(draft, "description"), "description", 500),
+        imageUrl: optionalHttpsUrl(ownDataValue(draft, "imageUrl")),
         available: ownDataValue(draft, "available") === undefined
             ? true
             : requireBoolean(ownDataValue(draft, "available"), "available")
@@ -184,6 +204,7 @@ function normalizePersistedProduct({ tenantId, productId, data }) {
         category: requireText(ownDataValue(data, "category"), "category", 1, 80),
         price: requirePrice(ownDataValue(data, "price")),
         description: optionalText(ownDataValue(data, "description"), "description", 500),
+        imageUrl: optionalHttpsUrl(ownDataValue(data, "imageUrl")),
         available,
         archived,
         createdAt: requireIsoTimestamp(ownDataValue(data, "createdAt"), "createdAt"),
@@ -204,7 +225,7 @@ function applyProductPatch(existing, patch, now = new Date()) {
     }
     const input = assertExactRecord(
         patch,
-        ["name", "category", "price", "description", "available"],
+        ["name", "category", "price", "description", "available", "imageUrl"],
         [],
         "patch"
     );
@@ -226,6 +247,9 @@ function applyProductPatch(existing, patch, now = new Date()) {
     }
     if (Object.hasOwn(input, "description")) {
         next.description = optionalText(ownDataValue(input, "description"), "description", 500);
+    }
+    if (Object.hasOwn(input, "imageUrl")) {
+        next.imageUrl = optionalHttpsUrl(ownDataValue(input, "imageUrl"));
     }
     if (Object.hasOwn(input, "available")) {
         next.available = requireBoolean(ownDataValue(input, "available"), "available");

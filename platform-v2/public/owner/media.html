@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Ürün Görselleri | İşletme Paneli</title>
+    <link rel="stylesheet" href="/owner/media.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/media.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div>
+            <p class="eyebrow">İşletme Paneli</p>
+            <h1>Ürün Görselleri</h1>
+            <p id="tenant-label" class="muted">İşletme yükleniyor...</p>
+        </div>
+        <a id="back-link" class="button secondary" href="/owner/">← Panele dön</a>
+    </header>
+
+    <main class="shell">
+        <section class="panel intro">
+            <div>
+                <p class="eyebrow">Medya Yönetimi</p>
+                <h2>Ürün fotoğraflarını yükle</h2>
+                <p class="muted">JPEG, PNG veya WebP; en fazla 5 MB. Yeni fotoğraf aynı ürünün eski dosyasının üzerine yazılır.</p>
+            </div>
+            <span id="media-status" class="status">Kontrol ediliyor</span>
+        </section>
+
+        <p id="message" class="message" role="status"></p>
+        <section id="auth-required" class="panel hidden">
+            <h2>Oturum gerekli</h2>
+            <p class="muted">Önce işletme panelinden giriş yapın.</p>
+            <a id="login-link" class="button primary" href="/owner/">İşletme paneline git</a>
+        </section>
+        <section id="product-grid" class="product-grid" aria-live="polite"></section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

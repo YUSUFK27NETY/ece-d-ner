@@ -441,7 +441,7 @@ test("Firestore product repository exact tenant product/audit yollarında atomic
     const fetched = await repository.getById("second-tenant", "product-1");
     assert.deepEqual(Object.keys(projectProduct(fetched)), [
         "schemaVersion", "tenantId", "productId", "name", "category", "price",
-        "description", "available", "archived", "createdAt", "updatedAt"
+        "description", "imageUrl", "available", "archived", "createdAt", "updatedAt"
     ]);
     assert.equal(JSON.stringify(fetched).includes("raw-provider-marker"), false);
     assert.equal(JSON.stringify(fetched).includes("raw-token-marker"), false);
