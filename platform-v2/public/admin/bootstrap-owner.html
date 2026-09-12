@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <meta name="theme-color" content="#111827">
-    <title>Platform V2 | Initial Owner Bootstrap</title>
+    <title>Platform V2 | Owner Daveti</title>
     <link rel="stylesheet" href="/admin/admin.css">
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
@@ -16,9 +16,9 @@
 <body>
     <div class="center-shell">
         <main class="panel auth-card">
-            <p class="eyebrow">Platform V2</p>
-            <h1>Initial Owner Ata</h1>
-            <p class="muted">Yalnız provisioning tenant için, mevcut Platform Admin oturumuyla çalışır.</p>
+            <p class="eyebrow">Platform V2 · P10-12</p>
+            <h1>İlk Owner Daveti</h1>
+            <p class="muted">Yalnız provisioning tenant için çalışır. Owner, Firebase'in şifresiz e-posta bağlantısıyla kimliğini doğrular.</p>
             <p id="bootstrap-session" class="muted">Oturum kontrol ediliyor...</p>
 
             <form id="bootstrap-owner-form" novalidate>
@@ -27,11 +27,11 @@
                     <input id="bootstrap-tenant-id" autocomplete="off" placeholder="ornek-isletme" required>
                 </label>
                 <label>
-                    Firebase User UID
-                    <input id="bootstrap-firebase-uid" autocomplete="off" spellcheck="false" required>
-                    <small>UID yalnız bootstrap isteğinde kullanılır; bu sayfa değeri saklamaz.</small>
+                    Owner e-posta
+                    <input id="bootstrap-owner-email" type="email" autocomplete="email" maxlength="254" required>
+                    <small>Davet tek kullanımlıdır ve 30 dakika geçerlidir. E-posta veya davet token'ı sunucuda açık metin tutulmaz.</small>
                 </label>
-                <button id="bootstrap-owner-button" type="submit" class="primary">Tenant Owner Ata</button>
+                <button id="bootstrap-owner-button" type="submit" class="primary">Owner Daveti Gönder</button>
             </form>
 
             <p id="bootstrap-owner-message" class="message" role="status"></p>
