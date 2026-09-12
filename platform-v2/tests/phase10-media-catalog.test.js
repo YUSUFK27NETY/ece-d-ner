@@ -213,7 +213,7 @@ test("owner media UI ve storefront media decorator güvenli static contract taş
     const storefrontMedia = fs.readFileSync(path.join(__dirname, "../public/storefront/media.js"), "utf8");
 
     assert.match(ownerIndex, /href="\/owner\/media\.html"/);
-    assert.match(mediaHtml, /image\/jpeg,image\/png,image\/webp/);
+    assert.match(mediaJs, /input\.accept\s*=\s*"image\/jpeg,image\/png,image\/webp"/);
     assert.match(mediaJs, /media\/products\/\$\{encodeURIComponent\(product\.productId\)\}\/image/);
     assert.match(mediaJs, /getIdToken\(\)/);
     assert.doesNotMatch(mediaJs, /innerHTML\s*=/);
