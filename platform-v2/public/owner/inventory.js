@@ -196,17 +196,30 @@
     }
 
     async function loadAll() {
+        message(el.authMessage);
+        let authError = null;
         try {
-            await Promise.all([loadInventory(), loadFulfillment()]);
-            el.authPanel.classList.add("hidden");
-            el.app.classList.remove("hidden");
+            await loadFulfillment();
         } catch (error) {
-            message(el.authMessage, error.message, "error");
-            if (error.status === 401 || error.status === 403) {
-                el.app.classList.add("hidden");
-                el.authPanel.classList.remove("hidden");
-            }
+            message(el.fulfillmentMessage, error.message, "error");
+            if (error.status === 401 || error.status === 403) authError = error;
         }
+        try {
+            await loadInventory();
+        } catch (error) {
+            state.inventory = [];
+            renderInventory();
+            message(el.inventoryMessage, error.message, "error");
+            if (error.status === 401 || error.status === 403) authError = error;
+        }
+        if (authError) {
+            message(el.authMessage, authError.message, "error");
+            el.app.classList.add("hidden");
+            el.authPanel.classList.remove("hidden");
+            return;
+        }
+        el.authPanel.classList.add("hidden");
+        el.app.classList.remove("hidden");
     }
 
     const firebaseConfig = window.OWNER_BOOTSTRAP?.firebase;
