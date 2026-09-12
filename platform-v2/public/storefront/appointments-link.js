@@ -20,8 +20,13 @@
         if (!link || !moduleGrid.contains(link)) return;
         const card = link.closest(".module-card");
         const title = card?.querySelector("h3")?.textContent?.trim();
-        if (title !== "Randevu") return;
+        const destination = title === "Randevu"
+            ? "appointments"
+            : title === "Teklif"
+                ? "quote"
+                : null;
+        if (!destination) return;
         event.preventDefault();
-        window.location.assign(`/m/${encodeURIComponent(tenantId)}/appointments`);
+        window.location.assign(`/m/${encodeURIComponent(tenantId)}/${destination}`);
     });
 })();
