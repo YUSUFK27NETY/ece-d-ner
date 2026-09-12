@@ -14,8 +14,8 @@ const {
 
 const INVENTORY_FEATURE = "inventory";
 const ORDERS_FEATURE = "orders";
-const INVENTORY_PERMISSION = "inventory.manage";
-const FULFILLMENT_PERMISSION = "fulfillment.manage";
+const INVENTORY_PERMISSION = "settings.manage";
+const FULFILLMENT_PERMISSION = "settings.manage";
 
 function safeError(code, message) {
     const error = new Error(message);
