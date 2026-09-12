@@ -62,6 +62,26 @@ function normalizeHttpsUrl(value, label) {
     return parsed.toString();
 }
 
+function normalizeChannelUrl(value, label, allowedHosts) {
+    const normalized = normalizeHttpsUrl(value, label);
+
+    if (!normalized) {
+        return null;
+    }
+
+    const parsed = new URL(normalized);
+    const hostname = parsed.hostname.toLowerCase();
+    const hostAllowed = allowedHosts.some(host =>
+        hostname === host || hostname.endsWith(`.${host}`)
+    );
+
+    if (!hostAllowed || parsed.username || parsed.password) {
+        throw new TypeError(`${label} izin verilen bir bağlantı olmalı.`);
+    }
+
+    return parsed.toString();
+}
+
 function normalizeDomain(value) {
     const domain = normalizeOptionalString(value, "Domain", 253);
 
@@ -118,6 +138,8 @@ function createTenantProfile(input = {}) {
         whatsapp: normalizePhone(input.whatsapp, "WhatsApp"),
         email: normalizeEmail(input.email),
         website: normalizeHttpsUrl(input.website, "Web sitesi"),
+        instagramUrl: normalizeChannelUrl(input.instagramUrl, "Instagram", ["instagram.com"]),
+        googleUrl: normalizeChannelUrl(input.googleUrl, "Google", ["google.com", "maps.app.goo.gl", "g.page"]),
         customDomain: normalizeDomain(input.customDomain),
         logoUrl: normalizeHttpsUrl(input.logoUrl, "Logo URL"),
         primaryColor: normalizeHexColor(input.primaryColor),
@@ -140,6 +162,7 @@ function mergeTenantProfile(current = {}, patch = {}) {
 module.exports = {
     createTenantProfile,
     mergeTenantProfile,
+    normalizeChannelUrl,
     normalizeDomain,
     normalizeHttpsUrl
 };
