@@ -99,6 +99,7 @@ const {
 } = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const { createTenantManagementService } = require("./src/tenant/tenant-management-service");
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
 const { createAppointmentService } = require("./src/appointments/appointment-service");
@@ -203,6 +204,10 @@ function startPlatformServer() {
         bindingRepository: tenantMemberBindingRepository
     });
     const auditWriter = createFirestoreAuditWriter({ db });
+    const tenantManagementService = createTenantManagementService({
+        tenantRegistry,
+        auditWriter
+    });
     const auditReader = createFirestoreAuditReader({ db });
     const lastAuditReadModel = createLastAuditReadModel({ auditReader });
     const webConfig = normalizeFirebaseWebConfig(
@@ -265,6 +270,7 @@ function startPlatformServer() {
     const publicChannelService = createPublicChannelService({
         tenantRegistry,
         entitlementService,
+        tenantManagementService,
         publicOrigin: process.env.PLATFORM_PUBLIC_ORIGIN ||
             process.env.RENDER_EXTERNAL_URL ||
             `http://127.0.0.1:${process.env.PLATFORM_PORT || process.env.PORT || 3100}`
