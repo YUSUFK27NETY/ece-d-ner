@@ -1,17 +1,6 @@
 (() => {
     "use strict";
 
-    const FEATURE_KEYS = Object.freeze([
-        "catalog",
-        "orders",
-        "appointments",
-        "reservations",
-        "whatsapp",
-        "inventory",
-        "quotes",
-        "fleet",
-        "gallery"
-    ]);
     const FEATURE_LABELS = Object.freeze({
         catalog: "Katalog",
         orders: "Sipariş",
@@ -20,6 +9,7 @@
         whatsapp: "WhatsApp",
         inventory: "Stok",
         quotes: "Teklif",
+        crm: "CRM",
         fleet: "Filo",
         gallery: "Galeri"
     });
@@ -37,6 +27,7 @@
 
     const state = {
         templates: new Map(),
+        featureKeys: Object.freeze([]),
         loaded: false,
         loading: false
     };
@@ -54,7 +45,21 @@
             : undefined;
     }
 
-    function projectTemplate(raw) {
+    function validFeatureKeys(rawFeatures) {
+        if (!isPlainRecord(rawFeatures)) return null;
+        const keys = Object.keys(rawFeatures);
+        if (keys.length < 1 || keys.length > 50 ||
+            keys.some(key => !SIMPLE_ID_PATTERN.test(key) || typeof rawFeatures[key] !== "boolean")) {
+            return null;
+        }
+        return Object.freeze(keys.sort());
+    }
+
+    function sameKeys(left, right) {
+        return left.length === right.length && left.every((key, index) => key === right[index]);
+    }
+
+    function projectTemplate(raw, expectedKeys = null) {
         if (!isPlainRecord(raw)) return null;
 
         const id = readOwn(raw, "id");
@@ -62,33 +67,26 @@
         const sector = readOwn(raw, "sector");
         const description = readOwn(raw, "description");
         const rawFeatures = readOwn(raw, "features");
+        const featureKeys = validFeatureKeys(rawFeatures);
 
         if (typeof id !== "string" || !SIMPLE_ID_PATTERN.test(id) ||
             typeof sector !== "string" || !SIMPLE_ID_PATTERN.test(sector) ||
             typeof label !== "string" || label.length < 2 || label.length > 80 ||
             typeof description !== "string" || description.length < 2 ||
-            description.length > 220 || !isPlainRecord(rawFeatures)) {
-            return null;
-        }
-
-        const rawFeatureKeys = Object.keys(rawFeatures);
-        if (rawFeatureKeys.length !== FEATURE_KEYS.length ||
-            rawFeatureKeys.some(key => !FEATURE_KEYS.includes(key))) {
+            description.length > 220 || !featureKeys ||
+            expectedKeys && !sameKeys(featureKeys, expectedKeys)) {
             return null;
         }
 
         const features = {};
-        for (const key of FEATURE_KEYS) {
-            const value = readOwn(rawFeatures, key);
-            if (typeof value !== "boolean") return null;
-            features[key] = value;
-        }
+        for (const key of featureKeys) features[key] = rawFeatures[key];
 
         return Object.freeze({
             id,
             label,
             sector,
             description,
+            featureKeys,
             features: Object.freeze(features)
         });
     }
@@ -99,58 +97,78 @@
         }
 
         const rawTemplates = readOwn(rawCatalog, "templates");
-        if (!Array.isArray(rawTemplates) || rawTemplates.length < 1 ||
-            rawTemplates.length > 50) {
+        if (!Array.isArray(rawTemplates) || rawTemplates.length < 1 || rawTemplates.length > 50) {
             return null;
         }
 
-        const templates = [];
-        const ids = new Set();
-        for (const raw of rawTemplates) {
-            const template = projectTemplate(raw);
+        const first = projectTemplate(rawTemplates[0]);
+        if (!first) return null;
+        const featureKeys = first.featureKeys;
+        const templates = [first];
+        const ids = new Set([first.id]);
+
+        for (const raw of rawTemplates.slice(1)) {
+            const template = projectTemplate(raw, featureKeys);
             if (!template || ids.has(template.id)) return null;
             ids.add(template.id);
             templates.push(template);
         }
 
-        return Object.freeze(templates);
+        return Object.freeze({ templates: Object.freeze(templates), featureKeys });
+    }
+
+    function featureLabel(key) {
+        return FEATURE_LABELS[key] || key.replace(/[-_]/g, " ");
+    }
+
+    function renderFeatureGrid(featureKeys) {
+        const fragment = document.createDocumentFragment();
+        for (const key of featureKeys) {
+            const label = document.createElement("label");
+            const input = document.createElement("input");
+            input.type = "checkbox";
+            input.dataset.feature = key;
+            label.append(input, document.createTextNode(` ${featureLabel(key)}`));
+            fragment.append(label);
+        }
+        featureGrid.replaceChildren(fragment);
     }
 
     function featureInputs() {
         return new Map(
             [...featureGrid.querySelectorAll("input[data-feature]")]
                 .map(input => [input.dataset.feature, input])
-                .filter(([key]) => FEATURE_KEYS.includes(key))
+                .filter(([key]) => state.featureKeys.includes(key))
         );
     }
 
     function enabledFeatureLabels(template) {
-        return FEATURE_KEYS
+        return state.featureKeys
             .filter(key => template.features[key])
-            .map(key => FEATURE_LABELS[key]);
+            .map(featureLabel);
     }
 
     function applyTemplate(template) {
         if (sectorInput.disabled) return;
 
         const inputs = featureInputs();
-        if (inputs.size !== FEATURE_KEYS.length) {
+        if (inputs.size !== state.featureKeys.length) {
             templateSummary.textContent = "Özellik alanları eksik; şablon uygulanmadı.";
             return;
         }
 
         sectorInput.value = template.sector;
-        for (const key of FEATURE_KEYS) {
-            inputs.get(key).checked = template.features[key];
-        }
+        for (const key of state.featureKeys) inputs.get(key).checked = template.features[key];
 
         const enabled = enabledFeatureLabels(template);
         templateSummary.textContent = `${template.description} Açık modüller: ${enabled.join(", ") || "yok"}.`;
     }
 
-    function renderCatalog(templates) {
-        state.templates = new Map(templates.map(template => [template.id, template]));
+    function renderCatalog(catalog) {
+        state.templates = new Map(catalog.templates.map(template => [template.id, template]));
+        state.featureKeys = catalog.featureKeys;
         state.loaded = true;
+        renderFeatureGrid(state.featureKeys);
         templateSelect.replaceChildren();
 
         const placeholder = document.createElement("option");
@@ -158,7 +176,7 @@
         placeholder.textContent = "Sektör şablonu seçin";
         templateSelect.append(placeholder);
 
-        for (const template of templates) {
+        for (const template of catalog.templates) {
             const option = document.createElement("option");
             option.value = template.id;
             option.textContent = template.label;
@@ -194,23 +212,10 @@
         if (!user) throw new Error("Oturum bulunamadı.");
 
         const token = await user.getIdToken();
-        const response = await fetch(path, {
-            headers: {
-                Authorization: `Bearer ${token}`
-            }
-        });
-
+        const response = await fetch(path, { headers: { Authorization: `Bearer ${token}` } });
         let body = null;
-        try {
-            body = await response.json();
-        } catch {
-            body = null;
-        }
-
-        if (!response.ok) {
-            throw new Error(body?.message || "Sektör şablonları alınamadı.");
-        }
-
+        try { body = await response.json(); } catch { body = null; }
+        if (!response.ok) throw new Error(body?.message || "Sektör şablonları alınamadı.");
         return body;
     }
 
@@ -222,12 +227,13 @@
 
         try {
             const body = await apiRequest("/api/platform/sector-templates");
-            const templates = projectCatalog(body?.catalog);
-            if (!templates) throw new Error("Sektör şablonu yanıtı geçersiz.");
-            renderCatalog(templates);
+            const catalog = projectCatalog(body?.catalog);
+            if (!catalog) throw new Error("Sektör şablonu yanıtı geçersiz.");
+            renderCatalog(catalog);
         } catch {
             state.loaded = false;
             state.templates = new Map();
+            state.featureKeys = Object.freeze([]);
             templateSelect.replaceChildren();
             const option = document.createElement("option");
             option.value = "";
@@ -250,16 +256,14 @@
         applyTemplate(template);
     });
 
-    const modeObserver = new MutationObserver(() => syncAvailability());
-    modeObserver.observe(sectorInput, {
-        attributes: true,
-        attributeFilter: ["disabled"]
-    });
+    const modeObserver = new MutationObserver(syncAvailability);
+    modeObserver.observe(sectorInput, { attributes: true, attributeFilter: ["disabled"] });
 
     firebase.auth().onAuthStateChanged(user => {
         if (!user) {
             state.loaded = false;
             state.templates = new Map();
+            state.featureKeys = Object.freeze([]);
             templateSelect.disabled = true;
             return;
         }
