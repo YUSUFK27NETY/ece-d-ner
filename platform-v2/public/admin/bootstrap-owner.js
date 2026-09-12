@@ -61,8 +61,10 @@
 
     function inviteLandingUrl(tenantId, inviteToken) {
         const url = new URL("/owner/accept-invite.html", window.location.origin);
-        url.searchParams.set("tenantId", tenantId);
-        url.searchParams.set("inviteToken", inviteToken);
+        const fragment = new URLSearchParams();
+        fragment.set("tenantId", tenantId);
+        fragment.set("inviteToken", inviteToken);
+        url.hash = fragment.toString();
         return url.toString();
     }
 
