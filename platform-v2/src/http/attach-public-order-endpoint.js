@@ -65,11 +65,14 @@ function sendPublicOrderError(res, error) {
         "ORDER_PRODUCT_UNAVAILABLE",
         "ORDER_PRODUCT_INVALID",
         "ORDER_PRICE_CHANGED",
-        "ORDER_TOTAL_INVALID"
+        "ORDER_TOTAL_INVALID",
+        "ORDER_FULFILLMENT_DISABLED",
+        "ORDER_OUT_OF_STOCK",
+        "ORDER_INVENTORY_STATE_CHANGED"
     ]).has(code)) {
         return res.status(409).json({
             success: false,
-            message: "Sipariş güncel ürün veya istek durumuyla uyuşmuyor."
+            message: "Sipariş güncel ürün, stok veya teslimat durumuyla uyuşmuyor."
         });
     }
     if (code === "ORDER_UNAVAILABLE") {
