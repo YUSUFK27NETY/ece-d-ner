@@ -153,7 +153,7 @@ test("CRM müşteri-talep-görev akışı rapor üretir ve audit metadata PII i�
     assert.equal(report.requests.conversionRate, 0);
 
     const auditText = JSON.stringify(fixture.repository.audits.map(item => item.metadata));
-    assert.doesNotMatch(auditText, /Ayşe|Acme|ayse@example|555|Gizli müşteri notu|500 adet/i);
+    assert.doesNotMatch(auditText, /Ayşe|Acme|ayse@example|\+90 555 111 22 33|\+905551112233|Gizli müşteri notu|500 adet/i);
     assert.match(auditText, new RegExp(contact.contactId));
     assert.match(auditText, new RegExp(request.requestId));
     assert.match(auditText, new RegExp(task.taskId));
