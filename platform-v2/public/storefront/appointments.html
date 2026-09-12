@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="robots" content="index,follow">
+    <meta name="theme-color" content="#111827">
+    <title>Randevu | Platform V2</title>
+    <link rel="stylesheet" href="/m/storefront.css">
+    <link rel="stylesheet" href="/m/appointments.css">
+    <script defer src="/m/appointments.js"></script>
+</head>
+<body>
+    <div class="appointment-page">
+        <header class="appointment-header">
+            <a id="back-link" class="appointment-back" href="#">← İşletmeye dön</a>
+            <div>
+                <span class="appointment-kicker">ONLINE RANDEVU</span>
+                <h1 id="brand-name">Randevu</h1>
+                <p id="timezone-label" class="appointment-muted"></p>
+            </div>
+        </header>
+
+        <main class="appointment-layout">
+            <section class="appointment-card">
+                <div class="appointment-step"><span>1</span><div><strong>Hizmet ve personel</strong><small>Randevu almak istediğiniz hizmeti seçin.</small></div></div>
+                <label>Hizmet
+                    <select id="service-select"><option value="">Hizmet seçin</option></select>
+                </label>
+                <label>Personel
+                    <select id="staff-select" disabled><option value="">Personel seçin</option></select>
+                </label>
+                <label>Tarih
+                    <input id="date-input" type="date" disabled>
+                </label>
+            </section>
+
+            <section class="appointment-card">
+                <div class="appointment-step"><span>2</span><div><strong>Uygun saat</strong><small>Yalnız işletmenin müsait saatleri gösterilir.</small></div></div>
+                <p id="slot-message" class="appointment-muted">Önce hizmet, personel ve tarih seçin.</p>
+                <div id="slot-grid" class="slot-grid"></div>
+            </section>
+
+            <section class="appointment-card">
+                <div class="appointment-step"><span>3</span><div><strong>İletişim bilgileri</strong><small>Seçtiğiniz saat işletmeye kaydedilir.</small></div></div>
+                <form id="appointment-form">
+                    <label>Ad Soyad
+                        <input id="customer-name" type="text" maxlength="100" autocomplete="name" required>
+                    </label>
+                    <label>Telefon
+                        <input id="customer-phone" type="tel" maxlength="32" autocomplete="tel" placeholder="05xx xxx xx xx" required>
+                    </label>
+                    <label>Not <span class="appointment-optional">(isteğe bağlı)</span>
+                        <textarea id="appointment-note" maxlength="500" rows="3"></textarea>
+                    </label>
+                    <div id="selection-summary" class="selection-summary hidden"></div>
+                    <p id="form-message" class="appointment-message" role="status" aria-live="polite"></p>
+                    <button id="submit-button" type="submit" class="appointment-submit" disabled>Randevuyu Oluştur</button>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <div id="success-modal" class="appointment-modal hidden" role="dialog" aria-modal="true" aria-labelledby="success-title">
+        <div class="appointment-modal-card">
+            <div class="appointment-success-icon">✓</div>
+            <h2 id="success-title">Randevu alındı</h2>
+            <p id="success-detail"></p>
+            <a id="success-back" class="appointment-submit appointment-link" href="#">İşletme sayfasına dön</a>
+        </div>
+    </div>
+</body>
+</html>
