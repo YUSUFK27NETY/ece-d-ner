@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#111827">
+    <title>Platform V2 | Owner Davetini Kabul Et</title>
+    <link rel="stylesheet" href="/admin/admin.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/accept-invite.js"></script>
+</head>
+<body>
+    <div class="center-shell">
+        <main class="panel auth-card">
+            <p class="eyebrow">Platform V2</p>
+            <h1>Owner Davetini Kabul Et</h1>
+            <p class="muted">Davet gönderilen e-posta adresini tekrar gir. Adres URL'ye veya tarayıcı depolamasına kaydedilmez.</p>
+            <form id="owner-invite-form" novalidate>
+                <label>
+                    Davet edilen e-posta
+                    <input id="owner-invite-email" type="email" autocomplete="email" maxlength="254" required>
+                </label>
+                <button id="owner-invite-accept" type="submit" class="primary">Davetimi Kabul Et</button>
+            </form>
+            <p id="owner-invite-message" class="message" role="status"></p>
+            <p id="owner-invite-next" hidden><a id="owner-console-link" href="/owner/">Owner paneline geç</a></p>
+        </main>
+    </div>
+</body>
+</html>
