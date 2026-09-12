@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <title>Stok & Teslimat | Platform V2</title>
+    <link rel="stylesheet" href="/owner/inventory.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/inventory.js"></script>
+</head>
+<body>
+    <header class="topbar">
+        <div><p class="eyebrow">Platform V2</p><h1>Stok & Teslimat</h1></div>
+        <nav><a href="/owner/">Panel</a><a href="/owner/orders.html">Siparişler</a></nav>
+    </header>
+
+    <main class="shell">
+        <section id="auth-panel" class="panel">
+            <h2>İşletme oturumu</h2>
+            <form id="login-form" class="form-grid">
+                <label>İşletme kodu<input id="tenant-id" autocomplete="off" required></label>
+                <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
+                <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
+                <button class="primary" type="submit">Giriş yap</button>
+            </form>
+            <p id="auth-message" class="message" role="status"></p>
+        </section>
+
+        <div id="app" class="hidden">
+            <section class="panel">
+                <div class="section-head"><div><p class="eyebrow">Sipariş kanalları</p><h2>Teslimat / Gel-al</h2></div><button id="save-fulfillment" class="primary" type="button">Kaydet</button></div>
+                <div class="switch-grid">
+                    <label><input id="delivery-enabled" type="checkbox"> Teslimat</label>
+                    <label><input id="pickup-enabled" type="checkbox"> Gel-al</label>
+                    <label><input id="takeaway-enabled" type="checkbox"> Paket / takeaway</label>
+                    <label><input id="dinein-enabled" type="checkbox"> Masada sipariş</label>
+                </div>
+                <p id="fulfillment-message" class="message" role="status"></p>
+            </section>
+
+            <section class="panel">
+                <div class="section-head"><div><p class="eyebrow">Envanter</p><h2>Ürün stokları</h2></div><button id="refresh" type="button">Yenile</button></div>
+                <p class="muted">Stok takibi kapalı ürünler sınırsız kabul edilir. Takip açık ürünlerde sipariş stoktan atomik düşer.</p>
+                <p id="inventory-message" class="message" role="status"></p>
+                <div id="inventory-list" class="list"></div>
+            </section>
+        </div>
+    </main>
+</body>
+</html>
