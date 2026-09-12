@@ -9,6 +9,7 @@ const {
     createFirestoreInventoryDeliveryRepository
 } = require("./src/firestore/firestore-inventory-delivery-repository");
 const { createFirestoreQuoteRepository } = require("./src/firestore/firestore-quote-repository");
+const { createFirestoreCrmRepository } = require("./src/firestore/firestore-crm-repository");
 const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
@@ -43,6 +44,7 @@ const {
     attachInventoryOwnerEndpoints
 } = require("./src/http/attach-inventory-owner-endpoints");
 const { attachQuoteOwnerEndpoints } = require("./src/http/attach-quote-owner-endpoints");
+const { attachCrmOwnerEndpoints } = require("./src/http/attach-crm-owner-endpoints");
 const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
@@ -101,6 +103,7 @@ const {
     createInventoryDeliveryService
 } = require("./src/inventory/inventory-delivery-service");
 const { createQuoteService } = require("./src/quotes/quote-service");
+const { createCrmService } = require("./src/crm/crm-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -282,6 +285,12 @@ function startPlatformServer() {
         repository: quoteRepository,
         entitlementService
     });
+    const crmRepository = createFirestoreCrmRepository({ db });
+    const crmService = createCrmService({
+        tenantRegistry,
+        repository: crmRepository,
+        entitlementService
+    });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
         entitlementService
@@ -401,6 +410,10 @@ function startPlatformServer() {
     attachQuoteOwnerEndpoints({
         app,
         quoteService
+    });
+    attachCrmOwnerEndpoints({
+        app,
+        crmService
     });
     attachPublicStorefrontRuntime({
         app,
