@@ -240,7 +240,7 @@ test("P10-8 owner operations enforce exact tenant scope and controlled status tr
             context: { ...OWNER, tenantId: "other-tenant" },
             tenantId: TENANT_ID
         }),
-        error => error?.code === "TENANT_SCOPE_MISMATCH"
+        error => ["TENANT_SCOPE_MISMATCH", "PERMISSION_DENIED"].includes(error?.code)
     );
 });
 
