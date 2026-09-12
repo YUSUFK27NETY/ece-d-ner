@@ -3,7 +3,7 @@ const { requireTenantId } = require("../tenant/tenant-id");
 const { requireProductId } = require("../catalog/product-model");
 
 const ORDER_SCHEMA_VERSION = 1;
-const ORDER_TYPES = Object.freeze(["delivery", "dine_in"]);
+const ORDER_TYPES = Object.freeze(["delivery", "dine_in", "takeaway", "pickup"]);
 const ORDER_STATUSES = Object.freeze([
     "pending",
     "preparing",
