@@ -46,6 +46,9 @@ const {
 const { attachQuoteOwnerEndpoints } = require("./src/http/attach-quote-owner-endpoints");
 const { attachCrmOwnerEndpoints } = require("./src/http/attach-crm-owner-endpoints");
 const {
+    attachPublicChannelOwnerEndpoints
+} = require("./src/http/attach-public-channel-owner-endpoints");
+const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
 const {
@@ -96,6 +99,7 @@ const {
 } = require("./src/security/security-operations-bridge");
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
+const { createTenantManagementService } = require("./src/tenant/tenant-management-service");
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
 const { createAppointmentService } = require("./src/appointments/appointment-service");
@@ -107,6 +111,7 @@ const { createCrmService } = require("./src/crm/crm-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
+const { createPublicChannelService } = require("./src/public/public-channel-service");
 const {
     createCommercialPlanPreviewService
 } = require("./src/entitlements/commercial-plan-preview-service");
@@ -199,6 +204,10 @@ function startPlatformServer() {
         bindingRepository: tenantMemberBindingRepository
     });
     const auditWriter = createFirestoreAuditWriter({ db });
+    const tenantManagementService = createTenantManagementService({
+        tenantRegistry,
+        auditWriter
+    });
     const auditReader = createFirestoreAuditReader({ db });
     const lastAuditReadModel = createLastAuditReadModel({ auditReader });
     const webConfig = normalizeFirebaseWebConfig(
@@ -257,6 +266,14 @@ function startPlatformServer() {
         tenantRegistry,
         productRepository,
         entitlementService
+    });
+    const publicChannelService = createPublicChannelService({
+        tenantRegistry,
+        entitlementService,
+        tenantManagementService,
+        publicOrigin: process.env.PLATFORM_PUBLIC_ORIGIN ||
+            process.env.RENDER_EXTERNAL_URL ||
+            `http://127.0.0.1:${process.env.PLATFORM_PORT || process.env.PORT || 3100}`
     });
     const inventoryDeliveryRepository = createFirestoreInventoryDeliveryRepository({ db });
     const inventoryDeliveryService = createInventoryDeliveryService({
@@ -398,6 +415,10 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachPublicChannelOwnerEndpoints({
+        app,
+        publicChannelService
     });
     attachAppointmentOwnerEndpoints({
         app,

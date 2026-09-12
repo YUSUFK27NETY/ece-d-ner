@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Paylaşım & Kanallar | İşletme Paneli</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/channels.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/channels.js"></script>
+</head>
+<body>
+    <div id="auth-panel" class="center-shell">
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">Platform V2</p><h1>Paylaşım & Kanallar</h1>
+            <p class="muted">İşletmenizin yayın bağlantısını ve teslim kanallarını yönetin.</p>
+            <label>İşletme kodu<input id="tenant-id" autocomplete="off" placeholder="firma-kodu" required></label>
+            <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
+            <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p id="auth-message" class="message" role="status"></p>
+        </form>
+    </div>
+
+    <div id="app" class="app hidden">
+        <header class="topbar">
+            <div><p class="eyebrow">Yayın / Teslim</p><h1>Paylaşım & Kanallar</h1><p class="muted">QR yalnız canonical public işletme bağlantısını taşır.</p></div>
+            <div class="top-actions"><a class="secondary channels-back" href="/owner/">Panele dön</a><button id="refresh" type="button" class="secondary">Yenile</button></div>
+        </header>
+        <main class="shell channels-shell">
+            <nav class="tabs" aria-label="İşletme paneli bölümleri">
+                <a class="tab" href="/owner/">Genel</a><a class="tab" href="/owner/orders.html">Siparişler</a>
+                <a class="tab" href="/owner/appointments.html">Randevular</a><a class="tab" href="/owner/inventory.html">Stok & Teslimat</a>
+                <a class="tab" href="/owner/quotes.html">Teklifler</a><a class="tab" href="/owner/crm.html">CRM</a>
+                <a class="tab active" href="/owner/channels.html">Paylaşım</a>
+            </nav>
+            <p id="workspace-message" class="message" role="status"></p>
+            <section class="channels-grid">
+                <section class="panel">
+                    <div class="section-head"><div><p class="eyebrow">Canonical URL</p><h2>Public işletme bağlantısı</h2></div><span id="public-status" class="badge"></span></div>
+                    <label>Direct link<input id="canonical-url" readonly></label>
+                    <div class="channel-actions">
+                        <button id="copy-url" type="button" class="primary compact">Bağlantıyı kopyala</button>
+                        <a id="open-url" class="secondary channels-link" href="#" target="_blank" rel="noopener">Public sayfayı aç</a>
+                    </div>
+                    <p class="muted">Bu URL kullanıcı girdisinden alınmaz; server tarafında tenant kimliğinden oluşturulur.</p>
+                </section>
+                <section class="panel qr-panel">
+                    <div class="section-head"><div><p class="eyebrow">QR</p><h2>Teslim QR kodu</h2></div></div>
+                    <div id="qr-preview" class="qr-preview" aria-label="Canonical public URL QR kodu"></div>
+                    <p id="qr-message" class="muted"></p>
+                    <a id="download-qr" class="primary channels-link disabled" download>QR SVG indir</a>
+                </section>
+            </section>
+            <section class="panel channel-settings-panel">
+                <div class="section-head"><div><p class="eyebrow">Kanal Ayarları</p><h2>İletişim ve sosyal bağlantılar</h2></div></div>
+                <form id="channel-form" class="channel-form" novalidate>
+                    <label>WhatsApp<input id="channel-whatsapp" maxlength="32" placeholder="+905551112233"></label>
+                    <label>Instagram URL<input id="channel-instagram" type="url" placeholder="https://instagram.com/..." maxlength="2048"></label>
+                    <label>Google / Maps URL<input id="channel-google" type="url" placeholder="https://www.google.com/maps/..." maxlength="2048"></label>
+                    <div class="channel-form-actions"><button id="save-channels" type="submit" class="primary">Kanalları kaydet</button></div>
+                </form>
+                <p class="muted">Instagram ve Google bağlantıları yalnız HTTPS ve izin verilen resmi hostlardan kabul edilir.</p>
+            </section>
+            <section class="panel channel-preview-panel">
+                <div class="section-head"><div><p class="eyebrow">Teslim Önizlemesi</p><h2>Yapılandırılmış kanallar</h2></div></div>
+                <div id="channel-list" class="channel-list"></div>
+            </section>
+        </main>
+    </div>
+</body>
+</html>
