@@ -15,6 +15,7 @@ const {
 const {
     createTenantRecord
 } = require("../src/tenant/tenant-record");
+const { FEATURE_CATALOG } = require("../src/tenant/feature-catalog");
 
 function platformContext() {
     return Object.freeze({
@@ -149,7 +150,7 @@ test("feature preview gained lost ve unchanged etkileri FEATURE_CATALOG üzerind
     assert.equal(feature(preview, "appointments").change, "gained");
     assert.equal(feature(preview, "orders").change, "lost");
     assert.equal(feature(preview, "catalog").change, "unchanged");
-    assert.equal(preview.features.length, 9);
+    assert.equal(preview.features.length, Object.keys(FEATURE_CATALOG).length);
     assert.equal(Object.isFrozen(preview.features), true);
     assert.equal(preview.features.every(Object.isFrozen), true);
 });
