@@ -6,6 +6,7 @@ const FEATURE_CATALOG = Object.freeze({
     whatsapp: Object.freeze({ defaultEnabled: false }),
     inventory: Object.freeze({ defaultEnabled: false }),
     quotes: Object.freeze({ defaultEnabled: false }),
+    crm: Object.freeze({ defaultEnabled: false }),
     fleet: Object.freeze({ defaultEnabled: false }),
     gallery: Object.freeze({ defaultEnabled: true })
 });
