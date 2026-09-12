@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Sipariş Operasyonu | Platform V2</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/orders.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/orders.js"></script>
+</head>
+<body>
+    <header class="topbar orders-topbar">
+        <div>
+            <p class="eyebrow">Platform V2 · Operasyon</p>
+            <h1>Siparişler</h1>
+            <p id="tenant-label" class="muted">İşletme yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+            <a id="back-link" class="secondary orders-link" href="/owner/">← İşletme paneli</a>
+            <button id="refresh-button" type="button" class="primary compact">Yenile</button>
+        </div>
+    </header>
+
+    <main class="orders-shell">
+        <section id="auth-required" class="panel auth-notice hidden">
+            <h2>Owner oturumu gerekli</h2>
+            <p class="muted">Siparişleri görmek için işletme panelinden giriş yapın.</p>
+            <a id="login-link" class="primary orders-link" href="/owner/">Giriş ekranına dön</a>
+        </section>
+
+        <section id="orders-app" class="hidden">
+            <div class="order-stats" aria-label="Sipariş özeti">
+                <article class="stat"><span>Toplam</span><strong id="stat-total">0</strong></article>
+                <article class="stat"><span>Bekliyor</span><strong id="stat-pending">0</strong></article>
+                <article class="stat"><span>Hazırlanıyor</span><strong id="stat-preparing">0</strong></article>
+                <article class="stat"><span>Hazır</span><strong id="stat-ready">0</strong></article>
+            </div>
+
+            <section class="panel">
+                <div class="section-head orders-heading">
+                    <div>
+                        <p class="eyebrow">Canlı operasyon</p>
+                        <h2>Sipariş akışı</h2>
+                    </div>
+                    <div class="order-filters">
+                        <label>
+                            Durum
+                            <select id="status-filter">
+                                <option value="all">Tümü</option>
+                                <option value="pending">Bekliyor</option>
+                                <option value="preparing">Hazırlanıyor</option>
+                                <option value="ready">Hazır</option>
+                                <option value="completed">Tamamlandı</option>
+                                <option value="cancelled">İptal</option>
+                            </select>
+                        </label>
+                        <label>
+                            Sipariş tipi
+                            <select id="fulfillment-filter">
+                                <option value="all">Tümü</option>
+                                <option value="dine_in">Masa</option>
+                                <option value="takeaway">Paket</option>
+                                <option value="pickup">Gel-Al</option>
+                                <option value="delivery">Teslimat</option>
+                            </select>
+                        </label>
+                    </div>
+                </div>
+                <p id="message" class="message" role="status" aria-live="polite"></p>
+                <div id="order-list" class="orders-list"></div>
+            </section>
+        </section>
+    </main>
+
+    <div id="order-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="order-modal-title">
+        <section class="modal-card order-modal-card">
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Sipariş detayı</p>
+                    <h2 id="order-modal-title">Sipariş</h2>
+                </div>
+                <button id="order-close" type="button" class="icon-button" aria-label="Kapat">×</button>
+            </div>
+            <div id="order-detail"></div>
+        </section>
+    </div>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
