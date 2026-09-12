@@ -8,6 +8,7 @@ const { createFirestoreAppointmentRepository } = require("./src/firestore/firest
 const {
     createFirestoreInventoryDeliveryRepository
 } = require("./src/firestore/firestore-inventory-delivery-repository");
+const { createFirestoreQuoteRepository } = require("./src/firestore/firestore-quote-repository");
 const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
@@ -41,6 +42,7 @@ const {
 const {
     attachInventoryOwnerEndpoints
 } = require("./src/http/attach-inventory-owner-endpoints");
+const { attachQuoteOwnerEndpoints } = require("./src/http/attach-quote-owner-endpoints");
 const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
@@ -50,6 +52,7 @@ const {
 const {
     attachPublicFulfillmentRuntime
 } = require("./src/http/attach-public-fulfillment-runtime");
+const { attachPublicQuoteRuntime } = require("./src/http/attach-public-quote-runtime");
 const {
     attachSecurityLaunchReviewEndpoint
 } = require("./src/http/attach-security-launch-review-endpoint");
@@ -97,6 +100,7 @@ const { createAppointmentService } = require("./src/appointments/appointment-ser
 const {
     createInventoryDeliveryService
 } = require("./src/inventory/inventory-delivery-service");
+const { createQuoteService } = require("./src/quotes/quote-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -272,6 +276,12 @@ function startPlatformServer() {
         appointmentRepository,
         entitlementService
     });
+    const quoteRepository = createFirestoreQuoteRepository({ db });
+    const quoteService = createQuoteService({
+        tenantRegistry,
+        repository: quoteRepository,
+        entitlementService
+    });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
         entitlementService
@@ -388,6 +398,10 @@ function startPlatformServer() {
         app,
         inventoryDeliveryService
     });
+    attachQuoteOwnerEndpoints({
+        app,
+        quoteService
+    });
     attachPublicStorefrontRuntime({
         app,
         storefrontService
@@ -399,6 +413,10 @@ function startPlatformServer() {
     attachPublicFulfillmentRuntime({
         app,
         inventoryDeliveryService
+    });
+    attachPublicQuoteRuntime({
+        app,
+        quoteService
     });
     attachSecurityLaunchReviewEndpoint({
         app,
