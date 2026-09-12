@@ -153,10 +153,12 @@ test("aktif tenant storefront güvenli public projection ve yalnız satılabilir
     assert.deepEqual(Object.keys(result.products[0]).sort(), [
         "category",
         "description",
+        "imageUrl",
         "name",
         "price",
         "productId"
     ]);
+    assert.equal(result.products[0].imageUrl, "");
     assert.equal(Object.hasOwn(result.tenant, "createdBy"), false);
     assert.equal(Object.hasOwn(result.tenant, "internalSecret"), false);
     assert.equal(Object.hasOwn(result.tenant.profile, "customDomain"), false);
