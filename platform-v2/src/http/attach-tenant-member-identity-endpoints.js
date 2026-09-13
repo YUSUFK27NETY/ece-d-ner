@@ -4,6 +4,10 @@ const {
     sendPlatformError
 } = require("./create-platform-app");
 const { createRequireTenantMember } = require("../auth/require-tenant-member");
+const {
+    deriveFirebaseSubjectRef,
+    requireTenantMemberRole
+} = require("../auth/tenant-member-subject");
 
 const INITIAL_OWNER_BOOTSTRAP_PATH =
     "/api/platform/tenants/:tenantId/admin-bootstrap/initial-owner";
@@ -12,6 +16,8 @@ const INITIAL_OWNER_INVITE_PATH =
 const INITIAL_OWNER_INVITE_ACCEPT_PATH =
     "/api/tenant-invitations/:tenantId/initial-owner/accept";
 const TENANT_MEMBER_SESSION_PATH = "/api/tenant/tenants/:tenantId/session";
+const TENANT_MEMBER_RESOLVE_SESSION_PATH = "/api/tenant/session";
+const OWNER_SESSION_ROLES = new Set(["tenant_owner", "tenant_admin"]);
 
 function requireExactBody(body, field, label) {
     if (!body || typeof body !== "object" || Array.isArray(body) ||
@@ -208,8 +214,81 @@ function attachTenantMemberIdentityEndpoints({
         });
     }
 
-    const requireTenantMember = createRequireTenantMember({ auth, bindingReader });
+    const ownerSessionLimiter = rateLimit({
+        windowMs: 15 * 60 * 1000,
+        max: 120,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: { success: false, message: "Çok fazla işletme oturumu isteği gönderildi." }
+    });
+
     app.use("/api/tenant", tenantCors);
+    app.get(TENANT_MEMBER_RESOLVE_SESSION_PATH, ownerSessionLimiter, async (req, res) => {
+        if (Reflect.ownKeys(req.query).length > 0) {
+            return res.status(400).json({ success: false, message: "Oturum sorgusu parametre kabul etmez." });
+        }
+        const idToken = bearerToken(req);
+        if (!idToken) {
+            return res.status(401).json({ success: false, message: "Firebase oturumu gerekli." });
+        }
+
+        let decoded;
+        try {
+            decoded = await auth.verifyIdToken(idToken, true);
+        } catch {
+            return res.status(401).json({ success: false, message: "Firebase oturumu geçersiz." });
+        }
+        if (!decoded || typeof decoded.uid !== "string" || !decoded.uid ||
+            decoded.platformAdmin === true) {
+            return res.status(403).json({ success: false, message: "İşletme hesabı yetkili değil." });
+        }
+
+        let subjectRef;
+        try {
+            subjectRef = deriveFirebaseSubjectRef(decoded.uid);
+        } catch {
+            return res.status(401).json({ success: false, message: "Firebase oturumu geçersiz." });
+        }
+        if (!bindingReader || typeof bindingReader.findActiveBySubject !== "function") {
+            return res.status(503).json({ success: false, message: "İşletme oturumu şu anda kullanılamıyor." });
+        }
+
+        let binding;
+        try {
+            binding = await bindingReader.findActiveBySubject({ subjectRef });
+        } catch (error) {
+            if (error?.code === "TENANT_MEMBER_AMBIGUOUS") {
+                return res.status(409).json({
+                    success: false,
+                    message: "Bu hesap birden fazla işletmeye bağlı."
+                });
+            }
+            return res.status(503).json({ success: false, message: "İşletme oturumu şu anda kullanılamıyor." });
+        }
+        if (!binding || binding.subjectRef !== subjectRef || binding.state !== "active") {
+            return res.status(403).json({ success: false, message: "İşletme hesabı yetkili değil." });
+        }
+
+        let role;
+        try {
+            role = requireTenantMemberRole(binding.role);
+        } catch {
+            return res.status(503).json({ success: false, message: "İşletme oturumu şu anda kullanılamıyor." });
+        }
+        if (!OWNER_SESSION_ROLES.has(role)) {
+            return res.status(403).json({ success: false, message: "İşletme hesabı yetkili değil." });
+        }
+
+        return res.json({
+            success: true,
+            session: Object.freeze({
+                tenantId: binding.tenantId,
+                role
+            })
+        });
+    });
+
+    const requireTenantMember = createRequireTenantMember({ auth, bindingReader });
     app.use("/api/tenant/tenants/:tenantId", requireTenantMember);
 
     app.get(TENANT_MEMBER_SESSION_PATH, (req, res) => res.json({
@@ -228,5 +307,6 @@ module.exports = {
     INITIAL_OWNER_INVITE_PATH,
     INITIAL_OWNER_INVITE_ACCEPT_PATH,
     TENANT_MEMBER_SESSION_PATH,
+    TENANT_MEMBER_RESOLVE_SESSION_PATH,
     attachTenantMemberIdentityEndpoints
 };
