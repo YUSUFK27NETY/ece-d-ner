@@ -18,7 +18,7 @@ function createTenant(tenantId = "ela-doner") {
         tenantId,
         displayName: tenantId === "ela-doner" ? "Ela Döner" : "Başka İşletme",
         sector: "restaurant",
-        status: "provisioning",
+        status: "active",
         plan: "starter",
         features: {
             catalog: true,
@@ -176,6 +176,7 @@ async function startServer() {
         app,
         auth,
         bindingReader,
+        tenantRegistry,
         initialOwnerBootstrapService: {
             async bindInitialOwner() {
                 throw new Error("not used");
