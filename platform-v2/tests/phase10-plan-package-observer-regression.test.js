@@ -9,7 +9,7 @@ const source = fs.readFileSync(
 );
 
 test("plan package relabeling is idempotent before MutationObserver writes", () => {
-    assert.match(source, /const expectedText = ` \\${text}`;/);
+    assert.ok(source.includes('const expectedText = ` ${text}`;'));
     assert.match(
         source,
         /if \(textNodes\.length === 1 && textNodes\[0\]\.textContent === expectedText\) \{\s*continue;\s*\}/
