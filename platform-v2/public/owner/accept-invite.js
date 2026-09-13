@@ -118,7 +118,7 @@
             await acceptServerInvite(inviteState.tenantId, inviteState.inviteToken, idToken);
             emailInput.value = "";
             scrubAfterSuccess(inviteState.tenantId);
-            ownerConsoleLink.href = `/owner/?tenantId=${encodeURIComponent(inviteState.tenantId)}`;
+            ownerConsoleLink.href = `/owner/?tenant=${encodeURIComponent(inviteState.tenantId)}`;
             next.hidden = false;
             form.hidden = true;
             setMessage("Owner daveti kabul edildi. İşletme sahibi hesabın artık aktif.", "success");
