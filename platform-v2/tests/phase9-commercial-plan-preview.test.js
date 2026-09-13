@@ -94,7 +94,14 @@ test("configured plan catalog yalnız config.plans ID'lerinden sabit güvenli pr
 
     assert.deepEqual(catalog, {
         schemaVersion: 1,
-        planIds: ["alpha-plan", "beta-plan", "default", "starter"]
+        planIds: [
+            "alpha-plan",
+            "beta-plan",
+            "business",
+            "business_pro",
+            "default",
+            "starter"
+        ]
     });
     assert.equal(Object.isFrozen(catalog), true);
     assert.equal(Object.isFrozen(catalog.planIds), true);
@@ -103,13 +110,18 @@ test("configured plan catalog yalnız config.plans ID'lerinden sabit güvenli pr
     assert.equal(JSON.stringify(catalog).includes("softRequestLimit"), false);
 });
 
-test("varsayılan catalog default ve starter planlarını raporlar", () => {
+test("varsayılan catalog desteklenen paket planlarını raporlar", () => {
     const config = loadPlatformGuardrailsConfig();
     const catalog = createService({ config }).getCatalog({
         context: platformContext()
     });
 
-    assert.deepEqual(catalog.planIds, ["default", "starter"]);
+    assert.deepEqual(catalog.planIds, [
+        "business",
+        "business_pro",
+        "default",
+        "starter"
+    ]);
 });
 
 test("unknown veya non-canonical target plan default policy'ye düşmeden reddedilir", () => {
