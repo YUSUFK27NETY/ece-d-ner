@@ -14,6 +14,7 @@ const {
 } = require("../media/product-media-upload-service");
 
 const OWNER_API_BASE = "/api/tenant/tenants/:tenantId/owner";
+const PUBLIC_MEDIA_PATH = "/media/:tenantId/products/:productId";
 const OWNER_CSP = [
     "default-src 'self'",
     "script-src 'self' https://www.gstatic.com",
@@ -139,6 +140,16 @@ function sendOwnerBusinessError(res, error) {
     return sendPlatformError(res, error);
 }
 
+function sendPublicMediaError(res, error) {
+    if (error?.code === "MEDIA_STORAGE_UNAVAILABLE") {
+        return res.status(503).type("text/plain").send("Medya geçici olarak kullanılamıyor.");
+    }
+    if (error?.code === "MEDIA_NOT_FOUND" || error instanceof TypeError) {
+        return res.status(404).type("text/plain").send("Görsel bulunamadı.");
+    }
+    return res.status(500).type("text/plain").send("Görsel alınamadı.");
+}
+
 function attachTenantOwnerRuntime({
     app,
     webConfig = null,
@@ -171,8 +182,29 @@ function attachTenantOwnerRuntime({
         : mediaUploadService;
     if (resolvedMediaUploadService !== null &&
         (!resolvedMediaUploadService ||
-            typeof resolvedMediaUploadService.uploadProductImage !== "function")) {
+            typeof resolvedMediaUploadService.uploadProductImage !== "function" ||
+            typeof resolvedMediaUploadService.readProductImage !== "function")) {
         throw new TypeError("Tenant owner media upload service geçersiz.");
+    }
+
+    if (resolvedMediaUploadService !== null) {
+        app.get(PUBLIC_MEDIA_PATH, async (req, res) => {
+            try {
+                if (Reflect.ownKeys(req.query).length > 0) {
+                    return res.status(400).type("text/plain").send("Geçersiz medya isteği.");
+                }
+                const media = await resolvedMediaUploadService.readProductImage({
+                    tenantId: req.params.tenantId,
+                    productId: req.params.productId
+                });
+                res.set("Cache-Control", "public, max-age=300, must-revalidate");
+                res.set("X-Content-Type-Options", "nosniff");
+                res.set("Cross-Origin-Resource-Policy", "cross-origin");
+                return res.type(media.contentType).send(media.body);
+            } catch (error) {
+                return sendPublicMediaError(res, error);
+            }
+        });
     }
 
     const ownerPublicDir = path.join(__dirname, "../../public/owner");
@@ -404,9 +436,11 @@ function attachTenantOwnerRuntime({
 
 module.exports = {
     OWNER_API_BASE,
+    PUBLIC_MEDIA_PATH,
     OWNER_CSP,
     OWNER_ROLES,
     attachTenantOwnerRuntime,
     projectOwnerTenant,
-    requireOwnerRole
+    requireOwnerRole,
+    sendPublicMediaError
 };
