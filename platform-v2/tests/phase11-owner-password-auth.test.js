@@ -23,15 +23,18 @@ test("permanent password setup requires a verified exact-tenant owner session", 
     assert.doesNotMatch(script, /innerHTML\s*=/);
 });
 
-test("owner login exposes password reset and reset flow uses Firebase action email", () => {
+test("owner login exposes password reset and reset flow returns to the fixed owner login", () => {
     const ownerHtml = read("../public/owner/index.html");
     const resetHtml = read("../public/owner/reset-password.html");
     const resetScript = read("../public/owner/reset-password.js");
 
     assert.match(ownerHtml, /\/owner\/reset-password\.html/);
     assert.match(resetHtml, /Şifre Sıfırla/);
+    assert.match(resetHtml, /id="reset-password-email"/);
+    assert.doesNotMatch(resetHtml, /reset-password-tenant|İşletme kodu/);
     assert.match(resetScript, /sendPasswordResetEmail/);
-    assert.match(resetScript, /searchParams\.set\("tenant", tenantId\)/);
+    assert.match(resetScript, /new URL\("\/owner\/", window\.location\.origin\)/);
+    assert.doesNotMatch(resetScript, /searchParams\.set\("tenant"|reset-password-tenant|tenantFromUrl/);
     assert.match(resetScript, /auth\/user-not-found/);
     assert.match(resetScript, /Hesap uygunsa şifre sıfırlama bağlantısı e-postana gönderildi/);
     assert.doesNotMatch(resetScript, /localStorage|sessionStorage/);
