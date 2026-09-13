@@ -206,13 +206,14 @@ test("media config tamamen yoksa özellik pasif kalır; kısmi config sessiz fal
 });
 
 test("owner media UI ve storefront media decorator güvenli static contract taşır", () => {
-    const ownerIndex = fs.readFileSync(path.join(__dirname, "../public/owner/index.html"), "utf8");
+    const ownerPanel = fs.readFileSync(path.join(__dirname, "../public/owner/panel.html"), "utf8");
     const mediaHtml = fs.readFileSync(path.join(__dirname, "../public/owner/media.html"), "utf8");
     const mediaJs = fs.readFileSync(path.join(__dirname, "../public/owner/media.js"), "utf8");
     const storefrontHtml = fs.readFileSync(path.join(__dirname, "../public/storefront/index.html"), "utf8");
     const storefrontMedia = fs.readFileSync(path.join(__dirname, "../public/storefront/media.js"), "utf8");
 
-    assert.match(ownerIndex, /href="\/owner\/media\.html"/);
+    assert.match(ownerPanel, /href="\/owner\/media\.html"/);
+    assert.match(mediaHtml, /Ürün Fotoğrafları/);
     assert.match(mediaJs, /input\.accept\s*=\s*"image\/jpeg,image\/png,image\/webp"/);
     assert.match(mediaJs, /media\/products\/\$\{encodeURIComponent\(product\.productId\)\}\/image/);
     assert.match(mediaJs, /getIdToken\(\)/);
