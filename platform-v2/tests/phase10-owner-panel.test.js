@@ -92,6 +92,18 @@ async function startServer() {
                 return { tenantId, subjectRef, role: "staff", state: "active" };
             }
             return null;
+        },
+        async findActiveBySubject({ subjectRef }) {
+            if (subjectRef === ownerSubject) {
+                return { tenantId: "ela-doner", subjectRef, role: "tenant_owner", state: "active" };
+            }
+            if (subjectRef === adminSubject) {
+                return { tenantId: "ela-doner", subjectRef, role: "tenant_admin", state: "active" };
+            }
+            if (subjectRef === staffSubject) {
+                return { tenantId: "ela-doner", subjectRef, role: "staff", state: "active" };
+            }
+            return null;
         }
     };
 
@@ -212,7 +224,7 @@ test("owner paneli ve Firebase config aynı V2 runtime'dan güvenli CSP ile sunu
         const panelResponse = await fetch(`${fixture.baseUrl}/owner/`);
         const panel = await panelResponse.text();
         assert.equal(panelResponse.status, 200);
-        assert.match(panel, /İşletme Paneli/);
+        assert.match(panel, /İşletme Girişi/);
         assert.match(panelResponse.headers.get("content-security-policy"), /www\.gstatic\.com/);
         assert.match(panelResponse.headers.get("content-security-policy"), /frame-ancestors 'none'/);
 
@@ -221,6 +233,32 @@ test("owner paneli ve Firebase config aynı V2 runtime'dan güvenli CSP ile sunu
         assert.equal(configResponse.status, 200);
         assert.match(config, /platform-example/);
         assert.doesNotMatch(config, /password|secret/i);
+    } finally {
+        await closeServer(fixture.server);
+    }
+});
+
+test("ortak owner session exact owner/admin hesabını tenant'a çözer ve platform/staff reddeder", async () => {
+    const fixture = await startServer();
+    const path = `${fixture.baseUrl}/api/tenant/session`;
+    try {
+        assert.equal((await fetch(path)).status, 401);
+        assert.equal((await fetch(path, { headers: authHeaders("platform-token") })).status, 403);
+        assert.equal((await fetch(path, { headers: authHeaders("staff-token") })).status, 403);
+
+        const ownerResponse = await fetch(path, { headers: authHeaders("owner-token") });
+        assert.equal(ownerResponse.status, 200);
+        assert.deepEqual(await ownerResponse.json(), {
+            success: true,
+            session: { tenantId: "ela-doner", role: "tenant_owner" }
+        });
+
+        const adminResponse = await fetch(path, { headers: authHeaders("admin-token") });
+        assert.equal(adminResponse.status, 200);
+        assert.deepEqual(await adminResponse.json(), {
+            success: true,
+            session: { tenantId: "ela-doner", role: "tenant_admin" }
+        });
     } finally {
         await closeServer(fixture.server);
     }
@@ -326,17 +364,23 @@ test("owner sipariş listesini görür ve yalnız exact tenant sipariş durumunu
     }
 });
 
-test("owner frontend güvenli DOM projection kullanır ve parola/token saklamaz", () => {
-    const html = fs.readFileSync(path.join(__dirname, "../public/owner/index.html"), "utf8");
-    const script = fs.readFileSync(path.join(__dirname, "../public/owner/owner.js"), "utf8");
+test("owner frontend giriş ve paneli ayırır; güvenli DOM kullanır ve parola/token saklamaz", () => {
+    const loginHtml = fs.readFileSync(path.join(__dirname, "../public/owner/index.html"), "utf8");
+    const panelHtml = fs.readFileSync(path.join(__dirname, "../public/owner/panel.html"), "utf8");
+    const loginScript = fs.readFileSync(path.join(__dirname, "../public/owner/login.js"), "utf8");
+    const panelScript = fs.readFileSync(path.join(__dirname, "../public/owner/owner.js"), "utf8");
 
-    assert.match(html, /id="tenant-id"/);
-    assert.match(html, /id="product-list"/);
-    assert.match(html, /id="order-list"/);
-    assert.match(script, /signInWithEmailAndPassword/);
-    assert.match(script, /getIdToken\(\)/);
-    assert.match(script, /textContent/);
-    assert.doesNotMatch(script, /innerHTML\s*=/);
-    assert.doesNotMatch(script, /localStorage/);
-    assert.doesNotMatch(script, /setItem\([^\n]*(password|token)/i);
+    assert.doesNotMatch(loginHtml, /id="tenant-id"/);
+    assert.match(loginHtml, /id="owner-email"/);
+    assert.match(loginHtml, /id="owner-password"/);
+    assert.match(panelHtml, /id="tenant-id" type="hidden"/);
+    assert.match(panelHtml, /id="product-list"/);
+    assert.match(panelHtml, /id="order-list"/);
+    assert.match(loginScript, /signInWithEmailAndPassword/);
+    assert.match(loginScript, /getIdToken\(\)/);
+    assert.match(panelScript, /getIdToken\(\)/);
+    assert.match(panelScript, /textContent/);
+    assert.doesNotMatch(`${loginScript}\n${panelScript}`, /innerHTML\s*=/);
+    assert.doesNotMatch(`${loginScript}\n${panelScript}`, /localStorage/);
+    assert.doesNotMatch(`${loginScript}\n${panelScript}`, /setItem\([^\n]*(password|token)/i);
 });
