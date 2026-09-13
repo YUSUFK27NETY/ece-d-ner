@@ -4,122 +4,189 @@ const fs = require("node:fs");
 const path = require("node:path");
 
 const {
-    createInMemoryProductImageStorageAdapter,
+    createProductRecord,
+    applyProductPatch,
+    projectProduct
+} = require("../src/catalog/product-model");
+const {
+    MAX_MEDIA_BYTES,
+    createConfiguredProductMediaUploadService,
     createProductMediaUploadService,
-    createConfiguredProductMediaUploadService
+    matchesSignature
 } = require("../src/media/product-media-upload-service");
+const { projectPublicProduct } = require("../src/public/public-storefront-service");
 
-function jpegBytes() {
-    return Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46]);
+const NOW = new Date("2026-09-12T03:00:00.000Z");
+
+function pngBytes(extra = 16) {
+    return Buffer.concat([
+        Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+        Buffer.alloc(extra)
+    ]);
 }
 
-function pngBytes() {
-    return Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+function jpegBytes(extra = 16) {
+    return Buffer.concat([Buffer.from([0xff, 0xd8, 0xff]), Buffer.alloc(extra)]);
 }
 
-function webpBytes() {
-    return Buffer.from("RIFFxxxxWEBP", "ascii");
+function webpBytes(extra = 16) {
+    return Buffer.concat([
+        Buffer.from("RIFF", "ascii"),
+        Buffer.alloc(4),
+        Buffer.from("WEBP", "ascii"),
+        Buffer.alloc(extra)
+    ]);
 }
 
-test("media upload exact tenant/product key üretir, type/size/signature sınırlarını uygular", async () => {
-    const storage = createInMemoryProductImageStorageAdapter();
-    const service = createProductMediaUploadService({ storage });
+test("catalog product imageUrl HTTPS olarak create/patch/project edilir ve boş değerle kaldırılır", () => {
+    const created = createProductRecord({
+        tenantId: "ela-doner",
+        productId: "doner-1",
+        draft: {
+            name: "Ela Dürüm",
+            category: "Döner",
+            price: 220,
+            imageUrl: "https://media.example.com/media/ela-doner/products/doner-1"
+        },
+        now: NOW
+    });
+    assert.equal(created.imageUrl, "https://media.example.com/media/ela-doner/products/doner-1");
+    assert.equal(projectProduct(created).imageUrl, created.imageUrl);
 
-    for (const [contentType, body] of [
-        ["image/jpeg", jpegBytes()],
-        ["image/png", pngBytes()],
-        ["image/webp", webpBytes()]
-    ]) {
-        const productId = contentType.split("/")[1];
-        const result = await service.uploadProductImage({
-            tenantId: "ela-doner",
-            productId,
-            body,
-            contentType
-        });
-        assert.equal(result.tenantId, "ela-doner");
-        assert.equal(result.productId, productId);
-        assert.equal(result.contentType, contentType);
-        assert.equal(result.bytes, body.length);
-        assert.match(result.imageUrl, new RegExp(`^/media/ela-doner/products/${productId}$`));
-    }
+    const changed = applyProductPatch(created, {
+        imageUrl: "https://cdn.example.com/products/doner-1.webp"
+    }, new Date(NOW.getTime() + 1000));
+    assert.equal(changed.imageUrl, "https://cdn.example.com/products/doner-1.webp");
+
+    const removed = applyProductPatch(changed, { imageUrl: "" }, new Date(NOW.getTime() + 2000));
+    assert.equal(removed.imageUrl, "");
+
+    assert.throws(() => createProductRecord({
+        tenantId: "ela-doner",
+        productId: "bad-http",
+        draft: { name: "Bad", category: "Test", price: 1, imageUrl: "http://example.com/a.jpg" },
+        now: NOW
+    }), /imageUrl/);
+    assert.throws(() => applyProductPatch(created, {
+        imageUrl: "https://user:pass@example.com/a.jpg"
+    }, NOW), /imageUrl/);
+});
+
+test("eski product kaydı imageUrl olmadan geriye uyumlu normalize edilir", () => {
+    const stored = {
+        schemaVersion: 1,
+        tenantId: "ela-doner",
+        productId: "legacy-1",
+        name: "Eski Ürün",
+        category: "Döner",
+        price: 180,
+        description: "",
+        available: true,
+        archived: false,
+        createdAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString()
+    };
+    assert.equal(projectProduct(stored).imageUrl, "");
+});
+
+test("public storefront ürün projection yalnız güvenli catalog alanları ve imageUrl taşır", () => {
+    const product = createProductRecord({
+        tenantId: "ela-doner",
+        productId: "p1",
+        draft: {
+            name: "Döner",
+            category: "Ana",
+            price: 200,
+            description: "Günlük",
+            imageUrl: "https://media.example.com/p1"
+        },
+        now: NOW
+    });
+    const projected = projectPublicProduct(product);
+    assert.deepEqual(Object.keys(projected).sort(), [
+        "category", "description", "imageUrl", "name", "price", "productId"
+    ]);
+    assert.equal(projected.imageUrl, "https://media.example.com/p1");
+    assert.equal(Object.hasOwn(projected, "tenantId"), false);
+    assert.equal(Object.hasOwn(projected, "createdAt"), false);
+});
+
+test("media signature kontrolü JPEG/PNG/WebP kabul eder ve sahte payload reddeder", () => {
+    assert.equal(matchesSignature(jpegBytes(), "image/jpeg"), true);
+    assert.equal(matchesSignature(pngBytes(), "image/png"), true);
+    assert.equal(matchesSignature(webpBytes(), "image/webp"), true);
+    assert.equal(matchesSignature(Buffer.alloc(32), "image/jpeg"), false);
+    assert.equal(matchesSignature(Buffer.from("RIFF0000NOPE"), "image/webp"), false);
+});
+
+test("media upload exact tenant/product key kullanır ve public URL döndürür", async () => {
+    const calls = [];
+    const service = createProductMediaUploadService({
+        storageProvider: {
+            async putObject(args) {
+                calls.push(args);
+                return { etag: "etag-1" };
+            }
+        },
+        publicBaseUrl: "https://media.example.com"
+    });
+
+    const payload = pngBytes();
+    const result = await service.uploadProductImage({
+        tenantId: "ela-doner",
+        productId: "p1",
+        body: payload,
+        contentType: "image/png"
+    });
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].key, "media/ela-doner/products/p1");
+    assert.equal(calls[0].contentType, "image/png");
+    assert.equal(calls[0].body, payload);
+    assert.deepEqual(calls[0].metadata, { tenant: "ela-doner", product: "p1" });
+    assert.equal(result.imageUrl, "https://media.example.com/media/ela-doner/products/p1");
+    assert.equal(result.size, payload.length);
+});
+
+test("media upload type/signature/size doğrulamasında fail-closed davranır", async () => {
+    const service = createProductMediaUploadService({
+        storageProvider: { async putObject() { throw new Error("should not run"); } },
+        publicBaseUrl: "https://media.example.com"
+    });
 
     await assert.rejects(() => service.uploadProductImage({
         tenantId: "ela-doner",
-        productId: "bad-type",
-        body: Buffer.from("GIF89a"),
+        productId: "p1",
+        body: pngBytes(),
         contentType: "image/gif"
     }), error => error?.code === "MEDIA_TYPE_UNSUPPORTED");
 
     await assert.rejects(() => service.uploadProductImage({
         tenantId: "ela-doner",
-        productId: "bad-signature",
-        body: Buffer.from("not-a-png"),
+        productId: "p1",
+        body: Buffer.alloc(32),
         contentType: "image/png"
     }), error => error?.code === "MEDIA_SIGNATURE_INVALID");
 
-    const tinyLimitService = createProductMediaUploadService({ storage, maxBytes: 8 });
-    await assert.rejects(() => tinyLimitService.uploadProductImage({
+    const tooLarge = Buffer.alloc(MAX_MEDIA_BYTES + 1);
+    tooLarge.set(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), 0);
+    await assert.rejects(() => service.uploadProductImage({
         tenantId: "ela-doner",
-        productId: "too-large",
-        body: jpegBytes(),
-        contentType: "image/jpeg"
+        productId: "p1",
+        body: tooLarge,
+        contentType: "image/png"
     }), error => error?.code === "MEDIA_SIZE_INVALID");
 });
 
-test("media storage exact tenant isolation korur ve overwrite aynı exact key ile sınırlıdır", async () => {
-    const storage = createInMemoryProductImageStorageAdapter();
-    const service = createProductMediaUploadService({ storage });
-
-    const first = jpegBytes();
-    const second = Buffer.concat([jpegBytes(), Buffer.from([0x01])]);
-    await service.uploadProductImage({
-        tenantId: "ela-doner",
-        productId: "p1",
-        body: first,
-        contentType: "image/jpeg"
-    });
-    await service.uploadProductImage({
-        tenantId: "baska-isletme",
-        productId: "p1",
-        body: pngBytes(),
-        contentType: "image/png"
-    });
-    await service.uploadProductImage({
-        tenantId: "ela-doner",
-        productId: "p1",
-        body: second,
-        contentType: "image/jpeg"
-    });
-
-    const tenantOne = await service.readProductImage({ tenantId: "ela-doner", productId: "p1" });
-    const tenantTwo = await service.readProductImage({ tenantId: "baska-isletme", productId: "p1" });
-    assert.deepEqual(tenantOne.body, second);
-    assert.equal(tenantOne.contentType, "image/jpeg");
-    assert.deepEqual(tenantTwo.body, pngBytes());
-    assert.equal(tenantTwo.contentType, "image/png");
-
-    await assert.rejects(() => service.readProductImage({
-        tenantId: "ucuncu-isletme",
-        productId: "p1"
-    }), error => error?.code === "MEDIA_NOT_FOUND");
-});
-
-test("configured media service tam config ister ve private provider hatasını sanitize eder", async () => {
-    const storage = {
-        async putObject() {
-            const error = new Error("private-provider-marker");
-            error.code = "R2_HTTP_500";
-            throw error;
-        },
-        async getObject() {
-            const error = new Error("private-provider-marker");
-            error.code = "R2_HTTP_500";
-            throw error;
-        }
-    };
+test("media storage hatası provider detayını sızdırmadan 503 semantics üretir", async () => {
     const service = createProductMediaUploadService({
-        storage,
+        storageProvider: {
+            async putObject() {
+                const error = new Error("private-provider-marker");
+                error.code = "R2_HTTP_500";
+                throw error;
+            }
+        },
         publicBaseUrl: "https://media.example.com"
     });
     await assert.rejects(() => service.uploadProductImage({
