@@ -20,17 +20,17 @@ test("owner panel exposes passwordless login for invite-created owners", () => {
     assert.match(loginScript, /signInWithEmailLink/);
     assert.match(loginScript, /isSignInWithEmailLink/);
     assert.match(loginScript, /handleCodeInApp:\s*true/);
-    assert.match(loginScript, /\/owner\/\?tenant=/);
+    assert.match(loginScript, /\/owner\/set-password\.html\?tenant=/);
     assert.doesNotMatch(loginScript, /localStorage|sessionStorage/);
     assert.doesNotMatch(loginScript, /innerHTML\s*=/);
     assert.doesNotMatch(loginScript, /console\./);
 });
 
-test("accepted owner handoff uses the tenant query key understood by owner panel", () => {
+test("accepted owner handoff uses the tenant query key and permanent password setup", () => {
     const acceptScript = read("../public/owner/accept-invite.js");
     const ownerScript = read("../public/owner/owner.js");
 
-    assert.match(acceptScript, /ownerConsoleLink\.href = `\/owner\/\?tenant=\$\{encodeURIComponent\(inviteState\.tenantId\)\}`/);
+    assert.match(acceptScript, /ownerConsoleLink\.href = `\/owner\/set-password\.html\?tenant=\$\{encodeURIComponent\(inviteState\.tenantId\)\}`/);
     assert.match(ownerScript, /params\.get\("tenant"\)/);
     assert.doesNotMatch(acceptScript, /ownerConsoleLink\.href = `\/owner\/\?tenantId=/);
 });
@@ -38,7 +38,7 @@ test("accepted owner handoff uses the tenant query key understood by owner panel
 test("passwordless login URL contains tenant only, never raw email", () => {
     const loginScript = read("../public/owner/email-login.js");
     const start = loginScript.indexOf("function ownerLoginUrl");
-    const end = loginScript.indexOf("function ownerPanelUrl");
+    const end = loginScript.indexOf("function setPasswordUrl");
     const loginUrlFunction = loginScript.slice(start, end);
 
     assert.ok(start >= 0 && end > start);
