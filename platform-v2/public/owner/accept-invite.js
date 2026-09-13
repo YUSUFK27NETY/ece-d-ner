@@ -118,10 +118,10 @@
             await acceptServerInvite(inviteState.tenantId, inviteState.inviteToken, idToken);
             emailInput.value = "";
             scrubAfterSuccess(inviteState.tenantId);
-            ownerConsoleLink.href = `/owner/?tenant=${encodeURIComponent(inviteState.tenantId)}`;
+            ownerConsoleLink.href = `/owner/set-password.html?tenant=${encodeURIComponent(inviteState.tenantId)}`;
             next.hidden = false;
             form.hidden = true;
-            setMessage("Owner daveti kabul edildi. İşletme sahibi hesabın artık aktif.", "success");
+            setMessage("Owner daveti kabul edildi. Şimdi kalıcı şifreni belirle.", "success");
         } catch (error) {
             setMessage(error?.message || "Owner daveti kabul edilemedi.", "error");
             setEnabled(true);
