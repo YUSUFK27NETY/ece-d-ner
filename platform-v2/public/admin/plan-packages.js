@@ -153,10 +153,15 @@
             const text = FEATURE_LABELS[input.dataset.feature];
             if (!text) continue;
 
+            const expectedText = ` ${text}`;
             const textNodes = [...label.childNodes]
                 .filter(node => node.nodeType === 3);
+            if (textNodes.length === 1 && textNodes[0].textContent === expectedText) {
+                continue;
+            }
+
             for (const node of textNodes) node.remove();
-            label.append(documentRef.createTextNode(` ${text}`));
+            label.append(documentRef.createTextNode(expectedText));
         }
     }
 
