@@ -66,8 +66,8 @@
         return url.toString();
     }
 
-    function ownerPanelUrl(tenantId) {
-        return `/owner/?tenant=${encodeURIComponent(tenantId)}`;
+    function setPasswordUrl(tenantId) {
+        return `/owner/set-password.html?tenant=${encodeURIComponent(tenantId)}`;
     }
 
     if (!firebaseConfig || typeof firebase === "undefined" || !firebase.auth) {
@@ -84,7 +84,7 @@
 
     if (completing) {
         submitButton.textContent = "Girişi tamamla";
-        setMessage("E-posta bağlantısı doğrulandı. Davetin bağlı olduğu e-posta adresini tekrar gir.");
+        setMessage("E-posta bağlantısı doğrulandı. Hesaba bağlı e-posta adresini tekrar gir.");
     }
 
     form.addEventListener("submit", async event => {
@@ -110,7 +110,7 @@
             if (completing) {
                 await firebase.auth().signInWithEmailLink(email, emailLink);
                 emailInput.value = "";
-                window.location.replace(ownerPanelUrl(tenantId));
+                window.location.replace(setPasswordUrl(tenantId));
                 return;
             }
 
@@ -119,7 +119,7 @@
                 handleCodeInApp: true
             });
             emailInput.value = "";
-            setMessage("Giriş bağlantısı e-postana gönderildi. Bağlantıyı açıp bu ekrandan girişi tamamla.", "success");
+            setMessage("Giriş bağlantısı e-postana gönderildi. Bağlantıyı açıp girişi tamamla.", "success");
         } catch {
             setMessage("Giriş bağlantısı işlemi tamamlanamadı. E-posta ve işletme kodunu kontrol et.", "error");
         } finally {
