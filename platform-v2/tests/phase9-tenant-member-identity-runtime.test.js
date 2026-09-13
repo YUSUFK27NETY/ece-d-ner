@@ -210,7 +210,7 @@ test("existing owner slot conflict transactionda partial member/evidence/audit w
         path.startsWith(`tenants/${TENANT_ID}/audit/`)), false);
 });
 
-test("tenant member session Firebase token + exact tenant binding ile çözülür; cross-tenant fail-closed", async () => {
+test("tenant member session Firebase token + exact tenant binding + active lifecycle ile çözülür", async () => {
     const subjectRef = deriveFirebaseSubjectRef(UID);
     const app = express();
     app.use(express.json());
@@ -228,25 +228,40 @@ test("tenant member session Firebase token + exact tenant binding ile çözülü
             throw new Error("invalid token marker");
         }
     };
+    const activeBinding = () => ({
+        schemaVersion: 1,
+        tenantId: TENANT_ID,
+        subjectRef,
+        role: "tenant_owner",
+        source: "firebase_auth",
+        state: "active",
+        createdAt: NOW.toISOString(),
+        updatedAt: NOW.toISOString()
+    });
     const bindingReader = {
         async getBySubject({ tenantId, subjectRef: requestedSubject }) {
             if (tenantId !== TENANT_ID || requestedSubject !== subjectRef) return null;
-            return {
-                schemaVersion: 1,
-                tenantId,
-                subjectRef,
-                role: "tenant_owner",
-                source: "firebase_auth",
-                state: "active",
-                createdAt: NOW.toISOString(),
-                updatedAt: NOW.toISOString()
-            };
+            return activeBinding();
+        },
+        async findActiveBySubject({ subjectRef: requestedSubject }) {
+            if (requestedSubject !== subjectRef) return null;
+            return activeBinding();
+        }
+    };
+    let tenantStatus = "active";
+    let tenantReadFails = false;
+    const tenantRegistry = {
+        async getById(tenantId) {
+            if (tenantReadFails) throw new Error("tenant registry unavailable marker");
+            if (tenantId !== TENANT_ID) return null;
+            return { ...tenantRecord(), status: tenantStatus };
         }
     };
     attachTenantMemberIdentityEndpoints({
         app,
         auth,
         bindingReader,
+        tenantRegistry,
         initialOwnerBootstrapService: {
             async bindInitialOwner() { throw new Error("not used"); }
         }
@@ -256,6 +271,15 @@ test("tenant member session Firebase token + exact tenant binding ile çözülü
     const base = `http://127.0.0.1:${server.address().port}`;
     try {
         let response = await fetch(`${base}/api/tenant/tenants/${TENANT_ID}/session`, {
+            headers: { Authorization: "Bearer owner-token" }
+        });
+        assert.equal(response.status, 200);
+        assert.deepEqual(await response.json(), {
+            success: true,
+            session: { tenantId: TENANT_ID, role: "tenant_owner" }
+        });
+
+        response = await fetch(`${base}/api/tenant/session`, {
             headers: { Authorization: "Bearer owner-token" }
         });
         assert.equal(response.status, 200);
@@ -276,6 +300,31 @@ test("tenant member session Firebase token + exact tenant binding ile çözülü
 
         response = await fetch(`${base}/api/tenant/tenants/${TENANT_ID}/session`);
         assert.equal(response.status, 401);
+
+        for (const status of ["provisioning", "suspended", "archived"]) {
+            tenantStatus = status;
+            response = await fetch(`${base}/api/tenant/tenants/${TENANT_ID}/session`, {
+                headers: { Authorization: "Bearer owner-token" }
+            });
+            assert.equal(response.status, 403, `${status} scoped session fail-closed olmalı`);
+
+            response = await fetch(`${base}/api/tenant/session`, {
+                headers: { Authorization: "Bearer owner-token" }
+            });
+            assert.equal(response.status, 403, `${status} resolver fail-closed olmalı`);
+        }
+
+        tenantStatus = "active";
+        tenantReadFails = true;
+        response = await fetch(`${base}/api/tenant/tenants/${TENANT_ID}/session`, {
+            headers: { Authorization: "Bearer owner-token" }
+        });
+        assert.equal(response.status, 503);
+
+        response = await fetch(`${base}/api/tenant/session`, {
+            headers: { Authorization: "Bearer owner-token" }
+        });
+        assert.equal(response.status, 503);
     } finally {
         await new Promise(resolve => server.close(resolve));
     }
@@ -293,7 +342,11 @@ test("Platform Admin bootstrap HTTP yalnız firebaseUid alır ve UID response'a 
     attachTenantMemberIdentityEndpoints({
         app,
         auth: { async verifyIdToken() { throw new Error("not used"); } },
-        bindingReader: { async getBySubject() { return null; } },
+        bindingReader: {
+            async getBySubject() { return null; },
+            async findActiveBySubject() { return null; }
+        },
+        tenantRegistry: { async getById() { return null; } },
         initialOwnerBootstrapService: {
             async bindInitialOwner(input) {
                 calls.push(input);
