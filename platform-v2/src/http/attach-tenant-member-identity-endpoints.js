@@ -119,12 +119,16 @@ function attachTenantMemberIdentityEndpoints({
     app,
     auth,
     bindingReader,
+    tenantRegistry,
     initialOwnerBootstrapService,
     allowedOrigins = []
 }) {
     if (!app || typeof app.use !== "function" || typeof app.get !== "function" ||
         typeof app.post !== "function") {
         throw new TypeError("Tenant member identity endpoint app geçersiz.");
+    }
+    if (!tenantRegistry || typeof tenantRegistry.getById !== "function") {
+        throw new TypeError("Tenant member lifecycle reader geçersiz.");
     }
     if (!initialOwnerBootstrapService ||
         typeof initialOwnerBootstrapService.bindInitialOwner !== "function") {
@@ -279,6 +283,16 @@ function attachTenantMemberIdentityEndpoints({
             return res.status(403).json({ success: false, message: "İşletme hesabı yetkili değil." });
         }
 
+        let tenant;
+        try {
+            tenant = await tenantRegistry.getById(binding.tenantId);
+        } catch {
+            return res.status(503).json({ success: false, message: "İşletme durumu şu anda doğrulanamıyor." });
+        }
+        if (!tenant || tenant.tenantId !== binding.tenantId || tenant.status !== "active") {
+            return res.status(403).json({ success: false, message: "İşletme erişimi aktif değil." });
+        }
+
         return res.json({
             success: true,
             session: Object.freeze({
@@ -288,7 +302,11 @@ function attachTenantMemberIdentityEndpoints({
         });
     });
 
-    const requireTenantMember = createRequireTenantMember({ auth, bindingReader });
+    const requireTenantMember = createRequireTenantMember({
+        auth,
+        bindingReader,
+        tenantReader: tenantRegistry
+    });
     app.use("/api/tenant/tenants/:tenantId", requireTenantMember);
 
     app.get(TENANT_MEMBER_SESSION_PATH, (req, res) => res.json({
