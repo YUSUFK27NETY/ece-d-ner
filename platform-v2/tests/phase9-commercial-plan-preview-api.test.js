@@ -173,7 +173,14 @@ test("catalog endpoint yalnız issued config plan ID catalogunu döndürür", as
             success: true,
             catalog: {
                 schemaVersion: 1,
-                planIds: ["alpha-plan", "beta-plan", "default", "starter"]
+                planIds: [
+                    "alpha-plan",
+                    "beta-plan",
+                    "business",
+                    "business_pro",
+                    "default",
+                    "starter"
+                ]
             }
         });
         assert.equal(JSON.stringify(body).includes("allowedFeatures"), false);
