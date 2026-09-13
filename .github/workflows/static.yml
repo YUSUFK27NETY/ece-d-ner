@@ -27,50 +27,8 @@ jobs:
           cache: npm
       - name: Install dependencies
         run: npm ci
-      - name: Check static assets
-        run: npm run check
-      - name: Test common owner login contract
-        run: node --test platform-v2/tests/phase12-owner-common-login.test.js
-      - name: Test owner panel integration
-        run: node --test platform-v2/tests/phase10-owner-panel.test.js
-      - name: Test media catalog regression
-        run: node --test platform-v2/tests/phase10-media-catalog.test.js
-      - name: Test passwordless regression
-        run: node --test platform-v2/tests/phase10-owner-passwordless-login.test.js
-      - name: Test appointment runtime
-        run: node --test platform-v2/tests/phase10-appointment-runtime.test.js
-      - name: Test CRM requests tasks reporting
-        run: node --test platform-v2/tests/phase10-crm-requests-tasks-reporting.test.js
-      - name: Test inventory delivery
-        run: node --test platform-v2/tests/phase10-inventory-delivery.test.js
-      - name: Test order operations
-        run: node --test platform-v2/tests/phase10-order-operations.test.js
-      - name: Test owner email invite
-        run: node --test platform-v2/tests/phase10-owner-email-invite.test.js
-      - name: Test plan observer regression
-        run: node --test platform-v2/tests/phase10-plan-package-observer-regression.test.js
-      - name: Test plan package presets
-        run: node --test platform-v2/tests/phase10-plan-package-presets.test.js
-      - name: Test backup drill wiring
-        run: node --test platform-v2/tests/phase10-production-backup-drill-wiring.test.js
-      - name: Test public channels QR
-        run: node --test platform-v2/tests/phase10-public-channels-qr.test.js
-      - name: Test public storefront
-        run: node --test platform-v2/tests/phase10-public-storefront.test.js
-      - name: Test quick setup wizard
-        run: node --test platform-v2/tests/phase10-quick-setup-wizard.test.js
-      - name: Test quote RFQ B2B
-        run: node --test platform-v2/tests/phase10-quote-rfq-b2b.test.js
-      - name: Test sector templates
-        run: node --test platform-v2/tests/phase10-sector-templates.test.js
-      - name: Test storefront shell rate limit
-        run: node --test platform-v2/tests/phase10-storefront-shell-rate-limit.test.js
-      - name: Test Phase 11 and 12 suite
-        run: node --test platform-v2/tests/phase11-*.test.js platform-v2/tests/phase12-*.test.js
-      - name: Run full behavior tests
-        run: npm test
-      - name: Scan repository history for secrets
-        run: npm run security:secrets
+      - name: Run syntax and behavior tests
+        run: npm run ci
       - name: Audit production dependencies
         run: npm run security:dependencies
 
