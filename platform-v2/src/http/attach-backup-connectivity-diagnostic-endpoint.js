@@ -115,7 +115,8 @@ function attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService }) 
 function attachConfiguredBackupConnectivityDiagnosticEndpoint({
     app,
     tenantRegistry,
-    env = process.env
+    env = process.env,
+    scheduleBackupDrill = scheduleConfiguredBackupDrill
 }) {
     const configured = R2_BACKUP_CONFIG_KEYS.filter(key =>
         String(env[key] ?? "").trim().length > 0
@@ -123,13 +124,18 @@ function attachConfiguredBackupConnectivityDiagnosticEndpoint({
     if (configured.length === 0) {
         return app;
     }
+    if (typeof scheduleBackupDrill !== "function") {
+        throw new TypeError("Backup drill scheduler geçersiz.");
+    }
 
     const storageProvider = createR2ObjectStorageProvider(loadR2BackupConfig(env));
     const diagnosticService = createBackupConnectivityDiagnosticService({
         tenantRegistry,
         storageProvider
     });
-    return attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
+    const attachedApp = attachBackupConnectivityDiagnosticEndpoint({ app, diagnosticService });
+    scheduleBackupDrill({ env });
+    return attachedApp;
 }
 
 module.exports = {
