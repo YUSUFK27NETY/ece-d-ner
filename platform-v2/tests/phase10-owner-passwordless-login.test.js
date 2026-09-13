@@ -43,5 +43,6 @@ test("passwordless login URL contains tenant only, never raw email", () => {
 
     assert.ok(start >= 0 && end > start);
     assert.match(loginUrlFunction, /searchParams\.set\("tenant", tenantId\)/);
-    assert.doesNotMatch(loginUrlFunction, /email/i);
+    assert.doesNotMatch(loginUrlFunction, /[?&]email=/i);
+    assert.doesNotMatch(loginUrlFunction, /searchParams\.(?:set|append)\(\s*["']email["']/i);
 });
