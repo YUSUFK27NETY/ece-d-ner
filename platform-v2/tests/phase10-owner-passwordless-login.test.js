@@ -7,12 +7,12 @@ function read(relativePath) {
     return fs.readFileSync(path.join(__dirname, relativePath), "utf8");
 }
 
-test("owner panel exposes passwordless login for invite-created owners", () => {
+test("passwordless invite flow remains available without being exposed on common owner login", () => {
     const ownerHtml = read("../public/owner/index.html");
     const loginHtml = read("../public/owner/email-login.html");
     const loginScript = read("../public/owner/email-login.js");
 
-    assert.match(ownerHtml, /\/owner\/email-login\.html/);
+    assert.doesNotMatch(ownerHtml, /\/owner\/email-login\.html/);
     assert.match(loginHtml, /Şifresiz İşletme Girişi/);
     assert.match(loginHtml, /email-login-tenant/);
     assert.match(loginHtml, /email-login-email/);
