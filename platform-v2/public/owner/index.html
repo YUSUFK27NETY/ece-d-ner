@@ -5,79 +5,31 @@
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <meta name="robots" content="noindex,nofollow,noarchive">
     <meta name="theme-color" content="#0b1220">
-    <title>Giriş Merkezi | Platform V2</title>
+    <title>İşletme Paneli | Platform V2</title>
     <link rel="stylesheet" href="/owner/owner.css">
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script defer src="/owner/config.js"></script>
-    <script defer src="/owner/portal.js"></script>
     <script defer src="/owner/owner.js"></script>
 </head>
 <body>
     <div id="login-view" class="center-shell">
-        <div class="entry-stack">
-            <section class="panel auth-card entry-hub" aria-labelledby="entry-title">
-                <p class="eyebrow">Platform V2</p>
-                <h1 id="entry-title">Giriş Merkezi</h1>
-                <p class="muted">Tek ekrandan doğru bölüme geçin.</p>
-
-                <div class="entry-grid">
-                    <article class="entry-card">
-                        <span class="entry-number">01</span>
-                        <div>
-                            <h2>Yönetici</h2>
-                            <p class="muted">Platform yönetimi ve işletme kurulumu.</p>
-                        </div>
-                        <a class="secondary entry-action" href="/admin/">Yönetici panelini aç</a>
-                    </article>
-
-                    <article class="entry-card entry-card-owner">
-                        <span class="entry-number">02</span>
-                        <div>
-                            <h2>İşletme Sahibi</h2>
-                            <p class="muted">Ürün, görsel ve sipariş yönetimi.</p>
-                        </div>
-                        <button id="owner-entry-button" class="primary entry-action" type="button">İşletme girişine geç</button>
-                    </article>
-
-                    <article class="entry-card">
-                        <span class="entry-number">03</span>
-                        <div>
-                            <h2>Müşteri</h2>
-                            <p class="muted">İşletme koduyla müşteri sayfasını açın.</p>
-                        </div>
-                        <form id="customer-entry-form" class="customer-entry-form" novalidate>
-                            <label for="customer-tenant-id">İşletme kodu</label>
-                            <input id="customer-tenant-id" autocomplete="off" placeholder="ela-doner" maxlength="63" required>
-                            <button class="secondary entry-action" type="submit">Müşteri sayfasını aç</button>
-                            <p id="customer-entry-message" class="message" role="status"></p>
-                        </form>
-                    </article>
-                </div>
-            </section>
-
-            <form id="login-form" class="panel auth-card" autocomplete="on">
-                <p class="eyebrow">İşletme Sahibi</p>
-                <h1 id="owner-login">İşletme Paneli</h1>
-                <p class="muted">Kendi işletmenizin ürün ve siparişlerini yönetin.</p>
-                <p class="muted">Davetle oluşturulan owner hesabı için <a href="/owner/email-login.html">şifresiz e-posta bağlantısıyla giriş yap</a>.</p>
-                <label>
-                    İşletme kodu
-                    <input id="tenant-id" autocomplete="off" placeholder="ela-doner" required>
-                </label>
-                <label>
-                    E-posta
-                    <input id="email" type="email" autocomplete="username" required>
-                </label>
-                <label>
-                    Şifre
-                    <input id="password" type="password" autocomplete="current-password" required>
-                </label>
-                <button type="submit" class="primary">Giriş yap</button>
-                <p class="muted"><a href="/owner/reset-password.html">Şifremi unuttum</a></p>
-                <p id="login-message" class="message" role="status"></p>
-            </form>
-        </div>
+        <form id="login-form" class="panel auth-card" autocomplete="on">
+            <p class="eyebrow">İşletme Sahibi</p>
+            <h1>İşletme Paneli</h1>
+            <p class="muted">E-posta ve şifrenizle giriş yapın. Hesabınıza bağlı işletme otomatik açılır.</p>
+            <label>
+                E-posta
+                <input id="email" type="email" autocomplete="username" required>
+            </label>
+            <label>
+                Şifre
+                <input id="password" type="password" autocomplete="current-password" required>
+            </label>
+            <button type="submit" class="primary">Giriş yap</button>
+            <p class="muted"><a href="/owner/reset-password.html">Şifremi unuttum</a></p>
+            <p id="login-message" class="message" role="status"></p>
+        </form>
     </div>
 
     <div id="app-view" class="app hidden">
