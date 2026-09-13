@@ -220,6 +220,33 @@ function createFirestoreTenantMemberBindingRepository({
             return projectBinding(snapshot.data(), tenantId, subjectRef);
         },
 
+        async findActiveBySubject({ subjectRef: rawSubjectRef } = {}) {
+            const subjectRef = requireSubjectRef(rawSubjectRef);
+            if (typeof db.collectionGroup !== "function") fail("db collectionGroup");
+            const query = db.collectionGroup(TENANT_COLLECTIONS.members)
+                .where("subjectRef", "==", subjectRef);
+            const snapshot = await query.get();
+            if (!snapshot || !Array.isArray(snapshot.docs)) fail("query snapshot");
+
+            const active = [];
+            for (const doc of snapshot.docs) {
+                if (!doc || typeof doc.data !== "function") fail("query document");
+                const record = doc.data();
+                const tenantId = requireCanonicalTenantId(record?.tenantId);
+                const binding = projectBinding(record, tenantId, subjectRef);
+                if (binding.state === "active") active.push(binding);
+            }
+
+            if (active.length === 0) return null;
+            if (active.length > 1) {
+                throw codedError(
+                    "TENANT_MEMBER_AMBIGUOUS",
+                    "Tenant member subject birden fazla aktif işletmeye bağlı."
+                );
+            }
+            return active[0];
+        },
+
         async createInitialOwnerInvite(input = {}) {
             const tenantId = requireExpectedTenant(input.expectedTenant);
             const invite = projectInvite(input.invite, tenantId);
