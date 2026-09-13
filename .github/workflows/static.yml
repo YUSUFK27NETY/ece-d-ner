@@ -37,6 +37,12 @@ jobs:
         run: node --test platform-v2/tests/phase10-media-catalog.test.js
       - name: Test passwordless regression
         run: node --test platform-v2/tests/phase10-owner-passwordless-login.test.js
+      - name: Test Phase 9 suite
+        run: node --test platform-v2/tests/phase9-*.test.js
+      - name: Test Phase 10 suite
+        run: node --test platform-v2/tests/phase10-*.test.js
+      - name: Test Phase 11 and 12 suite
+        run: node --test platform-v2/tests/phase11-*.test.js platform-v2/tests/phase12-*.test.js
       - name: Run full behavior tests
         run: npm test
       - name: Scan repository history for secrets
