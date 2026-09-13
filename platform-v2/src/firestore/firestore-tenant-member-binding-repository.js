@@ -256,14 +256,15 @@ function createFirestoreTenantMemberBindingRepository({
                 if (typeof group.where !== "function") fail("db collectionGroup where");
                 snapshot = await group.where("subjectRef", "==", subjectRef).get();
             } catch (queryError) {
+                let fallbackSnapshot;
                 try {
-                    const fallbackSnapshot = await group.get();
-                    return resolveActiveBindingSnapshot(fallbackSnapshot, subjectRef, {
-                        skipNonMatching: true
-                    });
+                    fallbackSnapshot = await group.get();
                 } catch {
                     throw queryError;
                 }
+                return resolveActiveBindingSnapshot(fallbackSnapshot, subjectRef, {
+                    skipNonMatching: true
+                });
             }
 
             return resolveActiveBindingSnapshot(snapshot, subjectRef);
