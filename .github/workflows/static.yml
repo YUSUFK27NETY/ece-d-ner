@@ -29,7 +29,15 @@ jobs:
         run: npm ci
       - name: Check static assets
         run: npm run check
-      - name: Run behavior tests
+      - name: Test common owner login contract
+        run: node --test platform-v2/tests/phase12-owner-common-login.test.js
+      - name: Test owner panel integration
+        run: node --test platform-v2/tests/phase10-owner-panel.test.js
+      - name: Test media catalog regression
+        run: node --test platform-v2/tests/phase10-media-catalog.test.js
+      - name: Test passwordless regression
+        run: node --test platform-v2/tests/phase10-owner-passwordless-login.test.js
+      - name: Run full behavior tests
         run: npm test
       - name: Scan repository history for secrets
         run: npm run security:secrets
