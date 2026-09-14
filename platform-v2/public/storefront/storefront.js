@@ -70,6 +70,10 @@
         cartClose: document.getElementById("cart-close"),
         cartItems: document.getElementById("cart-items"),
         modalTotal: document.getElementById("modal-total"),
+        customerName: document.getElementById("customer-name"),
+        customerPhone: document.getElementById("customer-phone"),
+        customerAddress: document.getElementById("customer-address"),
+        customerNote: document.getElementById("customer-note"),
         cartWhatsapp: document.getElementById("cart-whatsapp"),
         toast: document.getElementById("toast")
     });
@@ -471,14 +475,56 @@
         el.cartModal.classList.add("hidden");
     }
 
+    function readCheckoutDetails() {
+        return {
+            name: el.customerName.value.trim(),
+            phone: el.customerPhone.value.trim(),
+            address: el.customerAddress.value.trim(),
+            note: el.customerNote.value.trim()
+        };
+    }
+
+    function validateCheckoutDetails(details) {
+        if (!details.name) {
+            showToast("Lütfen isminizi girin.");
+            el.customerName.focus();
+            return false;
+        }
+        const digits = phoneDigits(details.phone);
+        if (digits.length < 10 || digits.length > 15) {
+            showToast("Geçerli bir telefon numarası girin.");
+            el.customerPhone.focus();
+            return false;
+        }
+        if (!details.address) {
+            showToast("Lütfen teslimat adresini girin.");
+            el.customerAddress.focus();
+            return false;
+        }
+        return true;
+    }
+
     function sendCartToWhatsApp() {
         if (!state.cart.size) return;
-        const name = state.tenant.profile?.brandName || state.tenant.displayName;
-        const lines = [`Merhaba ${name}, sipariş vermek istiyorum:`, ""];
+        const details = readCheckoutDetails();
+        if (!validateCheckoutDetails(details)) return;
+
+        const lines = [
+            "🛒 YENİ SİPARİŞ",
+            "",
+            `👤 İsim: ${details.name}`,
+            `📞 Telefon: ${details.phone}`,
+            `📍 Adres: ${details.address}`,
+            "",
+            "📦 Sipariş:"
+        ];
         for (const { product, quantity } of state.cart.values()) {
             lines.push(`• ${product.name} × ${quantity} — ${money(product.price * quantity)}`);
         }
-        lines.push("", `Toplam: ${money(cartSummary().total)}`, `Menü: ${window.location.href}`);
+        lines.push("", `💰 Toplam: ${money(cartSummary().total)}`);
+        if (details.note) lines.push(`📝 Not: ${details.note}`);
+        lines.push("", "Siparişimi hazırlayabilir misiniz?");
+
         const href = whatsappHref(state.tenant.profile?.whatsapp, lines.join("\n"));
         if (href) window.open(href, "_blank", "noopener");
     }
@@ -512,6 +558,10 @@
         state.cart.clear();
         state.search = "";
         el.catalogSearch.value = "";
+        el.customerName.value = "";
+        el.customerPhone.value = "";
+        el.customerAddress.value = "";
+        el.customerNote.value = "";
         renderBrand();
         renderHeroActions();
         renderModules();

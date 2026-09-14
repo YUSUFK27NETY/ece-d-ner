@@ -7,6 +7,7 @@
     <meta name="theme-color" content="#111827">
     <title>İşletme | Platform V2</title>
     <link rel="stylesheet" href="/m/storefront.css">
+    <link rel="stylesheet" href="/m/checkout.css">
     <link rel="stylesheet" href="/m/media.css">
     <script defer src="/m/storefront.js"></script>
     <script defer src="/m/media.js"></script>
@@ -117,7 +118,25 @@
                 <div class="modal-head"><h2 id="cart-title">Sipariş Sepeti</h2><button id="cart-close" type="button" class="close-button" aria-label="Kapat">×</button></div>
                 <div id="cart-items" class="cart-items"></div>
                 <div class="cart-total-row"><span>Toplam</span><strong id="modal-total">0 ₺</strong></div>
-                <p id="cart-note" class="muted-note">Siparişiniz işletmenin WhatsApp hattına hazırlanacaktır.</p>
+                <div class="checkout-fields" aria-label="Teslimat bilgileri">
+                    <label class="checkout-field">
+                        <span>İsim *</span>
+                        <input id="customer-name" type="text" autocomplete="given-name" maxlength="60" placeholder="İsminiz" required>
+                    </label>
+                    <label class="checkout-field">
+                        <span>Telefon *</span>
+                        <input id="customer-phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="20" placeholder="05xx xxx xx xx" required>
+                    </label>
+                    <label class="checkout-field">
+                        <span>Adres *</span>
+                        <textarea id="customer-address" rows="3" autocomplete="street-address" maxlength="220" placeholder="Siparişin teslim edileceği adres" required></textarea>
+                    </label>
+                    <label class="checkout-field">
+                        <span>Sipariş Notu</span>
+                        <textarea id="customer-note" rows="2" maxlength="250" placeholder="Örn. soğansız olsun"></textarea>
+                    </label>
+                </div>
+                <p id="cart-note" class="muted-note">İsim, telefon ve adres yalnızca WhatsApp sipariş mesajını hazırlamak için kullanılır.</p>
                 <button id="cart-whatsapp" type="button" class="checkout-button">WhatsApp'tan Sipariş Ver</button>
             </div>
         </div>
