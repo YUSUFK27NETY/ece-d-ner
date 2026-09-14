@@ -8,7 +8,13 @@ const FEATURE_CATALOG = Object.freeze({
     quotes: Object.freeze({ defaultEnabled: false }),
     crm: Object.freeze({ defaultEnabled: false }),
     fleet: Object.freeze({ defaultEnabled: false }),
-    gallery: Object.freeze({ defaultEnabled: true })
+    gallery: Object.freeze({ defaultEnabled: true }),
+    delivery: Object.freeze({ defaultEnabled: false }),
+    campaigns: Object.freeze({ defaultEnabled: false }),
+    loyalty: Object.freeze({ defaultEnabled: false }),
+    staff: Object.freeze({ defaultEnabled: false }),
+    reviews: Object.freeze({ defaultEnabled: false }),
+    analytics: Object.freeze({ defaultEnabled: false })
 });
 
 function createFeatureFlags(overrides = {}) {
