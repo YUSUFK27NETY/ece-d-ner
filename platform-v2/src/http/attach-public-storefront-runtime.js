@@ -4,6 +4,7 @@ const path = require("node:path");
 const { requireTenantId } = require("../tenant/tenant-id");
 
 const PUBLIC_STOREFRONT_API = "/api/public/storefront/:tenantId";
+const PUBLIC_TENANT_EDGE_NOISE = /^[\s\p{Cf}]+|[\s\p{Cf}]+$/gu;
 const PUBLIC_STOREFRONT_CSP = [
     "default-src 'self'",
     "script-src 'self'",
@@ -44,6 +45,21 @@ function canonicalTenantId(value) {
     } catch {
         return null;
     }
+}
+
+function recoverPublicTenantId(value) {
+    if (typeof value !== "string") return null;
+    const recovered = value.replace(PUBLIC_TENANT_EDGE_NOISE, "");
+    if (!recovered || recovered === value) return null;
+    return canonicalTenantId(recovered);
+}
+
+function sendInvalidStorefrontPage(res, tenantId, suffix = "") {
+    const recovered = recoverPublicTenantId(tenantId);
+    if (recovered) {
+        return res.redirect(308, `/m/${encodeURIComponent(recovered)}${suffix}`);
+    }
+    return res.status(404).send("İşletme bulunamadı.");
 }
 
 function sendStorefrontError(res, error) {
@@ -97,19 +113,19 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
     }));
     app.get("/m/:tenantId/appointments", limiter, (req, res) => {
         if (!canonicalTenantId(req.params.tenantId)) {
-            return res.status(404).send("İşletme bulunamadı.");
+            return sendInvalidStorefrontPage(res, req.params.tenantId, "/appointments");
         }
         return res.sendFile(path.join(publicDir, "appointments.html"));
     });
     app.get("/m/:tenantId/quote", limiter, (req, res) => {
         if (!canonicalTenantId(req.params.tenantId)) {
-            return res.status(404).send("İşletme bulunamadı.");
+            return sendInvalidStorefrontPage(res, req.params.tenantId, "/quote");
         }
         return res.sendFile(path.join(publicDir, "quote.html"));
     });
     app.get("/m/:tenantId", limiter, (req, res) => {
         if (!canonicalTenantId(req.params.tenantId)) {
-            return res.status(404).send("İşletme bulunamadı.");
+            return sendInvalidStorefrontPage(res, req.params.tenantId);
         }
         return res.sendFile(path.join(publicDir, "index.html"));
     });
@@ -136,5 +152,6 @@ module.exports = {
     PUBLIC_STOREFRONT_CSP,
     attachPublicStorefrontRuntime,
     createStorefrontRateLimiter,
+    recoverPublicTenantId,
     sendStorefrontError
 };
