@@ -204,8 +204,15 @@
         whatsapp: "WhatsApp",
         inventory: "Stok",
         quotes: "Teklif",
+        crm: "CRM / Müşteri Yönetimi",
         fleet: "Filo",
-        gallery: "Galeri"
+        gallery: "Galeri",
+        delivery: "Teslimat",
+        campaigns: "Kampanya / Kupon",
+        loyalty: "Sadakat",
+        staff: "Personel",
+        reviews: "Yorumlar",
+        analytics: "Raporlama / Analitik"
     });
     const PLAN_PREVIEW_CHANGE_PRESENTATION = Object.freeze({
         gained: Object.freeze({ label: "Kazanım", className: "plan-change-gained" }),
@@ -217,7 +224,6 @@
         warningThreshold: "Uyarı eşiği",
         dedicatedReviewThreshold: "Dedicated review eşiği"
     });
-
     function setMessage(element, text = "", type = "") {
         element.textContent = text;
         element.classList.remove("error", "success");

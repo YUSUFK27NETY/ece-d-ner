@@ -11,6 +11,7 @@ const {
     resolveTenantPolicy
 } = require("../src/entitlements/entitlement-service");
 const {
+    FEATURE_LABELS,
     PLAN_PACKAGE_CATALOG,
     PACKAGE_ORDER,
     normalizePlanId,
@@ -18,6 +19,14 @@ const {
 } = require("../public/admin/plan-packages");
 
 const ROOT = path.join(__dirname, "..");
+const NEW_OPTIONAL_FEATURES = Object.freeze([
+    "analytics",
+    "campaigns",
+    "delivery",
+    "loyalty",
+    "reviews",
+    "staff"
+]);
 
 function sortedKeys(value) {
     return Object.keys(value).sort();
@@ -27,8 +36,12 @@ test("Starter, Business and Business Pro presets cover the server feature catalo
     assert.deepEqual(PACKAGE_ORDER, ["starter", "business", "business_pro"]);
     const featureKeys = sortedKeys(FEATURE_CATALOG);
 
+    assert.deepEqual(sortedKeys(FEATURE_LABELS), featureKeys);
     for (const planId of PACKAGE_ORDER) {
         assert.deepEqual(sortedKeys(PLAN_PACKAGE_CATALOG[planId].features), featureKeys);
+        for (const feature of NEW_OPTIONAL_FEATURES) {
+            assert.equal(PLAN_PACKAGE_CATALOG[planId].features[feature], false);
+        }
     }
 
     assert.deepEqual(
@@ -60,7 +73,32 @@ test("Starter, Business and Business Pro presets cover the server feature catalo
             .filter(([, enabled]) => enabled)
             .map(([key]) => key)
             .sort(),
-        featureKeys
+        [
+            "appointments",
+            "catalog",
+            "crm",
+            "fleet",
+            "gallery",
+            "inventory",
+            "orders",
+            "quotes",
+            "reservations",
+            "whatsapp"
+        ]
+    );
+});
+
+test("new tenant options have explicit Turkish labels and remain manual add-ons", () => {
+    assert.deepEqual(
+        Object.fromEntries(NEW_OPTIONAL_FEATURES.map(feature => [feature, FEATURE_LABELS[feature]])),
+        {
+            analytics: "Raporlama / Analitik",
+            campaigns: "Kampanya / Kupon",
+            delivery: "Teslimat",
+            loyalty: "Sadakat",
+            reviews: "Yorumlar",
+            staff: "Personel"
+        }
     );
 });
 
