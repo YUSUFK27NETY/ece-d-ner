@@ -61,6 +61,18 @@ function createRequireTenantMember({ auth, bindingReader, tenantReader }) {
         let binding;
         try {
             binding = await bindingReader.getBySubject({ tenantId, subjectRef });
+
+            // The fixed common owner login resolves membership through the global
+            // active-binding lookup. Keep tenant-scoped APIs compatible with that
+            // canonical resolution if an exact document lookup cannot see the
+            // binding, while still requiring the resolved tenant to match exactly.
+            if (!binding && typeof bindingReader.findActiveBySubject === "function") {
+                const resolvedBinding = await bindingReader.findActiveBySubject({ subjectRef });
+                if (resolvedBinding?.tenantId === tenantId &&
+                    resolvedBinding?.subjectRef === subjectRef) {
+                    binding = resolvedBinding;
+                }
+            }
         } catch {
             return res.status(503).json({
                 success: false,
