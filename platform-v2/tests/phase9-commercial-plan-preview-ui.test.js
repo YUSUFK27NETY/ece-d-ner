@@ -49,7 +49,8 @@ test("preview feature ve change sunum allowlistleri sabittir", () => {
     );
     for (const feature of [
         "catalog", "orders", "appointments", "reservations", "whatsapp",
-        "inventory", "quotes", "fleet", "gallery"
+        "inventory", "quotes", "crm", "fleet", "gallery", "delivery",
+        "campaigns", "loyalty", "staff", "reviews", "analytics"
     ]) {
         assert.match(mappings, new RegExp(`${feature}:`), feature);
     }
