@@ -21,9 +21,15 @@
         whatsapp: "WhatsApp",
         inventory: "Stok",
         quotes: "Teklif / B2B",
-        crm: "CRM / Raporlama",
+        crm: "CRM / Müşteri Yönetimi",
         fleet: "Filo",
-        gallery: "Galeri"
+        gallery: "Galeri",
+        delivery: "Teslimat",
+        campaigns: "Kampanya / Kupon",
+        loyalty: "Sadakat",
+        staff: "Personel",
+        reviews: "Yorumlar",
+        analytics: "Raporlama / Analitik"
     });
 
     const PACKAGE_ORDER = Object.freeze([
@@ -47,7 +53,13 @@
                 quotes: false,
                 crm: false,
                 fleet: false,
-                gallery: true
+                gallery: true,
+                delivery: false,
+                campaigns: false,
+                loyalty: false,
+                staff: false,
+                reviews: false,
+                analytics: false
             })
         }),
         business: Object.freeze({
@@ -64,7 +76,13 @@
                 quotes: false,
                 crm: false,
                 fleet: false,
-                gallery: true
+                gallery: true,
+                delivery: false,
+                campaigns: false,
+                loyalty: false,
+                staff: false,
+                reviews: false,
+                analytics: false
             })
         }),
         business_pro: Object.freeze({
@@ -81,7 +99,13 @@
                 quotes: true,
                 crm: true,
                 fleet: true,
-                gallery: true
+                gallery: true,
+                delivery: false,
+                campaigns: false,
+                loyalty: false,
+                staff: false,
+                reviews: false,
+                analytics: false
             })
         })
     });
