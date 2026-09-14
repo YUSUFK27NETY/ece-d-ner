@@ -254,10 +254,11 @@
             text.textContent = module.text;
             const action = document.createElement("a");
             action.textContent = module.action;
-            action.href = key === "orders" && state.products.length
+            const href = key === "orders" && state.products.length
                 ? "#catalog-section"
                 : moduleContactHref(module.title);
-            if (action.href.startsWith("http")) {
+            action.href = href;
+            if (href.startsWith("http")) {
                 action.target = "_blank";
                 action.rel = "noopener";
             }
