@@ -229,6 +229,7 @@ test("owner channel endpoint exact Firebase tenant binding, audit ve lifecycle u
                     : null;
             }
         },
+        tenantRegistry,
         initialOwnerBootstrapService: { async bindInitialOwner() { throw new Error("not used"); } },
         allowedOrigins: []
     });
@@ -319,7 +320,7 @@ test("owner channel endpoint exact Firebase tenant binding, audit ve lifecycle u
             },
             body: JSON.stringify({ whatsapp: "+905550001122" })
         });
-        assert.equal(archivedUpdate.status, 409);
+        assert.equal(archivedUpdate.status, 403);
         assert.equal(auditEvents.length, 1);
     } finally {
         server.close();

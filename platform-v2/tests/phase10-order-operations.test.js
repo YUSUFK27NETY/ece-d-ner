@@ -100,12 +100,12 @@ test("persisted order normalization dört fulfillment tipini aynı schema ile ok
 });
 
 test("owner sipariş operasyon ekranı dört tipi, filtreleri ve detay akışını sunar", () => {
-    const ownerHtml = fs.readFileSync(path.join(__dirname, "../public/owner/index.html"), "utf8");
+    const ownerPanel = fs.readFileSync(path.join(__dirname, "../public/owner/panel.html"), "utf8");
     const html = fs.readFileSync(path.join(__dirname, "../public/owner/orders.html"), "utf8");
     const script = fs.readFileSync(path.join(__dirname, "../public/owner/orders.js"), "utf8");
     const css = fs.readFileSync(path.join(__dirname, "../public/owner/orders.css"), "utf8");
 
-    assert.match(ownerHtml, /href="\/owner\/orders\.html"/);
+    assert.match(ownerPanel, /href="\/owner\/orders\.html"/);
     assert.match(html, /id="status-filter"/);
     assert.match(html, /id="fulfillment-filter"/);
     assert.match(html, /value="dine_in"[^>]*>Masa</);

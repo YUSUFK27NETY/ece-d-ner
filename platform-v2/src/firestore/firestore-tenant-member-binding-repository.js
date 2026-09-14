@@ -54,6 +54,13 @@ function expiredInvite() {
     return codedError("TENANT_INITIAL_OWNER_INVITE_EXPIRED", "Initial owner davetinin süresi dolmuş.");
 }
 
+function ambiguousBinding() {
+    return codedError(
+        "TENANT_MEMBER_AMBIGUOUS",
+        "Tenant member subject birden fazla aktif işletmeye bağlı."
+    );
+}
+
 function isPlainRecord(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value) &&
         Object.getPrototypeOf(value) === Object.prototype;
@@ -108,6 +115,24 @@ function projectBinding(record, tenantId, subjectRef) {
     requireCanonicalTimestamp(projected.createdAt, "createdAt");
     requireCanonicalTimestamp(projected.updatedAt, "updatedAt");
     return Object.freeze(projected);
+}
+
+function resolveActiveBindingSnapshot(snapshot, subjectRef, { skipNonMatching = false } = {}) {
+    if (!snapshot || !Array.isArray(snapshot.docs)) fail("query snapshot");
+
+    const active = [];
+    for (const doc of snapshot.docs) {
+        if (!doc || typeof doc.data !== "function") fail("query document");
+        const record = doc.data();
+        if (skipNonMatching && record?.subjectRef !== subjectRef) continue;
+        const tenantId = requireCanonicalTenantId(record?.tenantId);
+        const binding = projectBinding(record, tenantId, subjectRef);
+        if (binding.state === "active") active.push(binding);
+    }
+
+    if (active.length === 0) return null;
+    if (active.length > 1) throw ambiguousBinding();
+    return active[0];
 }
 
 function projectInvite(record, tenantId) {
@@ -218,6 +243,31 @@ function createFirestoreTenantMemberBindingRepository({
             if (!snapshot.exists) return null;
             if (typeof snapshot.data !== "function") fail("snapshot data");
             return projectBinding(snapshot.data(), tenantId, subjectRef);
+        },
+
+        async findActiveBySubject({ subjectRef: rawSubjectRef } = {}) {
+            const subjectRef = requireSubjectRef(rawSubjectRef);
+            if (typeof db.collectionGroup !== "function") fail("db collectionGroup");
+            const group = db.collectionGroup(TENANT_COLLECTIONS.members);
+            if (!group || typeof group.get !== "function") fail("db collectionGroup");
+
+            let snapshot;
+            try {
+                if (typeof group.where !== "function") fail("db collectionGroup where");
+                snapshot = await group.where("subjectRef", "==", subjectRef).get();
+            } catch (queryError) {
+                let fallbackSnapshot;
+                try {
+                    fallbackSnapshot = await group.get();
+                } catch {
+                    throw queryError;
+                }
+                return resolveActiveBindingSnapshot(fallbackSnapshot, subjectRef, {
+                    skipNonMatching: true
+                });
+            }
+
+            return resolveActiveBindingSnapshot(snapshot, subjectRef);
         },
 
         async createInitialOwnerInvite(input = {}) {

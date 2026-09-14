@@ -4,12 +4,15 @@ const {
     requireTenantMemberRole
 } = require("./tenant-member-subject");
 
-function createRequireTenantMember({ auth, bindingReader }) {
+function createRequireTenantMember({ auth, bindingReader, tenantReader }) {
     if (!auth || typeof auth.verifyIdToken !== "function") {
         throw new TypeError("Tenant member Firebase Auth adapter gerekli.");
     }
     if (!bindingReader || typeof bindingReader.getBySubject !== "function") {
         throw new TypeError("Tenant member binding reader gerekli.");
+    }
+    if (!tenantReader || typeof tenantReader.getById !== "function") {
+        throw new TypeError("Tenant member lifecycle reader gerekli.");
     }
 
     return async function requireTenantMember(req, res, next) {
@@ -65,8 +68,25 @@ function createRequireTenantMember({ auth, bindingReader }) {
             });
         }
 
-        if (!binding || binding.state !== "active") {
+        if (!binding || binding.state !== "active" ||
+            binding.tenantId !== tenantId || binding.subjectRef !== subjectRef) {
             return res.status(403).json({ success: false, message: "Tenant üyeliği gerekli." });
+        }
+
+        let tenant;
+        try {
+            tenant = await tenantReader.getById(tenantId);
+        } catch {
+            return res.status(503).json({
+                success: false,
+                message: "Tenant durumu şu anda doğrulanamıyor."
+            });
+        }
+        if (!tenant || tenant.tenantId !== tenantId || tenant.status !== "active") {
+            return res.status(403).json({
+                success: false,
+                message: "Tenant erişimi aktif değil."
+            });
         }
 
         let role;
@@ -77,9 +97,6 @@ function createRequireTenantMember({ auth, bindingReader }) {
                 success: false,
                 message: "Tenant üyeliği şu anda doğrulanamıyor."
             });
-        }
-        if (binding.tenantId !== tenantId || binding.subjectRef !== subjectRef) {
-            return res.status(403).json({ success: false, message: "Tenant üyeliği gerekli." });
         }
 
         req.tenantActor = Object.freeze({

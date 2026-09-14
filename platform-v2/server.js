@@ -406,6 +406,7 @@ function startPlatformServer() {
         app,
         auth,
         bindingReader: tenantMemberBindingRepository,
+        tenantRegistry,
         initialOwnerBootstrapService,
         allowedOrigins
     });
