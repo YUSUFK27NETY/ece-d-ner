@@ -510,19 +510,19 @@
         if (!validateCheckoutDetails(details)) return;
 
         const lines = [
-            "🛒 YENİ SİPARİŞ",
+            "YENİ SİPARİŞ",
             "",
-            `👤 İsim: ${details.name}`,
-            `📞 Telefon: ${details.phone}`,
-            `📍 Adres: ${details.address}`,
+            `İsim: ${details.name}`,
+            `Telefon: ${details.phone}`,
+            `Adres: ${details.address}`,
             "",
-            "📦 Sipariş:"
+            "Sipariş:"
         ];
         for (const { product, quantity } of state.cart.values()) {
             lines.push(`• ${product.name} × ${quantity} — ${money(product.price * quantity)}`);
         }
-        lines.push("", `💰 Toplam: ${money(cartSummary().total)}`);
-        if (details.note) lines.push(`📝 Not: ${details.note}`);
+        lines.push("", `Toplam: ${money(cartSummary().total)}`);
+        if (details.note) lines.push(`Not: ${details.note}`);
         lines.push("", "Siparişimi hazırlayabilir misiniz?");
 
         const href = whatsappHref(state.tenant.profile?.whatsapp, lines.join("\n"));
