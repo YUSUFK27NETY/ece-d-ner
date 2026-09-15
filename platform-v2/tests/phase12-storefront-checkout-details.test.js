@@ -20,7 +20,7 @@ test("storefront checkout asks for required delivery details and an optional not
     assert.ok(!/\brequired\b/.test(noteTag), "Sipariş notu zorunlu olmamalı");
 });
 
-test("WhatsApp order message includes customer details, cart and optional note", () => {
+test("WhatsApp order message includes customer details, cart and optional note as plain text", () => {
     const script = read("../public/storefront/storefront.js");
     const start = script.indexOf("function readCheckoutDetails()");
     const end = script.indexOf("async function sharePage()", start);
@@ -33,13 +33,14 @@ test("WhatsApp order message includes customer details, cart and optional note",
     assert.match(checkoutFlow, /phone: el\.customerPhone\.value\.trim\(\)/);
     assert.match(checkoutFlow, /address: el\.customerAddress\.value\.trim\(\)/);
     assert.match(checkoutFlow, /note: el\.customerNote\.value\.trim\(\)/);
-    assert.match(checkoutFlow, /"🛒 YENİ SİPARİŞ"/);
-    assert.match(checkoutFlow, /`👤 İsim: \$\{details\.name\}`/);
-    assert.match(checkoutFlow, /`📞 Telefon: \$\{details\.phone\}`/);
-    assert.match(checkoutFlow, /`📍 Adres: \$\{details\.address\}`/);
-    assert.match(checkoutFlow, /"📦 Sipariş:"/);
-    assert.match(checkoutFlow, /`💰 Toplam: \$\{money\(cartSummary\(\)\.total\)\}`/);
-    assert.match(checkoutFlow, /if \(details\.note\) lines\.push\(`📝 Not: \$\{details\.note\}`\);/);
+    assert.match(checkoutFlow, /"YENİ SİPARİŞ"/);
+    assert.match(checkoutFlow, /`İsim: \$\{details\.name\}`/);
+    assert.match(checkoutFlow, /`Telefon: \$\{details\.phone\}`/);
+    assert.match(checkoutFlow, /`Adres: \$\{details\.address\}`/);
+    assert.match(checkoutFlow, /"Sipariş:"/);
+    assert.match(checkoutFlow, /`Toplam: \$\{money\(cartSummary\(\)\.total\)\}`/);
+    assert.match(checkoutFlow, /if \(details\.note\) lines\.push\(`Not: \$\{details\.note\}`\);/);
+    assert.doesNotMatch(checkoutFlow, /[🛒👤📞📍📦💰📝]/u);
     assert.doesNotMatch(checkoutFlow, /Menü:/);
 });
 
