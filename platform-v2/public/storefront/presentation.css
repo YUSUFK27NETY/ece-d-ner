@@ -1,4 +1,18 @@
 /* Active presentation-token refinements that build on storefront.css. */
+:root[data-presentation-hero="featured"] .hero-content {
+    text-align: left;
+}
+
+:root[data-presentation-hero="featured"] .hero p {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+:root[data-presentation-hero="featured"] .hero-actions,
+:root[data-presentation-hero="featured"] .contact-chips {
+    justify-content: flex-start;
+}
+
 :root[data-presentation-typography="professional"] .hero h1 {
     font-weight: 900;
     letter-spacing: -.045em;
