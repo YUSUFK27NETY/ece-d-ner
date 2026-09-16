@@ -1,0 +1,27 @@
+/* Active presentation-token refinements that build on storefront.css. */
+:root[data-presentation-typography="professional"] .hero h1 {
+    font-weight: 900;
+    letter-spacing: -.045em;
+}
+
+:root[data-presentation-typography="professional"] .section-heading h2 {
+    font-weight: 850;
+    letter-spacing: -.03em;
+}
+
+:root[data-presentation-footer="expanded"] footer {
+    padding-top: 48px;
+    padding-bottom: 130px;
+    font-size: 14px;
+}
+
+:root[data-presentation-footer="expanded"] footer strong {
+    color: color-mix(in srgb, var(--brand) 30%, #fff);
+}
+
+@media(max-width:620px) {
+    :root[data-presentation-footer="expanded"] footer {
+        padding-top: 42px;
+        padding-bottom: 116px;
+    }
+}
