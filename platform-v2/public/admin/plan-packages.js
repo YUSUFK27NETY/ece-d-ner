@@ -279,7 +279,7 @@
 
         const note = documentRef.createElement("small");
         note.className = "muted";
-        note.textContent = "Paket modül ve sunum seviyesi için yalnız öneri üretir. Kaydetmeden önce seçimleri değiştirebilirsin.";
+        note.textContent = "Paket yalnız modül önerisi uygular. Sunum seviyesi için ayrı bir onboarding önerisi üretir; kaydetmeden önce seçimleri değiştirebilirsin.";
 
         picker.append(title, actions, status, note);
 
