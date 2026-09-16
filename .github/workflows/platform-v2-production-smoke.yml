@@ -20,6 +20,7 @@ jobs:
     env:
       PLATFORM_V2_SMOKE_BASE_URL: https://business-platform-v2-production.onrender.com
       PLATFORM_V2_SMOKE_TENANT_ID: ela-doner
+      PLATFORM_V2_SMOKE_EXPECTED_COMMIT: ${{ github.sha }}
       PLATFORM_V2_SMOKE_TIMEOUT_MS: "18000"
       PLATFORM_V2_SMOKE_ATTEMPTS: "24"
       PLATFORM_V2_SMOKE_RETRY_DELAY_MS: "10000"
@@ -35,5 +36,5 @@ jobs:
       - name: Wait for Render auto-deploy window
         run: sleep 30
 
-      - name: Verify Platform V2 production
+      - name: Verify exact Platform V2 production revision
         run: node platform-v2/scripts/check-production-smoke.js
