@@ -15,7 +15,7 @@ test("storefront public presentation manifestini güvenli tier fallback ile okur
     assert.match(script, /const PRESENTATION_TIERS = new Set\(\["starter", "business", "pro"\]\);/);
     assert.match(script, /presentation: null,/);
     assert.match(script, /PRESENTATION_TIERS\.has\(input\.tier\) \? input\.tier : "starter"/);
-    assert.match(script, /source: input\.source === "configured" \? "configured" : "legacy_fallback"/);
+    assert.match(script, /const source = input\.source === "configured" \? "configured" : "legacy_fallback";/);
     assert.match(script, /applyPresentationBridge\(storefront\.presentation\);/);
 });
 
