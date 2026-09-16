@@ -54,5 +54,5 @@ test("Presentation Studio yalnÄ±z presentation patch eder; plan veya feature deÄ
     assert.match(studioJs, /body: JSON\.stringify\(\{ presentation \}\)/);
     assert.doesNotMatch(studioJs, /JSON\.stringify\(\{[^}]*plan:/s);
     assert.doesNotMatch(studioJs, /JSON\.stringify\(\{[^}]*features:/s);
-    assert.match(studioJs, /presentation: \{ tier, version: 1, family \}/);
+    assert.match(studioJs, /return \{ tier, version: 1, family \}/);
 });
