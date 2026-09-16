@@ -19,20 +19,43 @@ test("storefront public presentation manifestini güvenli tier fallback ile okur
     assert.match(script, /applyPresentationBridge\(storefront\.presentation\);/);
 });
 
-test("presentation bridge yalnız doğrulanmış tier metadata'sı yayınlar", () => {
-    assert.match(
-        script,
-        /document\.documentElement\.dataset\.presentationTier = state\.presentation\.tier;/
-    );
+test("presentation component tokenları normalize edilir ve Starter component fallbackleri korunur", () => {
+    assert.match(script, /const PRESENTATION_TOKEN_PATTERN = \/\^\[a-z\]\[a-z-\]\{0,31\}\$\//);
+    assert.match(script, /const PRESENTATION_COMPONENT_DEFAULTS = Object\.freeze\(\{/);
+    assert.match(script, /navigation: "simple"/);
+    assert.match(script, /hero: "compact"/);
+    assert.match(script, /offering: "standard"/);
+    assert.match(script, /density: "compact"/);
+    assert.match(script, /motion: "minimal"/);
+    assert.match(script, /typography: "system"/);
+    assert.match(script, /function normalizePresentationComponents\(value\)/);
 });
 
-test("frontend tier seçimini commercial plandan türetmez", () => {
+test("presentation bridge tier ve component metadata'sını ayrı yayınlar", () => {
+    assert.match(script, /dataset\.presentationTier = state\.presentation\.tier;/);
+    assert.match(script, /dataset\.presentationNavigation = components\.navigation;/);
+    assert.match(script, /dataset\.presentationHero = components\.hero;/);
+    assert.match(script, /dataset\.presentationOffering = components\.offering;/);
+    assert.match(script, /dataset\.presentationDensity = components\.density;/);
+    assert.match(script, /dataset\.presentationMotion = components\.motion;/);
+    assert.match(script, /dataset\.presentationTypography = components\.typography;/);
+});
+
+test("frontend presentation seçimini commercial plandan türetmez", () => {
     assert.doesNotMatch(script, /state\.tenant(?:\?|\.)?\.plan/);
 });
 
-test("visual tier override yalnız Business ve Pro için uygulanır; Starter mevcut görünümü korur", () => {
-    assert.match(styles, /:root\[data-presentation-tier="business"\]/);
-    assert.match(styles, /:root\[data-presentation-tier="pro"\]/);
+test("görsel katman tier adına değil reusable component varyantlarına bağlıdır", () => {
+    assert.match(styles, /data-presentation-hero="featured"/);
+    assert.match(styles, /data-presentation-hero="immersive"/);
+    assert.match(styles, /data-presentation-offering="advanced"/);
+    assert.match(styles, /data-presentation-offering="signature"/);
+    assert.match(styles, /data-presentation-density="comfortable"/);
+    assert.match(styles, /data-presentation-density="luxury"/);
+    assert.match(styles, /data-presentation-motion="functional"/);
+    assert.match(styles, /data-presentation-motion="refined"/);
+    assert.doesNotMatch(styles, /data-presentation-tier="business"/);
+    assert.doesNotMatch(styles, /data-presentation-tier="pro"/);
     assert.doesNotMatch(styles, /data-presentation-tier="starter"/);
     assert.match(styles, /prefers-reduced-motion:no-preference/);
 });

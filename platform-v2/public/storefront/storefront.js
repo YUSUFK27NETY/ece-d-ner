@@ -4,6 +4,18 @@
     const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
     const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
+    const PRESENTATION_TOKEN_PATTERN = /^[a-z][a-z-]{0,31}$/;
+    const PRESENTATION_COMPONENT_DEFAULTS = Object.freeze({
+        navigation: "simple",
+        hero: "compact",
+        offering: "standard",
+        gallery: "basic",
+        socialProof: "hidden",
+        footer: "compact",
+        density: "compact",
+        motion: "minimal",
+        typography: "system"
+    });
     const SECTOR_COPY = Object.freeze({
         restaurant: ["Restoran & Online Menü", "Menüyü inceleyin, favorilerinizi seçin ve işletmeyle hemen iletişime geçin."],
         cafe: ["Kafe & Dijital Menü", "Menüyü, ürünleri ve işletmenin online hizmetlerini tek sayfada keşfedin."],
@@ -89,6 +101,18 @@
         cart: new Map()
     };
 
+    function normalizePresentationComponents(value) {
+        const input = value && typeof value === "object" && !Array.isArray(value)
+            ? value
+            : {};
+        const normalized = {};
+        for (const [key, fallback] of Object.entries(PRESENTATION_COMPONENT_DEFAULTS)) {
+            const token = String(input[key] ?? "").trim();
+            normalized[key] = PRESENTATION_TOKEN_PATTERN.test(token) ? token : fallback;
+        }
+        return Object.freeze(normalized);
+    }
+
     function normalizePresentation(value) {
         const input = value && typeof value === "object" && !Array.isArray(value)
             ? value
@@ -103,14 +127,25 @@
             tier,
             source,
             sector: input.sector || null,
-            components: input.components || null,
+            components: normalizePresentationComponents(input.components),
             sections: Object.freeze(Array.isArray(input.sections) ? [...input.sections] : [])
         });
     }
 
     function applyPresentationBridge(value) {
         state.presentation = normalizePresentation(value);
-        document.documentElement.dataset.presentationTier = state.presentation.tier;
+        const dataset = document.documentElement.dataset;
+        const components = state.presentation.components;
+        dataset.presentationTier = state.presentation.tier;
+        dataset.presentationNavigation = components.navigation;
+        dataset.presentationHero = components.hero;
+        dataset.presentationOffering = components.offering;
+        dataset.presentationGallery = components.gallery;
+        dataset.presentationSocialProof = components.socialProof;
+        dataset.presentationFooter = components.footer;
+        dataset.presentationDensity = components.density;
+        dataset.presentationMotion = components.motion;
+        dataset.presentationTypography = components.typography;
     }
 
     function showToast(text) {
