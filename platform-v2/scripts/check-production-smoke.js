@@ -2,6 +2,7 @@
 
 const DEFAULT_BASE_URL = "https://business-platform-v2-production.onrender.com";
 const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
+const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
 const PRESENTATION_SOURCES = new Set(["configured", "legacy_fallback"]);
 
@@ -23,6 +24,15 @@ function normalizeTenantId(value) {
         throw new TypeError("Platform V2 smoke tenant ID geçersiz.");
     }
     return tenantId;
+}
+
+function normalizeCommit(value, { required = false } = {}) {
+    const commit = String(value || "").trim().toLowerCase();
+    if (!commit && !required) return null;
+    if (!GIT_COMMIT_PATTERN.test(commit)) {
+        throw new TypeError("Platform V2 smoke commit SHA geçersiz.");
+    }
+    return commit;
 }
 
 function normalizePositiveInteger(value, fallback, max) {
@@ -64,6 +74,24 @@ async function checkHealth(fetchImplementation, baseUrl, timeoutMs) {
         body?.service !== "platform-v2-admin-api") {
         throw new Error("Platform health yanıtı beklenen sözleşmede değil.");
     }
+}
+
+async function checkDeployment(fetchImplementation, baseUrl, timeoutMs, expectedCommit) {
+    const response = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/api/public/deployment`,
+        timeoutMs
+    );
+    assertOk(response, "Deployment revision");
+    const body = await response.json();
+    const deployedCommit = normalizeCommit(body?.deployment?.commit, { required: true });
+    if (body?.success !== true) {
+        throw new Error("Deployment revision yanıtı başarısız.");
+    }
+    if (expectedCommit && deployedCommit !== expectedCommit) {
+        throw new Error(`Production commit henüz beklenen SHA değil: ${deployedCommit}`);
+    }
+    return deployedCommit;
 }
 
 async function checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeoutMs) {
@@ -121,9 +149,10 @@ async function checkPresentationStylesheet(fetchImplementation, baseUrl, timeout
     }
 }
 
-async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs }) {
-    await Promise.all([
+async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
+    const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
+        checkDeployment(fetchImplementation, baseUrl, timeoutMs, expectedCommit),
         checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkStorefrontPage(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkPresentationStylesheet(fetchImplementation, baseUrl, timeoutMs)
@@ -133,7 +162,8 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs }) {
         checkedAt: new Date().toISOString(),
         baseUrl,
         tenantId,
-        endpoints: 4
+        deployedCommit: results[1],
+        endpoints: 5
     });
 }
 
@@ -141,6 +171,7 @@ async function checkPlatformV2Production({
     fetchImplementation = globalThis.fetch,
     baseUrl = DEFAULT_BASE_URL,
     tenantId,
+    expectedCommit = null,
     timeoutMs = 18_000,
     attempts = 1,
     retryDelayMs = 1_000
@@ -150,6 +181,7 @@ async function checkPlatformV2Production({
     }
     const safeBaseUrl = normalizeBaseUrl(baseUrl);
     const safeTenantId = normalizeTenantId(tenantId);
+    const safeExpectedCommit = normalizeCommit(expectedCommit);
     const safeTimeoutMs = normalizePositiveInteger(timeoutMs, 18_000, 60_000);
     const safeAttempts = normalizePositiveInteger(attempts, 1, 30);
     const safeRetryDelayMs = normalizePositiveInteger(retryDelayMs, 1_000, 60_000);
@@ -161,7 +193,8 @@ async function checkPlatformV2Production({
                 fetchImplementation,
                 baseUrl: safeBaseUrl,
                 tenantId: safeTenantId,
-                timeoutMs: safeTimeoutMs
+                timeoutMs: safeTimeoutMs,
+                expectedCommit: safeExpectedCommit
             });
         } catch (error) {
             lastError = error;
@@ -176,6 +209,7 @@ async function main() {
         const result = await checkPlatformV2Production({
             baseUrl: process.env.PLATFORM_V2_SMOKE_BASE_URL || DEFAULT_BASE_URL,
             tenantId: process.env.PLATFORM_V2_SMOKE_TENANT_ID,
+            expectedCommit: process.env.PLATFORM_V2_SMOKE_EXPECTED_COMMIT || null,
             timeoutMs: process.env.PLATFORM_V2_SMOKE_TIMEOUT_MS || 18_000,
             attempts: process.env.PLATFORM_V2_SMOKE_ATTEMPTS || 1,
             retryDelayMs: process.env.PLATFORM_V2_SMOKE_RETRY_DELAY_MS || 1_000
@@ -197,6 +231,7 @@ module.exports = {
     DEFAULT_BASE_URL,
     checkPlatformV2Production,
     normalizeBaseUrl,
+    normalizeCommit,
     normalizeTenantId,
     runOnce
 };
