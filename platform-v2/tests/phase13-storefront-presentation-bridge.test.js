@@ -26,7 +26,13 @@ test("presentation bridge yalnız doğrulanmış tier metadata'sı yayınlar", (
     );
 });
 
-test("frontend tier seçimini commercial plandan türetmez ve henüz tier CSS uygulamaz", () => {
+test("frontend tier seçimini commercial plandan türetmez", () => {
     assert.doesNotMatch(script, /state\.tenant(?:\?|\.)?\.plan/);
-    assert.doesNotMatch(styles, /data-presentation-tier/);
+});
+
+test("visual tier override yalnız Business ve Pro için uygulanır; Starter mevcut görünümü korur", () => {
+    assert.match(styles, /:root\[data-presentation-tier="business"\]/);
+    assert.match(styles, /:root\[data-presentation-tier="pro"\]/);
+    assert.doesNotMatch(styles, /data-presentation-tier="starter"/);
+    assert.match(styles, /prefers-reduced-motion:no-preference/);
 });
