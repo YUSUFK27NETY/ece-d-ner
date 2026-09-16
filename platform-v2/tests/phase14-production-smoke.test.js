@@ -16,13 +16,16 @@ function response({ status = 200, json = null, text = "" } = {}) {
         ok: status >= 200 && status < 300,
         status,
         async json() { return json; },
-        async text() { return text; }
+        async text() { return text; },
+        clone() { return response({ status, json, text }); }
     };
 }
 
 function createHealthyFetch({
     tier = "starter",
     source = "legacy_fallback",
+    designFamily = "modern",
+    designFamilySource = "tier_default",
     deployedCommit = COMMIT_A
 } = {}) {
     const calls = [];
@@ -48,6 +51,8 @@ function createHealthyFetch({
                         presentation: {
                             tier,
                             source,
+                            designFamily,
+                            designFamilySource,
                             sector: { sector: "restaurant", offeringKind: "menu" },
                             components: { hero: "compact" },
                             sections: []
@@ -58,7 +63,7 @@ function createHealthyFetch({
         }
         if (url.endsWith("/m/ela-doner")) {
             return response({
-                text: '<div id="storefront"></div><link href="/m/storefront.css"><link href="/m/presentation.css"><script src="/m/storefront.js"></script>'
+                text: '<div id="storefront"></div><link href="/m/storefront.css"><link href="/m/presentation.css"><link href="/m/design-families.css"><script src="/m/design-family-bridge.js"></script><script src="/m/storefront.js"></script>'
             });
         }
         if (url.endsWith("/m/presentation.css")) {
@@ -66,12 +71,22 @@ function createHealthyFetch({
                 text: ':root[data-presentation-hero="featured"]{} :root[data-presentation-hero="immersive"]{}'
             });
         }
+        if (url.endsWith("/m/design-families.css")) {
+            return response({
+                text: ["warm", "bold", "corporate", "editorial", "minimal"]
+                    .map(family => `:root[data-design-family="${family}"]{}`)
+                    .join("\n")
+            });
+        }
+        if (url.endsWith("/m/design-family-bridge.js")) {
+            return response({ text: "const designFamily = true; document.documentElement.dataset.designFamily = 'modern';" });
+        }
         return response({ status: 404 });
     };
     return { calls, fetchImplementation };
 }
 
-test("production smoke exact revision, health, storefront ve presentation assetlerini doğrular", async () => {
+test("production smoke exact revision, storefront ve design family assetlerini doğrular", async () => {
     const { calls, fetchImplementation } = createHealthyFetch();
     const result = await checkPlatformV2Production({
         fetchImplementation,
@@ -85,13 +100,15 @@ test("production smoke exact revision, health, storefront ve presentation assetl
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
     assert.equal(result.deployedCommit, COMMIT_A);
-    assert.equal(result.endpoints, 5);
+    assert.equal(result.endpoints, 7);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
         "https://example.com/api/public/deployment",
         "https://example.com/api/public/storefront/ela-doner",
         "https://example.com/m/ela-doner",
-        "https://example.com/m/presentation.css"
+        "https://example.com/m/presentation.css",
+        "https://example.com/m/design-families.css",
+        "https://example.com/m/design-family-bridge.js"
     ]));
 });
 
@@ -109,8 +126,13 @@ test("production eski committeyse smoke fail closed olur", async () => {
     );
 });
 
-test("configured Business presentation da geçerli production sözleşmesidir", async () => {
-    const { fetchImplementation } = createHealthyFetch({ tier: "business", source: "configured" });
+test("configured Business + bold family geçerli production sözleşmesidir", async () => {
+    const { fetchImplementation } = createHealthyFetch({
+        tier: "business",
+        source: "configured",
+        designFamily: "bold",
+        designFamilySource: "configured"
+    });
     await assert.doesNotReject(() => checkPlatformV2Production({
         fetchImplementation,
         baseUrl: "https://example.com",
@@ -120,11 +142,23 @@ test("configured Business presentation da geçerli production sözleşmesidir", 
     }));
 });
 
-test("bozuk presentation manifesti fail closed olur", async () => {
-    const { fetchImplementation } = createHealthyFetch({ tier: "enterprise", source: "configured" });
+test("bozuk presentation veya family manifesti fail closed olur", async () => {
+    const invalidTier = createHealthyFetch({ tier: "enterprise", source: "configured" });
     await assert.rejects(
         () => checkPlatformV2Production({
-            fetchImplementation,
+            fetchImplementation: invalidTier.fetchImplementation,
+            baseUrl: "https://example.com",
+            tenantId: "ela-doner",
+            expectedCommit: COMMIT_A,
+            timeoutMs: 1000
+        }),
+        /presentation sözleşmesi doğrulanamadı/
+    );
+
+    const invalidFamily = createHealthyFetch({ designFamily: "clone-template" });
+    await assert.rejects(
+        () => checkPlatformV2Production({
+            fetchImplementation: invalidFamily.fetchImplementation,
             baseUrl: "https://example.com",
             tenantId: "ela-doner",
             expectedCommit: COMMIT_A,
