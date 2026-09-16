@@ -113,6 +113,8 @@ PR #81 currently includes the reviewed presentation runtime foundation as well a
 - Business and Pro visual differences are rendered from reusable presentation component variants rather than commercial-plan selectors or sector-specific full-page templates.
 - Starter keeps the existing base storefront CSS with no Starter-specific override.
 - presentation sections are derived from effective entitlements rather than raw stored feature flags.
+- currently active storefront visual surfaces are navigation, hero, offering/cards, footer, density, motion and typography.
+- `gallery` and `socialProof` presentation tokens are intentionally reserved until those optional feature modules expose real public render/data surfaces; Phase 13 does not fabricate placeholder review/gallery content.
 
 PR #81 still does **not**:
 
