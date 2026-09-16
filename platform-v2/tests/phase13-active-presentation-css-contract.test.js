@@ -11,6 +11,7 @@ const styles = [
     fs.readFileSync(path.join(ROOT, "storefront.css"), "utf8"),
     fs.readFileSync(path.join(ROOT, "presentation.css"), "utf8")
 ].join("\n");
+const mediaStyles = fs.readFileSync(path.join(ROOT, "media.css"), "utf8");
 
 const ACTIVE_VISUAL_COMPONENTS = Object.freeze([
     "navigation",
@@ -52,6 +53,17 @@ test("Starter base storefront olarak kalır; Starter token selector override ekl
     for (const component of ACTIVE_VISUAL_COMPONENTS) {
         assert.equal(styles.includes(selectorFor(component, contract[component])), false);
     }
+});
+
+test("Business ve Pro ürün medyası offering kart paddingiyle tam hizalanır", () => {
+    assert.match(
+        mediaStyles,
+        /data-presentation-offering="advanced"[^}]*width:calc\(100% \+ 44px\)[^}]*margin:-22px -22px/
+    );
+    assert.match(
+        mediaStyles,
+        /data-presentation-offering="signature"[^}]*width:calc\(100% \+ 52px\)[^}]*margin:-26px -26px/
+    );
 });
 
 test("gallery ve socialProof tokenları bu fazda reserved yüzeylerdir", () => {
