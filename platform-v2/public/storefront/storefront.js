@@ -3,6 +3,7 @@
 
     const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+    const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
     const SECTOR_COPY = Object.freeze({
         restaurant: ["Restoran & Online Menü", "Menüyü inceleyin, favorilerinizi seçin ve işletmeyle hemen iletişime geçin."],
         cafe: ["Kafe & Dijital Menü", "Menüyü, ürünleri ve işletmenin online hizmetlerini tek sayfada keşfedin."],
@@ -81,11 +82,36 @@
     const state = {
         tenantId: "",
         tenant: null,
+        presentation: null,
         products: [],
         activeCategory: "Tümü",
         search: "",
         cart: new Map()
     };
+
+    function normalizePresentation(value) {
+        const input = value && typeof value === "object" && !Array.isArray(value)
+            ? value
+            : {};
+        const tier = PRESENTATION_TIERS.has(input.tier) ? input.tier : "starter";
+        const schemaVersion = Number.isInteger(input.schemaVersion) && input.schemaVersion > 0
+            ? input.schemaVersion
+            : 1;
+        const source = input.source === "configured" ? "configured" : "legacy_fallback";
+        return Object.freeze({
+            schemaVersion,
+            tier,
+            source,
+            sector: input.sector || null,
+            components: input.components || null,
+            sections: Object.freeze(Array.isArray(input.sections) ? [...input.sections] : [])
+        });
+    }
+
+    function applyPresentationBridge(value) {
+        state.presentation = normalizePresentation(value);
+        document.documentElement.dataset.presentationTier = state.presentation.tier;
+    }
 
     function showToast(text) {
         el.toast.textContent = text;
@@ -553,6 +579,7 @@
             !Array.isArray(storefront.products)) {
             throw new Error("İşletme verisi doğrulanamadı.");
         }
+        applyPresentationBridge(storefront.presentation);
         state.tenant = storefront.tenant;
         state.products = storefront.products;
         state.cart.clear();
