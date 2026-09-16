@@ -103,13 +103,24 @@ These boundaries prevent the monthly service from becoming an unlimited custom-d
 
 ## Current Phase 13 implementation boundary
 
-PR #81 introduces the presentation foundation and monthly service contract definitions without:
+PR #81 currently includes the reviewed presentation runtime foundation as well as the managed service contract definitions:
 
-- changing tenant data
-- changing ELA Döner
-- wiring new presentation behavior into the live storefront
-- changing public API payloads
-- changing current production pricing
-- merging or deploying automatically
+- `storefront.presentation` is exposed additively from the public storefront API.
+- legacy tenants with no explicit presentation configuration resolve to the existing Starter visual baseline through `legacy_fallback` without record migration.
+- validated `{ tier, version }` presentation settings can be persisted independently from commercial plan changes.
+- Quick Setup can suggest a presentation level during onboarding while keeping plan, features and presentation independently editable.
+- the storefront browser bridge consumes the validated presentation manifest.
+- Business and Pro visual differences are rendered from reusable presentation component variants rather than commercial-plan selectors or sector-specific full-page templates.
+- Starter keeps the existing base storefront CSS with no Starter-specific override.
+- presentation sections are derived from effective entitlements rather than raw stored feature flags.
 
-Runtime integration remains a separate reviewed step after all CI and regression checks are green.
+PR #81 still does **not**:
+
+- mutate existing production tenant records automatically
+- migrate ELA Döner or any legacy tenant
+- change current production pricing
+- grant features from a commercial plan or managed-service contract
+- merge itself to `main`
+- deploy the Render production service
+
+Browser visual E2E remains a required verification step before this draft PR can be considered ready for merge review.
