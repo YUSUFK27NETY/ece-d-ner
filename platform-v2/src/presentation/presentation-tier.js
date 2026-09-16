@@ -1,3 +1,8 @@
+const {
+    requireDesignFamily,
+    resolveDesignFamily
+} = require("./presentation-family");
+
 const PRESENTATION_SCHEMA_VERSION = 1;
 const PRESENTATION_TIERS = Object.freeze([
     "starter",
@@ -27,24 +32,39 @@ function createTenantPresentation(input) {
         throw new TypeError("Presentation ayarı nesne olmalı.");
     }
 
-    return Object.freeze({
+    const presentation = {
         tier: requirePresentationTier(input.tier),
         version: requirePresentationVersion(input.version)
-    });
+    };
+
+    if (input.family !== undefined && input.family !== null && input.family !== "") {
+        presentation.family = requireDesignFamily(input.family);
+    }
+
+    return Object.freeze(presentation);
 }
 
 function resolveTenantPresentation(input = null) {
     if (input === undefined || input === null) {
+        const family = resolveDesignFamily({ tier: "starter" });
         return Object.freeze({
             tier: "starter",
             version: PRESENTATION_SCHEMA_VERSION,
-            source: "legacy_fallback"
+            source: "legacy_fallback",
+            family: family.family,
+            familySource: family.source
         });
     }
 
     const presentation = createTenantPresentation(input);
+    const family = resolveDesignFamily({
+        tier: presentation.tier,
+        family: presentation.family
+    });
     return Object.freeze({
         ...presentation,
+        family: family.family,
+        familySource: family.source,
         source: "configured"
     });
 }

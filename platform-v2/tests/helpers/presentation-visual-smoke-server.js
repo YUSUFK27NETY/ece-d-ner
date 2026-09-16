@@ -5,7 +5,20 @@ const path = require("node:path");
 const HOST = "127.0.0.1";
 const PORT = Number(process.env.PORT || 4173);
 const PUBLIC_DIR = path.join(__dirname, "../../public/storefront");
-const TENANTS = new Set(["demo-starter", "demo-business", "demo-pro"]);
+const BUSINESS_FAMILIES = Object.freeze([
+    "modern",
+    "warm",
+    "bold",
+    "corporate",
+    "editorial",
+    "minimal"
+]);
+const TENANTS = new Set([
+    "demo-starter",
+    "demo-business",
+    "demo-pro",
+    ...BUSINESS_FAMILIES.map(family => `demo-business-${family}`)
+]);
 
 const COMPONENTS = Object.freeze({
     starter: Object.freeze({
@@ -49,16 +62,27 @@ const MIME = Object.freeze({
     ".js": "text/javascript; charset=utf-8"
 });
 
-function tierForTenant(tenantId) {
-    return tenantId.replace(/^demo-/, "");
+function presentationForTenant(tenantId) {
+    if (tenantId.startsWith("demo-business-")) {
+        return Object.freeze({
+            tier: "business",
+            designFamily: tenantId.slice("demo-business-".length)
+        });
+    }
+    const tier = tenantId.replace(/^demo-/, "");
+    return Object.freeze({
+        tier,
+        designFamily: tier === "pro" ? "editorial" : "modern"
+    });
 }
 
 function storefrontFor(tenantId) {
-    const tier = tierForTenant(tenantId);
+    const { tier, designFamily } = presentationForTenant(tenantId);
+    const label = `${tier}-${designFamily}`;
     return {
         tenant: {
             tenantId,
-            displayName: `Atlas Studio ${tier}`,
+            displayName: `Atlas Studio ${label}`,
             sector: "professional-services",
             features: {
                 catalog: true,
@@ -79,7 +103,7 @@ function storefrontFor(tenantId) {
                 analytics: false
             },
             profile: {
-                brandName: `ATLAS STUDIO ${tier.toUpperCase()}`,
+                brandName: `ATLAS STUDIO ${label.toUpperCase()}`,
                 phone: "+90 342 000 00 00",
                 whatsapp: "+90 530 000 00 00",
                 address: "Gaziantep",
@@ -116,6 +140,8 @@ function storefrontFor(tenantId) {
             schemaVersion: 1,
             tier,
             source: "configured",
+            designFamily,
+            designFamilySource: "configured",
             sector: {
                 sector: "professional-services",
                 offeringKind: "services",

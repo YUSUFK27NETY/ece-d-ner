@@ -4,6 +4,8 @@ const path = require("node:path");
 const { requireTenantId } = require("../tenant/tenant-id");
 
 const PUBLIC_STOREFRONT_API = "/api/public/storefront/:tenantId";
+const PUBLIC_DEPLOYMENT_API = "/api/public/deployment";
+const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const PUBLIC_TENANT_EDGE_NOISE = /^[\s\p{Cf}]+|[\s\p{Cf}]+$/gu;
 const PUBLIC_STOREFRONT_CSP = [
     "default-src 'self'",
@@ -35,6 +37,11 @@ function createStorefrontRateLimiter({ windowMs = 60_000, max = 180 } = {}) {
             message: "Çok fazla storefront isteği gönderildi."
         }
     });
+}
+
+function deploymentRevision(env = process.env) {
+    const commit = String(env?.RENDER_GIT_COMMIT || "").trim().toLowerCase();
+    return GIT_COMMIT_PATTERN.test(commit) ? commit : null;
 }
 
 function canonicalTenantId(value) {
@@ -130,6 +137,21 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
         return res.sendFile(path.join(publicDir, "index.html"));
     });
 
+    app.get(PUBLIC_DEPLOYMENT_API, limiter, (req, res) => {
+        if (Reflect.ownKeys(req.query).length > 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Deployment sorgu parametresi kabul etmez."
+            });
+        }
+        return res.json({
+            success: true,
+            deployment: {
+                commit: deploymentRevision()
+            }
+        });
+    });
+
     app.get(PUBLIC_STOREFRONT_API, limiter, async (req, res) => {
         try {
             if (Reflect.ownKeys(req.query).length > 0) {
@@ -148,10 +170,12 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
 }
 
 module.exports = {
+    PUBLIC_DEPLOYMENT_API,
     PUBLIC_STOREFRONT_API,
     PUBLIC_STOREFRONT_CSP,
     attachPublicStorefrontRuntime,
     createStorefrontRateLimiter,
+    deploymentRevision,
     recoverPublicTenantId,
     sendStorefrontError
 };

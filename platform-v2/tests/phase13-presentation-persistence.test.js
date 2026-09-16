@@ -30,20 +30,35 @@ test("legacy tenant creation presentation verilmeden mevcut record şeklini koru
 test("tenant creation explicit presentation ayarını normalize ederek saklar", () => {
     const tenant = createTenantRecord(baseInput({
         plan: "business_pro",
-        presentation: { tier: " BUSINESS ", version: 1 }
+        presentation: { tier: " BUSINESS ", version: 1, family: " Warm " }
     }));
 
     assert.deepEqual(tenant.presentation, {
         tier: "business",
-        version: 1
+        version: 1,
+        family: "warm"
     });
     assert.equal(tenant.plan, "business_pro");
 });
 
-test("tenant creation bilinmeyen presentation tierını fail-closed reddeder", () => {
+test("family verilmezse stored presentation shape geriye dönük aynı kalır", () => {
+    const tenant = createTenantRecord(baseInput({
+        presentation: { tier: "business", version: 1 }
+    }));
+    assert.deepEqual(tenant.presentation, { tier: "business", version: 1 });
+    assert.equal(Object.hasOwn(tenant.presentation, "family"), false);
+});
+
+test("tenant creation bilinmeyen presentation tier veya family değerini fail-closed reddeder", () => {
     assert.throws(
         () => createTenantRecord(baseInput({
             presentation: { tier: "enterprise", version: 1 }
+        })),
+        TypeError
+    );
+    assert.throws(
+        () => createTenantRecord(baseInput({
+            presentation: { tier: "business", version: 1, family: "clone-template" }
         })),
         TypeError
     );
@@ -68,21 +83,21 @@ test("tenant management presentationı plandan bağımsız günceller", async ()
     const updated = await service.update({
         tenantId: "test-tenant",
         patch: {
-            presentation: { tier: "pro", version: 1 }
+            presentation: { tier: "pro", version: 1, family: "minimal" }
         },
         actorId: "admin-2",
         now: new Date("2026-09-16T13:00:00.000Z")
     });
 
     assert.equal(updated.plan, "starter");
-    assert.deepEqual(updated.presentation, { tier: "pro", version: 1 });
-    assert.deepEqual(persisted.presentation, { tier: "pro", version: 1 });
+    assert.deepEqual(updated.presentation, { tier: "pro", version: 1, family: "minimal" });
+    assert.deepEqual(persisted.presentation, { tier: "pro", version: 1, family: "minimal" });
 });
 
-test("plan update mevcut presentation ayarını değiştirmez", async () => {
+test("plan update mevcut presentation ve family ayarını değiştirmez", async () => {
     const current = createTenantRecord(baseInput({
         plan: "starter",
-        presentation: { tier: "business", version: 1 }
+        presentation: { tier: "business", version: 1, family: "corporate" }
     }));
     const service = createTenantManagementService({
         tenantRegistry: {
@@ -104,7 +119,11 @@ test("plan update mevcut presentation ayarını değiştirmez", async () => {
     });
 
     assert.equal(updated.plan, "business_pro");
-    assert.deepEqual(updated.presentation, { tier: "business", version: 1 });
+    assert.deepEqual(updated.presentation, {
+        tier: "business",
+        version: 1,
+        family: "corporate"
+    });
 });
 
 test("tenant management invalid presentation ayarını persist etmez", async () => {
@@ -125,7 +144,7 @@ test("tenant management invalid presentation ayarını persist etmez", async () 
     await assert.rejects(
         () => service.update({
             tenantId: "test-tenant",
-            patch: { presentation: { tier: "unknown", version: 1 } },
+            patch: { presentation: { tier: "business", version: 1, family: "unknown" } },
             actorId: "admin-2"
         }),
         TypeError

@@ -82,9 +82,11 @@ test("public storefront response presentation alanını additive döndürür", a
     assert.equal(Array.isArray(result.products), true);
     assert.equal(result.presentation.tier, "starter");
     assert.equal(result.presentation.source, "legacy_fallback");
+    assert.equal(result.presentation.designFamily, "modern");
+    assert.equal(result.presentation.designFamilySource, "tier_default");
 });
 
-test("legacy Business plan presentation seçmeden Starter fallbackte kalır", async () => {
+test("legacy Business plan presentation seçmeden Starter + Modern fallbackte kalır", async () => {
     const service = createFixture({
         tenantOverrides: { plan: "business" }
     });
@@ -92,20 +94,35 @@ test("legacy Business plan presentation seçmeden Starter fallbackte kalır", as
 
     assert.equal(result.presentation.tier, "starter");
     assert.equal(result.presentation.source, "legacy_fallback");
+    assert.equal(result.presentation.designFamily, "modern");
 });
 
-test("explicit presentation plan bilgisinden bağımsız public manifeste yansır", async () => {
+test("explicit presentation ve family plan bilgisinden bağımsız public manifeste yansır", async () => {
     const service = createFixture({
         tenantOverrides: {
             plan: "starter",
-            presentation: { tier: "business", version: 1 }
+            presentation: { tier: "business", version: 1, family: "warm" }
         }
     });
     const result = await service.get({ tenantId: "ela-doner" });
 
     assert.equal(result.presentation.tier, "business");
     assert.equal(result.presentation.source, "configured");
+    assert.equal(result.presentation.designFamily, "warm");
+    assert.equal(result.presentation.designFamilySource, "configured");
     assert.equal(result.presentation.components.hero, "featured");
+});
+
+test("configured Pro family belirtilmeden editorial default kullanır", async () => {
+    const service = createFixture({
+        tenantOverrides: {
+            presentation: { tier: "pro", version: 1 }
+        }
+    });
+    const result = await service.get({ tenantId: "ela-doner" });
+    assert.equal(result.presentation.tier, "pro");
+    assert.equal(result.presentation.designFamily, "editorial");
+    assert.equal(result.presentation.designFamilySource, "tier_default");
 });
 
 test("presentation bölümleri stored değil effective feature setini kullanır", async () => {
@@ -126,6 +143,7 @@ test("presentation bölümleri stored değil effective feature setini kullanır"
 
     assert.equal(result.tenant.features.orders, false);
     assert.equal(result.presentation.tier, "pro");
+    assert.equal(result.presentation.designFamily, "editorial");
     assert.equal(sections.includes("modules"), false);
     assert.equal(sections.includes("offering"), true);
     assert.equal(sections.includes("gallery"), false);
