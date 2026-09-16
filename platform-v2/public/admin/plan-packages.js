@@ -43,6 +43,7 @@
             id: "starter",
             label: "Starter",
             description: "Temel dijital işletme paketi",
+            presentationTier: "starter",
             features: Object.freeze({
                 catalog: true,
                 orders: false,
@@ -66,6 +67,7 @@
             id: "business",
             label: "Business",
             description: "Günlük operasyon paketi",
+            presentationTier: "business",
             features: Object.freeze({
                 catalog: true,
                 orders: true,
@@ -89,6 +91,7 @@
             id: "business_pro",
             label: "Business Pro",
             description: "CRM, B2B ve gelişmiş operasyon paketi",
+            presentationTier: "pro",
             features: Object.freeze({
                 catalog: true,
                 orders: true,
@@ -128,6 +131,15 @@
     function suggestedFeaturesForPlan(value) {
         const planPackage = getPlanPackage(value);
         return planPackage ? { ...planPackage.features } : null;
+    }
+
+    function suggestedPresentationForPlan(value) {
+        const planPackage = getPlanPackage(value);
+        if (!planPackage) return null;
+        return Object.freeze({
+            tier: planPackage.presentationTier,
+            version: 1
+        });
     }
 
     function featureSummary(value) {
@@ -267,7 +279,7 @@
 
         const note = documentRef.createElement("small");
         note.className = "muted";
-        note.textContent = "Paket yalnız modül önerisi uygular. Kaydetmeden önce özellikleri tek tek değiştirebilirsin.";
+        note.textContent = "Paket modül ve sunum seviyesi için yalnız öneri üretir. Kaydetmeden önce seçimleri değiştirebilirsin.";
 
         picker.append(title, actions, status, note);
 
@@ -318,6 +330,7 @@
         normalizePlanId,
         getPlanPackage,
         suggestedFeaturesForPlan,
+        suggestedPresentationForPlan,
         featureSummary,
         applyPlanSuggestion,
         initializePlanPackagePicker
