@@ -22,6 +22,17 @@ function requirePresentationVersion(value = PRESENTATION_SCHEMA_VERSION) {
     return version;
 }
 
+function createTenantPresentation(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) {
+        throw new TypeError("Presentation ayarı nesne olmalı.");
+    }
+
+    return Object.freeze({
+        tier: requirePresentationTier(input.tier),
+        version: requirePresentationVersion(input.version)
+    });
+}
+
 function resolveTenantPresentation(input = null) {
     if (input === undefined || input === null) {
         return Object.freeze({
@@ -31,13 +42,9 @@ function resolveTenantPresentation(input = null) {
         });
     }
 
-    if (!input || typeof input !== "object" || Array.isArray(input)) {
-        throw new TypeError("Presentation ayarı nesne olmalı.");
-    }
-
+    const presentation = createTenantPresentation(input);
     return Object.freeze({
-        tier: requirePresentationTier(input.tier),
-        version: requirePresentationVersion(input.version),
+        ...presentation,
         source: "configured"
     });
 }
@@ -45,6 +52,7 @@ function resolveTenantPresentation(input = null) {
 module.exports = {
     PRESENTATION_SCHEMA_VERSION,
     PRESENTATION_TIERS,
+    createTenantPresentation,
     requirePresentationTier,
     resolveTenantPresentation
 };
