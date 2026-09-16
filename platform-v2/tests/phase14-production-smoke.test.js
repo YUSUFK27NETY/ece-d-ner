@@ -4,8 +4,12 @@ const assert = require("node:assert/strict");
 const {
     checkPlatformV2Production,
     normalizeBaseUrl,
+    normalizeCommit,
     normalizeTenantId
 } = require("../scripts/check-production-smoke");
+
+const COMMIT_A = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+const COMMIT_B = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
 
 function response({ status = 200, json = null, text = "" } = {}) {
     return {
@@ -16,13 +20,22 @@ function response({ status = 200, json = null, text = "" } = {}) {
     };
 }
 
-function createHealthyFetch({ tier = "starter", source = "legacy_fallback" } = {}) {
+function createHealthyFetch({
+    tier = "starter",
+    source = "legacy_fallback",
+    deployedCommit = COMMIT_A
+} = {}) {
     const calls = [];
     const fetchImplementation = async url => {
         calls.push(url);
         if (url.endsWith("/health")) {
             return response({
                 json: { success: true, status: "ok", service: "platform-v2-admin-api" }
+            });
+        }
+        if (url.endsWith("/api/public/deployment")) {
+            return response({
+                json: { success: true, deployment: { commit: deployedCommit } }
             });
         }
         if (url.includes("/api/public/storefront/")) {
@@ -58,25 +71,42 @@ function createHealthyFetch({ tier = "starter", source = "legacy_fallback" } = {
     return { calls, fetchImplementation };
 }
 
-test("production smoke health, public storefront, page ve presentation CSS'i doğrular", async () => {
+test("production smoke exact revision, health, storefront ve presentation assetlerini doğrular", async () => {
     const { calls, fetchImplementation } = createHealthyFetch();
     const result = await checkPlatformV2Production({
         fetchImplementation,
         baseUrl: "https://example.com/",
         tenantId: "ela-doner",
+        expectedCommit: COMMIT_A,
         timeoutMs: 1000
     });
 
     assert.equal(result.success, true);
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
-    assert.equal(result.endpoints, 4);
+    assert.equal(result.deployedCommit, COMMIT_A);
+    assert.equal(result.endpoints, 5);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
+        "https://example.com/api/public/deployment",
         "https://example.com/api/public/storefront/ela-doner",
         "https://example.com/m/ela-doner",
         "https://example.com/m/presentation.css"
     ]));
+});
+
+test("production eski committeyse smoke fail closed olur", async () => {
+    const { fetchImplementation } = createHealthyFetch({ deployedCommit: COMMIT_A });
+    await assert.rejects(
+        () => checkPlatformV2Production({
+            fetchImplementation,
+            baseUrl: "https://example.com",
+            tenantId: "ela-doner",
+            expectedCommit: COMMIT_B,
+            timeoutMs: 1000
+        }),
+        /beklenen SHA değil/
+    );
 });
 
 test("configured Business presentation da geçerli production sözleşmesidir", async () => {
@@ -85,6 +115,7 @@ test("configured Business presentation da geçerli production sözleşmesidir", 
         fetchImplementation,
         baseUrl: "https://example.com",
         tenantId: "ela-doner",
+        expectedCommit: COMMIT_A,
         timeoutMs: 1000
     }));
 });
@@ -96,6 +127,7 @@ test("bozuk presentation manifesti fail closed olur", async () => {
             fetchImplementation,
             baseUrl: "https://example.com",
             tenantId: "ela-doner",
+            expectedCommit: COMMIT_A,
             timeoutMs: 1000
         }),
         /presentation sözleşmesi doğrulanamadı/
@@ -116,15 +148,18 @@ test("health sözleşmesi bozuksa smoke başarısız olur", async () => {
             fetchImplementation,
             baseUrl: "https://example.com",
             tenantId: "ela-doner",
+            expectedCommit: COMMIT_A,
             timeoutMs: 1000
         }),
         /health yanıtı beklenen sözleşmede değil/
     );
 });
 
-test("smoke yalnız HTTPS base URL ve canonical tenant ID kabul eder", () => {
+test("smoke yalnız HTTPS base URL, canonical tenant ve 40 hex commit kabul eder", () => {
     assert.equal(normalizeBaseUrl("https://example.com/"), "https://example.com");
     assert.equal(normalizeTenantId("ela-doner"), "ela-doner");
+    assert.equal(normalizeCommit(COMMIT_A), COMMIT_A);
     assert.throws(() => normalizeBaseUrl("http://example.com"), /HTTPS/);
     assert.throws(() => normalizeTenantId("ELA DONER"), /tenant ID geçersiz/);
+    assert.throws(() => normalizeCommit("deadbeef"), /commit SHA geçersiz/);
 });
