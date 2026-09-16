@@ -67,6 +67,8 @@ function createStorefrontPresentationManifest({ tenant, effectiveFeatures } = {}
         schemaVersion: selection.version,
         tier: selection.tier,
         source: selection.source,
+        designFamily: selection.family,
+        designFamilySource: selection.familySource,
         sector,
         components: contract,
         sections: buildSections({ features, contract })
