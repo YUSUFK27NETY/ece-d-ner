@@ -1,6 +1,7 @@
 const { requireTenantId } = require("./tenant-id");
 const { createFeatureFlags } = require("./feature-catalog");
 const { createTenantProfile } = require("./tenant-profile");
+const { createTenantPresentation } = require("../presentation/presentation-tier");
 
 const TENANT_STATUSES = new Set([
     "provisioning",
@@ -37,6 +38,7 @@ function createTenantRecord({
     status = "provisioning",
     features = {},
     profile = {},
+    presentation = null,
     createdBy = null,
     now = new Date()
 }) {
@@ -50,7 +52,7 @@ function createTenantRecord({
         throw new TypeError("Geçersiz tenant durumu.");
     }
 
-    return Object.freeze({
+    const record = {
         schemaVersion: 1,
         tenantId: requireTenantId(tenantId),
         displayName: requireDisplayName(displayName),
@@ -63,7 +65,13 @@ function createTenantRecord({
         updatedAt: now.toISOString(),
         createdBy: createdBy ? String(createdBy) : null,
         updatedBy: createdBy ? String(createdBy) : null
-    });
+    };
+
+    if (presentation !== undefined && presentation !== null) {
+        record.presentation = createTenantPresentation(presentation);
+    }
+
+    return Object.freeze(record);
 }
 
 module.exports = {
