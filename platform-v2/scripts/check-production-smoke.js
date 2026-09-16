@@ -5,6 +5,8 @@ const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
 const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
 const PRESENTATION_SOURCES = new Set(["configured", "legacy_fallback"]);
+const DESIGN_FAMILIES = new Set(["modern", "warm", "bold", "corporate", "editorial", "minimal"]);
+const DESIGN_FAMILY_SOURCES = new Set(["configured", "tier_default"]);
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -108,6 +110,8 @@ async function checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeou
         !Array.isArray(storefront?.products) || !presentation ||
         !PRESENTATION_TIERS.has(presentation.tier) ||
         !PRESENTATION_SOURCES.has(presentation.source) ||
+        !DESIGN_FAMILIES.has(presentation.designFamily) ||
+        !DESIGN_FAMILY_SOURCES.has(presentation.designFamilySource) ||
         typeof presentation.sector !== "object" || presentation.sector === null ||
         typeof presentation.components !== "object" || presentation.components === null ||
         !Array.isArray(presentation.sections)) {
@@ -127,6 +131,8 @@ async function checkStorefrontPage(fetchImplementation, baseUrl, tenantId, timeo
         'id="storefront"',
         '/m/storefront.css',
         '/m/presentation.css',
+        '/m/design-families.css',
+        '/m/design-family-bridge.js',
         '/m/storefront.js'
     ]) {
         if (!html.includes(marker)) {
@@ -149,13 +155,44 @@ async function checkPresentationStylesheet(fetchImplementation, baseUrl, timeout
     }
 }
 
+async function checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs) {
+    const response = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/m/design-families.css`,
+        timeoutMs
+    );
+    assertOk(response, "Design family stylesheet");
+    const css = await response.text();
+    for (const family of ["warm", "bold", "corporate", "editorial", "minimal"]) {
+        if (!css.includes(`data-design-family="${family}"`)) {
+            throw new Error(`Design family stylesheet eksik: ${family}`);
+        }
+    }
+}
+
+async function checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs) {
+    const response = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/m/design-family-bridge.js`,
+        timeoutMs
+    );
+    assertOk(response, "Design family bridge");
+    const source = await response.text();
+    if (!source.includes("designFamily") || !source.includes("data-design-family") &&
+        !source.includes("dataset.designFamily")) {
+        throw new Error("Design family bridge beklenen runtime markerlarını içermiyor.");
+    }
+}
+
 async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
     const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
         checkDeployment(fetchImplementation, baseUrl, timeoutMs, expectedCommit),
         checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkStorefrontPage(fetchImplementation, baseUrl, tenantId, timeoutMs),
-        checkPresentationStylesheet(fetchImplementation, baseUrl, timeoutMs)
+        checkPresentationStylesheet(fetchImplementation, baseUrl, timeoutMs),
+        checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs),
+        checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs)
     ]);
     return Object.freeze({
         success: true,
@@ -163,7 +200,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         baseUrl,
         tenantId,
         deployedCommit: results[1],
-        endpoints: 5
+        endpoints: 7
     });
 }
 
