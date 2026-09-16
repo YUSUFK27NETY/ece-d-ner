@@ -2,13 +2,15 @@ const { requireTenantId } = require("./tenant-id");
 const { TENANT_STATUSES } = require("./tenant-record");
 const { createFeatureFlags } = require("./feature-catalog");
 const { mergeTenantProfile } = require("./tenant-profile");
+const { createTenantPresentation } = require("../presentation/presentation-tier");
 
 const UPDATEABLE_FIELDS = new Set([
     "displayName",
     "status",
     "plan",
     "features",
-    "profile"
+    "profile",
+    "presentation"
 ]);
 
 function normalizeDisplayName(value) {
@@ -116,6 +118,10 @@ function createTenantManagementService({ tenantRegistry, auditWriter = null }) {
 
             if ("profile" in patch) {
                 next.profile = mergeTenantProfile(current.profile || {}, patch.profile);
+            }
+
+            if ("presentation" in patch) {
+                next.presentation = createTenantPresentation(patch.presentation);
             }
 
             const updated = await tenantRegistry.update(normalizedTenantId, next);

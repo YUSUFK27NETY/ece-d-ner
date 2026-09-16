@@ -2,6 +2,9 @@ const { FEATURE_CATALOG, createFeatureFlags } = require("../tenant/feature-catal
 const { createTenantProfile } = require("../tenant/tenant-profile");
 const { requireTenantId } = require("../tenant/tenant-id");
 const { projectProduct } = require("../catalog/product-model");
+const {
+    createStorefrontPresentationManifest
+} = require("../presentation/storefront-presentation-service");
 
 function safeError(code, message) {
     const error = new Error(message);
@@ -104,6 +107,10 @@ function createPublicStorefrontService({
                 tenant,
                 entitlementService: entitlements
             });
+            const presentation = createStorefrontPresentationManifest({
+                tenant,
+                effectiveFeatures
+            });
             let publicProducts = [];
 
             if (effectiveFeatures.catalog) {
@@ -118,7 +125,8 @@ function createPublicStorefrontService({
 
             return Object.freeze({
                 tenant: projectPublicTenant(tenant, effectiveFeatures),
-                products: Object.freeze(publicProducts)
+                products: Object.freeze(publicProducts),
+                presentation
             });
         }
     });

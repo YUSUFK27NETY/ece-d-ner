@@ -3,7 +3,9 @@
 
     const bootstrap = window.PLATFORM_BOOTSTRAP || {};
     const firebaseConfig = bootstrap.firebase;
+    const planPackages = window.PLATFORM_PLAN_PACKAGES || null;
     const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
+    const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
     const FEATURE_LABELS = Object.freeze({
         catalog: "Katalog", orders: "Sipariş", appointments: "Randevu",
         reservations: "Rezervasyon", whatsapp: "WhatsApp", inventory: "Stok",
@@ -20,6 +22,7 @@
         session: byId("wizard-session"), message: byId("wizard-message"),
         tenantId: byId("tenant-id"), displayName: byId("display-name"),
         templateId: byId("template-id"), sector: byId("sector"), plan: byId("plan"),
+        presentationTier: byId("presentation-tier"), presentationSummary: byId("presentation-summary"),
         templateSummary: byId("template-summary"), featureGrid: byId("feature-grid"),
         tenantStatus: byId("tenant-status"), loadTenant: byId("load-tenant"),
         saveBusiness: byId("save-business"), saveProfile: byId("save-profile"),
@@ -45,7 +48,8 @@
     const state = {
         templates: new Map(), featureKeys: Object.freeze([]), tenant: null,
         readiness: null, products: [], catalogState: "unknown", delivery: null,
-        qrUrl: null, qrBlob: null, busy: false
+        qrUrl: null, qrBlob: null, busy: false,
+        presentationTouched: false, presentationDirty: false
     };
 
     function setMessage(text = "", type = "") {
@@ -77,6 +81,55 @@
     function optionalInput(input) {
         const value = input.value.trim();
         return value || null;
+    }
+
+    function collectPresentation() {
+        const tier = String(el.presentationTier?.value ?? "").trim().toLowerCase();
+        if (!PRESENTATION_TIERS.has(tier)) {
+            throw new Error("Geçerli bir sunum seviyesi seç.");
+        }
+        return { tier, version: 1 };
+    }
+
+    function renderPresentationSummary(source = "manual") {
+        if (!el.presentationSummary) return;
+        const tier = String(el.presentationTier?.value || "starter").toLowerCase();
+        const labels = {
+            starter: "Starter · profesyonel temel",
+            business: "Business · gelişmiş dönüşüm",
+            pro: "Business Pro · premium marka deneyimi"
+        };
+        if (source === "legacy_fallback") {
+            el.presentationSummary.textContent = `${labels[tier] || tier}. Bu mevcut tenantta explicit sunum ayarı yok; Starter güvenli fallback kullanılıyor.`;
+            return;
+        }
+        if (source === "plan_suggestion") {
+            el.presentationSummary.textContent = `${labels[tier] || tier}. Paket önerisi uygulandı; sunum seviyesi modüllerden ve ticari plandan bağımsız değiştirilebilir.`;
+            return;
+        }
+        el.presentationSummary.textContent = `${labels[tier] || tier}. Sunum seviyesi ticari plandan ve modül seçimlerinden bağımsız kaydedilir.`;
+    }
+
+    function applyPlanPresentationSuggestion() {
+        if (state.tenant || state.presentationTouched) return false;
+        const suggestion = planPackages?.suggestedPresentationForPlan?.(el.plan.value);
+        if (!suggestion || !PRESENTATION_TIERS.has(suggestion.tier)) return false;
+        el.presentationTier.value = suggestion.tier;
+        renderPresentationSummary("plan_suggestion");
+        return true;
+    }
+
+    function populatePresentation(presentation) {
+        const tier = presentation?.tier;
+        if (PRESENTATION_TIERS.has(tier)) {
+            el.presentationTier.value = tier;
+            renderPresentationSummary("configured");
+        } else {
+            el.presentationTier.value = "starter";
+            renderPresentationSummary("legacy_fallback");
+        }
+        state.presentationTouched = Boolean(state.tenant);
+        state.presentationDirty = false;
     }
 
     async function getIdToken() {
@@ -250,7 +303,7 @@
 
     function setMutableControls() {
         const mutable = !state.tenant || state.tenant.status === "provisioning";
-        for (const node of [el.displayName, el.plan, el.brandName, el.phone, el.whatsapp,
+        for (const node of [el.displayName, el.plan, el.presentationTier, el.brandName, el.phone, el.whatsapp,
             el.contactEmail, el.website, el.instagramUrl, el.googleUrl, el.logoUrl,
             el.primaryColor, el.timezone, el.address, el.businessHours]) {
             node.disabled = state.busy || !mutable;
@@ -350,6 +403,7 @@
         subtitle.className = "muted";
         subtitle.textContent = `${state.tenant.tenantId} · ${state.tenant.sector} · ${state.tenant.status}`;
         const meta = document.createElement("div"); meta.className = "preview-meta";
+        appendPreviewMetric(meta, "Sunum", state.tenant.presentation?.tier || "starter (legacy fallback)");
         appendPreviewMetric(meta, "İletişim", state.tenant.profile?.phone || state.tenant.profile?.whatsapp || state.tenant.profile?.email);
         appendPreviewMetric(meta, "Çalışma saatleri", state.tenant.profile?.businessHours);
         appendPreviewMetric(meta, "Aktif modüller", Object.entries(state.tenant.features || {}).filter(([, enabled]) => enabled).map(([key]) => featureLabel(key)).join(", "));
@@ -402,11 +456,15 @@
         const tenant = state.tenant;
         if (!tenant) {
             setBadge(el.tenantStatus, "Yeni");
+            populatePresentation(null);
+            state.presentationTouched = false;
+            applyPlanPresentationSuggestion();
             lockIdentityForExisting(); renderMinimumChecks(); renderReadiness(); renderPreview();
             return;
         }
         el.tenantId.value = tenant.tenantId; el.displayName.value = tenant.displayName;
         el.sector.value = tenant.sector; el.plan.value = tenant.plan;
+        populatePresentation(tenant.presentation);
         applyFeatures(tenant.features || {}); populateProfile(tenant.profile || {});
         setBadge(el.tenantStatus, tenant.status, tenant.status);
         lockIdentityForExisting(); renderMinimumChecks(); renderReadiness(); renderPreview();
@@ -483,6 +541,7 @@
             const displayName = el.displayName.value.trim();
             const plan = el.plan.value.trim().toLowerCase();
             const features = collectFeatures();
+            const presentation = collectPresentation();
             if (displayName.length < 2 || displayName.length > 120) throw new Error("İşletme adı 2-120 karakter olmalı.");
             if (!state.tenant) {
                 const template = state.templates.get(el.templateId.value);
@@ -490,26 +549,31 @@
                 try {
                     const body = await apiRequest("/api/platform/tenants", {
                         method: "POST",
-                        body: JSON.stringify({ tenantId, displayName, sector: template.sector, plan, features, profile: collectProfile() })
+                        body: JSON.stringify({ tenantId, displayName, sector: template.sector, plan, presentation, features, profile: collectProfile() })
                     });
                     state.tenant = body?.tenant;
                     if (!state.tenant || state.tenant.tenantId !== tenantId) throw new Error("Tenant oluşturma yanıtı doğrulanamadı.");
+                    state.presentationDirty = false;
                     setMessage("Tenant oluşturuldu. Wizard kaldığı yerden tekrar açılabilir.", "success");
                 } catch (error) {
                     if (error.status !== 409) throw error;
                     const existing = await apiRequest(`/api/platform/tenants/${encodeURIComponent(tenantId)}`);
                     if (!existing?.tenant || existing.tenant.tenantId !== tenantId) throw error;
                     state.tenant = existing.tenant;
+                    state.presentationDirty = false;
                     setMessage("Tenant zaten vardı; duplicate oluşturulmadı, mevcut kurulum açıldı.", "success");
                 }
             } else {
                 if (state.tenant.status !== "provisioning") throw new Error("Wizard yalnız provisioning tenantı değiştirebilir.");
+                const patch = { displayName, plan, features };
+                if (state.presentationDirty) patch.presentation = presentation;
                 const body = await apiRequest(`/api/platform/tenants/${encodeURIComponent(state.tenant.tenantId)}`, {
-                    method: "PATCH", body: JSON.stringify({ displayName, plan, features })
+                    method: "PATCH", body: JSON.stringify(patch)
                 });
                 state.tenant = body?.tenant;
                 if (!state.tenant) throw new Error("Tenant güncellemesi doğrulanamadı.");
-                setMessage("İşletme ve modül ayarları kaydedildi.", "success");
+                state.presentationDirty = false;
+                setMessage("İşletme, modül ve sunum ayarları kaydedildi.", "success");
             }
             renderTenant(); await refreshDerivedState();
         } catch (error) { setMessage(error.message || "İşletme kaydedilemedi.", "error"); }
@@ -602,7 +666,22 @@
         document.body.append(link); link.click(); link.remove();
     }
 
+    function handlePlanChange() {
+        applyPlanPresentationSuggestion();
+    }
+
+    function handlePresentationChange() {
+        const tier = String(el.presentationTier.value || "").toLowerCase();
+        if (!PRESENTATION_TIERS.has(tier)) return;
+        state.presentationTouched = true;
+        state.presentationDirty = Boolean(state.tenant);
+        renderPresentationSummary("manual");
+    }
+
     el.templateId.addEventListener("change", applySelectedTemplate);
+    el.plan.addEventListener("input", handlePlanChange);
+    el.plan.addEventListener("change", handlePlanChange);
+    el.presentationTier.addEventListener("change", handlePresentationChange);
     el.loadTenant.addEventListener("click", () => loadTenant());
     el.saveBusiness.addEventListener("click", saveBusiness);
     el.saveProfile.addEventListener("click", saveProfile);
@@ -630,6 +709,7 @@
         try {
             await loadTemplates();
             applySelectedTemplate();
+            applyPlanPresentationSuggestion();
             const queryTenantId = new URLSearchParams(window.location.search).get("tenantId");
             setBusy(false);
             if (queryTenantId) {
