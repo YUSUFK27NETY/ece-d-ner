@@ -14,6 +14,26 @@
         return tenantId.length >= 3 && TENANT_ID_PATTERN.test(tenantId) ? tenantId : "";
     }
 
+    const tenantId = tenantIdFromPath();
+    if (!tenantId) return;
+
+    const originalFetch = window.fetch.bind(window);
+    const expectedStorefrontPath = `/api/public/storefront/${encodeURIComponent(tenantId)}`;
+
+    function isCurrentStorefrontRequest(input) {
+        try {
+            const raw = typeof input === "string" || input instanceof URL
+                ? String(input)
+                : String(input?.url || "");
+            const url = new URL(raw, window.location.origin);
+            return url.origin === window.location.origin &&
+                url.pathname === expectedStorefrontPath &&
+                url.search === "";
+        } catch {
+            return false;
+        }
+    }
+
     function money(value) {
         const number = Number(value);
         if (!Number.isFinite(number)) return "—";
@@ -70,18 +90,13 @@
         }
     }
 
-    async function load() {
-        const tenantId = tenantIdFromPath();
-        if (!tenantId) return;
+    async function applyProductsFromResponse(response) {
         try {
-            const response = await fetch(`/api/public/storefront/${encodeURIComponent(tenantId)}`, {
-                headers: { Accept: "application/json" }
-            });
-            if (!response.ok) return;
-            const payload = await response.json();
-            const products = payload?.storefront?.products;
-            if (!Array.isArray(products)) return;
-            state.products = products;
+            if (!response?.ok) return;
+            const payload = await response.clone().json();
+            const storefront = payload?.storefront;
+            if (storefront?.tenant?.tenantId !== tenantId || !Array.isArray(storefront.products)) return;
+            state.products = storefront.products;
             decorate();
         } catch {
             // Storefront remains usable without optional product media decoration.
@@ -90,5 +105,12 @@
 
     const observer = new MutationObserver(() => decorate());
     observer.observe(grid, { childList: true });
-    load();
+
+    window.fetch = async (...args) => {
+        const response = await originalFetch(...args);
+        if (isCurrentStorefrontRequest(args[0])) {
+            void applyProductsFromResponse(response);
+        }
+        return response;
+    };
 })();
