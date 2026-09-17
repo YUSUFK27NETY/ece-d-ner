@@ -11,7 +11,7 @@ const storefront = fs.readFileSync(
 test("module contact actions only use WhatsApp when the feature is enabled", () => {
     assert.match(
         storefront,
-        /function moduleContactHref\(title\)[\s\S]*state\.tenant\.features\?\.whatsapp === true[\s\S]*whatsappHref\(/[\s\S]*return telHref\(profile\.phone\) \|\| "#contact";/
+        /function moduleContactHref\(title\)[\s\S]*state\.tenant\.features\?\.whatsapp === true[\s\S]*whatsappHref\([\s\S]*return telHref\(profile\.phone\) \|\| "#contact";/
     );
 });
 
