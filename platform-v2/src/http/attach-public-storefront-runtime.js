@@ -61,6 +61,16 @@ function recoverPublicTenantId(value) {
     return canonicalTenantId(recovered);
 }
 
+function hasMalformedPathEncoding(value) {
+    const pathname = String(value ?? "").split("?", 1)[0];
+    try {
+        decodeURIComponent(pathname);
+        return false;
+    } catch {
+        return true;
+    }
+}
+
 function sendInvalidStorefrontPage(res, tenantId, suffix = "") {
     const recovered = recoverPublicTenantId(tenantId);
     if (recovered) {
@@ -109,6 +119,9 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
 
     const publicDir = path.join(__dirname, "../../public/storefront");
     app.use("/m", (req, res, next) => {
+        if (hasMalformedPathEncoding(req.url)) {
+            return res.status(404).send("İşletme bulunamadı.");
+        }
         res.set("Content-Security-Policy", PUBLIC_STOREFRONT_CSP);
         res.set("Referrer-Policy", "strict-origin-when-cross-origin");
         next();
@@ -152,6 +165,15 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
         });
     });
 
+    app.use("/api/public/storefront", (req, res, next) => {
+        if (hasMalformedPathEncoding(req.url)) {
+            return res.status(400).json({
+                success: false,
+                message: "İşletme bağlantısı geçersiz."
+            });
+        }
+        return next();
+    });
     app.get(PUBLIC_STOREFRONT_API, limiter, async (req, res) => {
         try {
             if (Reflect.ownKeys(req.query).length > 0) {
@@ -176,6 +198,7 @@ module.exports = {
     attachPublicStorefrontRuntime,
     createStorefrontRateLimiter,
     deploymentRevision,
+    hasMalformedPathEncoding,
     recoverPublicTenantId,
     sendStorefrontError
 };
