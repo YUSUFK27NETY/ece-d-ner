@@ -15,6 +15,13 @@ test("module contact actions only use WhatsApp when the feature is enabled", () 
     );
 });
 
+test("local Turkish phone numbers keep the +90 country code in tel links", () => {
+    assert.match(
+        storefront,
+        /function telHref\(value\) \{\s*let digits = phoneDigits\(value\);\s*if \(digits\.startsWith\("0"\)\) digits = `90\$\{digits\.slice\(1\)\}`;\s*return digits \? `tel:\+\$\{digits\}` : "";\s*\}/
+    );
+});
+
 test("cart WhatsApp send path is guarded at runtime, not only by UI visibility", () => {
     assert.match(
         storefront,
