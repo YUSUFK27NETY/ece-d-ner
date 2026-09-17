@@ -4,6 +4,7 @@ const { once } = require("node:events");
 const express = require("express");
 const {
     attachPublicStorefrontRuntime,
+    hasMalformedPathEncoding,
     recoverPublicTenantId
 } = require("../src/http/attach-public-storefront-runtime");
 
@@ -47,6 +48,12 @@ test("public tenant recovery only removes invisible/space noise at URL edges", (
     assert.equal(recoverPublicTenantId("ela-doner"), null);
 });
 
+test("malformed percent encoding path guard fails closed before route decoding", () => {
+    assert.equal(hasMalformedPathEncoding("/%E0%A4%A"), true);
+    assert.equal(hasMalformedPathEncoding("/ela-doner?src=%E0%A4%A"), false);
+    assert.equal(hasMalformedPathEncoding("/ela-doner"), false);
+});
+
 test("storefront page redirects a trailing U+2060 to the clean canonical tenant URL", async () => {
     await withServer(async baseUrl => {
         const response = await fetch(`${baseUrl}/m/ela-doner%E2%81%A0`, {
@@ -77,5 +84,31 @@ test("storefront does not recover invisible characters inside a tenant id", asyn
 
         assert.equal(response.status, 404);
         assert.equal(await response.text(), "İşletme bulunamadı.");
+    });
+});
+
+test("malformed storefront page path returns controlled 404 before Express param decode", async () => {
+    await withServer(async baseUrl => {
+        const response = await fetch(`${baseUrl}/m/%E0%A4%A`, {
+            redirect: "manual"
+        });
+
+        assert.equal(response.status, 404);
+        assert.equal(await response.text(), "İşletme bulunamadı.");
+    });
+});
+
+test("malformed storefront API path returns controlled JSON 400 without calling service", async () => {
+    await withServer(async baseUrl => {
+        const response = await fetch(`${baseUrl}/api/public/storefront/%E0%A4%A`, {
+            redirect: "manual"
+        });
+        const body = await response.json();
+
+        assert.equal(response.status, 400);
+        assert.deepEqual(body, {
+            success: false,
+            message: "İşletme bağlantısı geçersiz."
+        });
     });
 });
