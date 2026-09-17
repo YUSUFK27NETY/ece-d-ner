@@ -166,8 +166,9 @@
     }
 
     function telHref(value) {
-        const digits = phoneDigits(value);
-        return digits ? `tel:+${digits.replace(/^0+/, "")}` : "";
+        let digits = phoneDigits(value);
+        if (digits.startsWith("0")) digits = `90${digits.slice(1)}`;
+        return digits ? `tel:+${digits}` : "";
     }
 
     function whatsappHref(value, text = "") {
