@@ -109,7 +109,7 @@ function storefrontFor(tenantId) {
             },
             profile: {
                 brandName: `ATLAS STUDIO ${label.toUpperCase()}`,
-                phone: "+90 342 000 00 00",
+                phone: tenantId === "demo-no-whatsapp" ? "0342 000 00 00" : "+90 342 000 00 00",
                 whatsapp: "+90 530 000 00 00",
                 address: "Gaziantep",
                 primaryColor: "#7C3AED"
