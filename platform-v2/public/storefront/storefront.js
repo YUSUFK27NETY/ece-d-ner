@@ -218,11 +218,13 @@
 
     function moduleContactHref(title) {
         const profile = state.tenant.profile || {};
-        const wa = whatsappHref(
-            profile.whatsapp,
-            `Merhaba, ${state.tenant.profile?.brandName || state.tenant.displayName} için ${title.toLocaleLowerCase("tr-TR")} hakkında bilgi almak istiyorum.`
-        );
-        if (wa) return wa;
+        if (state.tenant.features?.whatsapp === true) {
+            const wa = whatsappHref(
+                profile.whatsapp,
+                `Merhaba, ${state.tenant.profile?.brandName || state.tenant.displayName} için ${title.toLocaleLowerCase("tr-TR")} hakkında bilgi almak istiyorum.`
+            );
+            if (wa) return wa;
+        }
         return telHref(profile.phone) || "#contact";
     }
 
@@ -566,7 +568,7 @@
     }
 
     function sendCartToWhatsApp() {
-        if (!state.cart.size) return;
+        if (!canUseWhatsAppCart() || !state.cart.size) return;
         const details = readCheckoutDetails();
         if (!validateCheckoutDetails(details)) return;
 

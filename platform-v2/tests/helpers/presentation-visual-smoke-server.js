@@ -17,6 +17,7 @@ const TENANTS = new Set([
     "demo-starter",
     "demo-business",
     "demo-pro",
+    "demo-no-whatsapp",
     ...BUSINESS_FAMILIES.map(family => `demo-business-${family}`)
 ]);
 
@@ -63,6 +64,9 @@ const MIME = Object.freeze({
 });
 
 function presentationForTenant(tenantId) {
+    if (tenantId === "demo-no-whatsapp") {
+        return Object.freeze({ tier: "business", designFamily: "modern" });
+    }
     if (tenantId.startsWith("demo-business-")) {
         return Object.freeze({
             tier: "business",
@@ -79,6 +83,7 @@ function presentationForTenant(tenantId) {
 function storefrontFor(tenantId) {
     const { tier, designFamily } = presentationForTenant(tenantId);
     const label = `${tier}-${designFamily}`;
+    const whatsappEnabled = tenantId !== "demo-no-whatsapp";
     return {
         tenant: {
             tenantId,
@@ -89,7 +94,7 @@ function storefrontFor(tenantId) {
                 orders: false,
                 appointments: true,
                 reservations: false,
-                whatsapp: true,
+                whatsapp: whatsappEnabled,
                 inventory: false,
                 quotes: true,
                 crm: false,

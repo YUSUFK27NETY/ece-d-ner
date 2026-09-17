@@ -120,10 +120,18 @@ jobs:
           assert_case demo-starter starter modern compact standard compact compact minimal system services Hizmetler
           assert_case demo-business business modern featured advanced expanded comfortable functional professional services Hizmetler
           assert_case demo-pro pro editorial immersive signature editorial luxury refined editorial services Hizmetler
+          assert_case demo-no-whatsapp business modern featured advanced expanded comfortable functional professional services Hizmetler
 
           for family in modern warm bold corporate editorial minimal; do
             assert_case "demo-business-${family}" business "${family}" featured advanced expanded comfortable functional professional services Hizmetler
           done
+
+          disabled_dom="/tmp/presentation-dom/demo-no-whatsapp.html"
+          if grep -q 'https://wa.me/' "$disabled_dom"; then
+            echo "demo-no-whatsapp: disabled WhatsApp leaked into rendered actions"
+            exit 1
+          fi
+          grep -q 'href="tel:+903420000000"' "$disabled_dom"
 
       - name: Stop isolated storefront fixture
         if: always()
