@@ -68,7 +68,22 @@ function createHealthyFetch({
         }
         if (url.endsWith("/m/presentation.css")) {
             return response({
-                text: ':root[data-presentation-hero="featured"]{} :root[data-presentation-hero="immersive"]{}'
+                text: [
+                    ':root[data-presentation-hero="featured"]{}',
+                    ':root[data-presentation-typography="professional"]{}',
+                    ':root[data-presentation-footer="expanded"]{}'
+                ].join("\n")
+            });
+        }
+        if (url.endsWith("/m/storefront.css")) {
+            return response({
+                text: [
+                    ':root[data-presentation-hero="featured"]{}',
+                    ':root[data-presentation-hero="immersive"]{}',
+                    ':root[data-presentation-typography="editorial"]{}',
+                    ':root[data-presentation-offering="advanced"]{}',
+                    ':root[data-presentation-density="luxury"]{}'
+                ].join("\n")
             });
         }
         if (url.endsWith("/m/design-families.css")) {
@@ -100,16 +115,56 @@ test("production smoke exact revision, storefront ve design family assetlerini d
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
     assert.equal(result.deployedCommit, COMMIT_A);
-    assert.equal(result.endpoints, 7);
+    assert.equal(result.endpoints, 8);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
         "https://example.com/api/public/deployment",
         "https://example.com/api/public/storefront/ela-doner",
         "https://example.com/m/ela-doner",
         "https://example.com/m/presentation.css",
+        "https://example.com/m/storefront.css",
         "https://example.com/m/design-families.css",
         "https://example.com/m/design-family-bridge.js"
     ]));
+});
+
+test("presentation tokenları gerçek asset dağılımında doğrulanır", async () => {
+    const { fetchImplementation } = createHealthyFetch();
+    await assert.doesNotReject(() => checkPlatformV2Production({
+        fetchImplementation,
+        baseUrl: "https://example.com",
+        tenantId: "ela-doner",
+        expectedCommit: COMMIT_A,
+        timeoutMs: 1000
+    }));
+});
+
+test("Pro immersive tokenı core storefront CSS'te yoksa smoke fail closed olur", async () => {
+    const { fetchImplementation: healthyFetch } = createHealthyFetch();
+    const fetchImplementation = async url => {
+        if (url.endsWith("/m/storefront.css")) {
+            return response({
+                text: [
+                    ':root[data-presentation-hero="featured"]{}',
+                    ':root[data-presentation-typography="editorial"]{}',
+                    ':root[data-presentation-offering="advanced"]{}',
+                    ':root[data-presentation-density="luxury"]{}'
+                ].join("\n")
+            });
+        }
+        return healthyFetch(url);
+    };
+
+    await assert.rejects(
+        () => checkPlatformV2Production({
+            fetchImplementation,
+            baseUrl: "https://example.com",
+            tenantId: "ela-doner",
+            expectedCommit: COMMIT_A,
+            timeoutMs: 1000
+        }),
+        /Core storefront stylesheet eksik presentation tokenı/
+    );
 });
 
 test("production eski committeyse smoke fail closed olur", async () => {

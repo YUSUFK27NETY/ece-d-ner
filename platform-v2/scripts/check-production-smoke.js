@@ -149,9 +149,35 @@ async function checkPresentationStylesheet(fetchImplementation, baseUrl, timeout
     );
     assertOk(response, "Presentation stylesheet");
     const css = await response.text();
-    if (!css.includes('data-presentation-hero="featured"') ||
-        !css.includes('data-presentation-hero="immersive"')) {
-        throw new Error("Presentation stylesheet beklenen Business/Pro tokenlarını içermiyor.");
+    for (const marker of [
+        'data-presentation-hero="featured"',
+        'data-presentation-typography="professional"',
+        'data-presentation-footer="expanded"'
+    ]) {
+        if (!css.includes(marker)) {
+            throw new Error(`Presentation refinement stylesheet eksik token içeriyor: ${marker}`);
+        }
+    }
+}
+
+async function checkCoreStorefrontStylesheet(fetchImplementation, baseUrl, timeoutMs) {
+    const response = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/m/storefront.css`,
+        timeoutMs
+    );
+    assertOk(response, "Core storefront stylesheet");
+    const css = await response.text();
+    for (const marker of [
+        'data-presentation-hero="featured"',
+        'data-presentation-hero="immersive"',
+        'data-presentation-typography="editorial"',
+        'data-presentation-offering="advanced"',
+        'data-presentation-density="luxury"'
+    ]) {
+        if (!css.includes(marker)) {
+            throw new Error(`Core storefront stylesheet eksik presentation tokenı içeriyor: ${marker}`);
+        }
     }
 }
 
@@ -191,6 +217,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkStorefrontPage(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkPresentationStylesheet(fetchImplementation, baseUrl, timeoutMs),
+        checkCoreStorefrontStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs)
     ]);
@@ -200,7 +227,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         baseUrl,
         tenantId,
         deployedCommit: results[1],
-        endpoints: 7
+        endpoints: 8
     });
 }
 
