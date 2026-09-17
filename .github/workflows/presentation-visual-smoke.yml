@@ -60,6 +60,8 @@ jobs:
             local density="$7"
             local motion="$8"
             local typography="$9"
+            local offering_kind="${10}"
+            local catalog_title="${11}"
             local url="http://127.0.0.1:4173/m/${tenant}"
             local dom="/tmp/presentation-dom/${tenant}.html"
 
@@ -81,6 +83,8 @@ jobs:
             grep -q "data-presentation-density=\"${density}\"" "$dom"
             grep -q "data-presentation-motion=\"${motion}\"" "$dom"
             grep -q "data-presentation-typography=\"${typography}\"" "$dom"
+            grep -q "data-offering-kind=\"${offering_kind}\"" "$dom"
+            grep -q "id=\"catalog-title\">${catalog_title}</h2>" "$dom"
             if grep -q 'id="storefront" class="hidden"' "$dom"; then
               echo "${tenant}: storefront remained hidden"
               exit 1
@@ -113,12 +117,12 @@ jobs:
               "$url"
           }
 
-          assert_case demo-starter starter modern compact standard compact compact minimal system
-          assert_case demo-business business modern featured advanced expanded comfortable functional professional
-          assert_case demo-pro pro editorial immersive signature editorial luxury refined editorial
+          assert_case demo-starter starter modern compact standard compact compact minimal system services Hizmetler
+          assert_case demo-business business modern featured advanced expanded comfortable functional professional services Hizmetler
+          assert_case demo-pro pro editorial immersive signature editorial luxury refined editorial services Hizmetler
 
           for family in modern warm bold corporate editorial minimal; do
-            assert_case "demo-business-${family}" business "${family}" featured advanced expanded comfortable functional professional
+            assert_case "demo-business-${family}" business "${family}" featured advanced expanded comfortable functional professional services Hizmetler
           done
 
       - name: Stop isolated storefront fixture
