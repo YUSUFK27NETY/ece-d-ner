@@ -94,6 +94,59 @@ test("tenant management presentationı plandan bağımsız günceller", async ()
     assert.deepEqual(persisted.presentation, { tier: "pro", version: 1, family: "minimal" });
 });
 
+test("partial presentation update mevcut explicit design family değerini korur", async () => {
+    const current = createTenantRecord(baseInput({
+        presentation: { tier: "business", version: 1, family: "corporate" }
+    }));
+    const service = createTenantManagementService({
+        tenantRegistry: {
+            async getById() {
+                return current;
+            },
+            async update(_id, value) {
+                return value;
+            }
+        }
+    });
+
+    const updated = await service.update({
+        tenantId: "test-tenant",
+        patch: { presentation: { tier: "pro", version: 1 } },
+        actorId: "admin-2"
+    });
+
+    assert.deepEqual(updated.presentation, {
+        tier: "pro",
+        version: 1,
+        family: "corporate"
+    });
+});
+
+test("explicit family null mevcut family değerini temizleyebilir", async () => {
+    const current = createTenantRecord(baseInput({
+        presentation: { tier: "business", version: 1, family: "corporate" }
+    }));
+    const service = createTenantManagementService({
+        tenantRegistry: {
+            async getById() {
+                return current;
+            },
+            async update(_id, value) {
+                return value;
+            }
+        }
+    });
+
+    const updated = await service.update({
+        tenantId: "test-tenant",
+        patch: { presentation: { tier: "pro", version: 1, family: null } },
+        actorId: "admin-2"
+    });
+
+    assert.deepEqual(updated.presentation, { tier: "pro", version: 1 });
+    assert.equal(Object.hasOwn(updated.presentation, "family"), false);
+});
+
 test("plan update mevcut presentation ve family ayarını değiştirmez", async () => {
     const current = createTenantRecord(baseInput({
         plan: "starter",

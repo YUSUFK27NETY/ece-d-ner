@@ -121,7 +121,16 @@ function createTenantManagementService({ tenantRegistry, auditWriter = null }) {
             }
 
             if ("presentation" in patch) {
-                next.presentation = createTenantPresentation(patch.presentation);
+                const requested = patch.presentation;
+                const currentFamily = current.presentation?.family;
+                const shouldPreserveFamily = Boolean(currentFamily) &&
+                    requested && typeof requested === "object" && !Array.isArray(requested) &&
+                    !Object.hasOwn(requested, "family");
+                next.presentation = createTenantPresentation(
+                    shouldPreserveFamily
+                        ? { ...requested, family: currentFamily }
+                        : requested
+                );
             }
 
             const updated = await tenantRegistry.update(normalizedTenantId, next);
