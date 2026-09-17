@@ -24,6 +24,8 @@ jobs:
       PLATFORM_V2_SMOKE_TIMEOUT_MS: "18000"
       PLATFORM_V2_SMOKE_ATTEMPTS: "24"
       PLATFORM_V2_SMOKE_RETRY_DELAY_MS: "10000"
+      PLATFORM_V2_RUNTIME_ASSET_ATTEMPTS: "3"
+      PLATFORM_V2_RUNTIME_ASSET_RETRY_DELAY_MS: "2000"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,3 +40,6 @@ jobs:
 
       - name: Verify exact Platform V2 production revision
         run: node platform-v2/scripts/check-production-smoke.js
+
+      - name: Verify storefront runtime assets
+        run: node platform-v2/scripts/check-storefront-runtime-assets.js
