@@ -11,9 +11,10 @@ const bridgeSource = fs.readFileSync(
     "utf8"
 );
 
-function presentationPayload(designFamily, offeringKind, offeringLabel) {
+function presentationPayload(tenantId, designFamily, offeringKind, offeringLabel) {
     return {
         storefront: {
+            tenant: { tenantId },
             presentation: {
                 designFamily,
                 sector: { offeringKind, offeringLabel }
@@ -42,6 +43,7 @@ async function flushAsyncBridge() {
 
 test("design family bridge only consumes the current tenant storefront response", async () => {
     const dataset = {};
+    let currentResponseTenantId = "ela-doner";
     const window = {
         location: {
             origin: "https://platform.example",
@@ -50,15 +52,15 @@ test("design family bridge only consumes the current tenant storefront response"
         async fetch(input) {
             const raw = String(input);
             if (raw.includes("other-tenant")) {
-                return createResponse(presentationPayload("bold", "services", "Başka Tenant"));
+                return createResponse(presentationPayload("other-tenant", "bold", "services", "Başka Tenant"));
             }
             if (raw.includes("preview=1")) {
-                return createResponse(presentationPayload("editorial", "portfolio", "Sorgulu Yanıt"));
+                return createResponse(presentationPayload("ela-doner", "editorial", "portfolio", "Sorgulu Yanıt"));
             }
             if (raw.startsWith("https://other.example")) {
-                return createResponse(presentationPayload("minimal", "fleet", "Başka Origin"));
+                return createResponse(presentationPayload("ela-doner", "minimal", "fleet", "Başka Origin"));
             }
-            return createResponse(presentationPayload("warm", "menu", "Menü"));
+            return createResponse(presentationPayload(currentResponseTenantId, "warm", "menu", "Menü"));
         }
     };
     const document = {
@@ -99,6 +101,13 @@ test("design family bridge only consumes the current tenant storefront response"
     assert.equal(dataset.designFamily, "modern");
     assert.equal(dataset.offeringKind, "offerings");
 
+    currentResponseTenantId = "other-tenant";
+    await window.fetch("/api/public/storefront/ela-doner");
+    await flushAsyncBridge();
+    assert.equal(dataset.designFamily, "modern");
+    assert.equal(dataset.offeringKind, "offerings");
+
+    currentResponseTenantId = "ela-doner";
     await window.fetch("/api/public/storefront/ela-doner");
     await flushAsyncBridge();
     assert.equal(dataset.designFamily, "warm");
