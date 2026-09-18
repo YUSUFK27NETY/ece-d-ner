@@ -114,11 +114,11 @@
                 headers: { Accept: "application/json" }
             });
             const body = await response.json();
-            if (!response.ok || body?.storefront?.features?.quotes !== true) {
+            const tenant = body?.storefront?.tenant;
+            if (!response.ok || tenant?.tenantId !== tenantId || tenant?.features?.quotes !== true) {
                 throw new Error("Bu işletme teklif talebi kabul etmiyor.");
             }
-            const storefront = body.storefront;
-            el.brand.textContent = `${storefront.profile?.brandName || storefront.displayName || "İşletme"} — Teklif Talebi`;
+            el.brand.textContent = `${tenant.profile?.brandName || tenant.displayName || "İşletme"} — Teklif Talebi`;
         } catch (error) {
             el.form.querySelectorAll("input,textarea,button").forEach(control => { control.disabled = true; });
             showMessage(error.message || "Teklif formu kullanılamıyor.", "error");
