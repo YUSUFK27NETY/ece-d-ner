@@ -3,6 +3,7 @@
 
     const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/;
+    const DEFAULT_THEME_COLOR = "#111827";
     const PRESENTATION_TIERS = new Set(["starter", "business", "pro"]);
     const PRESENTATION_TOKEN_PATTERN = /^[a-z][a-z-]{0,31}$/;
     const PRESENTATION_COMPONENT_DEFAULTS = Object.freeze({
@@ -179,6 +180,20 @@
         return `https://wa.me/${digits}${query}`;
     }
 
+    function websiteHref(value) {
+        const raw = String(value || "").trim();
+        if (!raw) return "";
+        const candidate = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw)
+            ? raw
+            : `https://${raw}`;
+        try {
+            const url = new URL(candidate);
+            return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+        } catch {
+            return "";
+        }
+    }
+
     function money(value) {
         const number = Number(value);
         if (!Number.isFinite(number)) return "—";
@@ -236,9 +251,11 @@
         const [sectorLabel, heroText] = copyForSector(tenant.sector);
 
         document.title = `${name} | Dijital İşletme`;
+        const metaTheme = document.querySelector('meta[name="theme-color"]');
+        document.documentElement.style.removeProperty("--brand");
+        if (metaTheme) metaTheme.setAttribute("content", DEFAULT_THEME_COLOR);
         if (COLOR_PATTERN.test(profile.primaryColor || "")) {
             document.documentElement.style.setProperty("--brand", profile.primaryColor);
-            const metaTheme = document.querySelector('meta[name="theme-color"]');
             if (metaTheme) metaTheme.setAttribute("content", profile.primaryColor);
         }
 
@@ -250,6 +267,11 @@
         el.footerBrand.textContent = name;
         el.logoFallback.textContent = name.trim().slice(0, 1).toLocaleUpperCase("tr-TR") || "İ";
 
+        el.logo.onload = null;
+        el.logo.onerror = null;
+        el.logo.removeAttribute("src");
+        el.logo.classList.add("hidden");
+        el.logoFallback.classList.remove("hidden");
         if (profile.logoUrl) {
             el.logo.src = profile.logoUrl;
             el.logo.onload = () => {
@@ -263,11 +285,11 @@
         }
 
         const wa = whatsappHref(profile.whatsapp);
+        el.headerWhatsapp.removeAttribute("href");
+        el.headerWhatsapp.classList.add("hidden");
         if (wa && tenant.features?.whatsapp) {
             el.headerWhatsapp.href = wa;
             el.headerWhatsapp.classList.remove("hidden");
-        } else {
-            el.headerWhatsapp.classList.add("hidden");
         }
     }
 
@@ -443,6 +465,16 @@
 
     function renderContactInfo() {
         const profile = state.tenant.profile || {};
+        el.addressCard.classList.add("hidden");
+        el.addressText.textContent = "";
+        el.phoneCard.classList.add("hidden");
+        el.phoneText.textContent = "";
+        el.websiteCard.classList.add("hidden");
+        el.websiteLink.removeAttribute("href");
+        el.emailCard.classList.add("hidden");
+        el.emailLink.textContent = "";
+        el.emailLink.removeAttribute("href");
+
         if (profile.address) {
             el.addressText.textContent = profile.address;
             el.addressCard.classList.remove("hidden");
@@ -451,8 +483,9 @@
             el.phoneText.textContent = profile.phone;
             el.phoneCard.classList.remove("hidden");
         }
-        if (profile.website) {
-            el.websiteLink.href = profile.website;
+        const website = websiteHref(profile.website);
+        if (website) {
+            el.websiteLink.href = website;
             el.websiteCard.classList.remove("hidden");
         }
         if (profile.email) {
