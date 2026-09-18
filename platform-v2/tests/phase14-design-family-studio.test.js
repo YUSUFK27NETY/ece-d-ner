@@ -31,10 +31,12 @@ test("altı kontrollü design family vardır; modern mevcut baseline'ı override
     assert.doesNotMatch(familyCss, /data-design-family="modern"/);
 });
 
-test("design family bridge yalnız same-origin public storefront cevabından family uygular", () => {
+test("design family bridge yalnız current-tenant same-origin public storefront cevabından family uygular", () => {
     assert.doesNotThrow(() => new Function(familyBridge));
     assert.match(familyBridge, /url\.origin === window\.location\.origin/);
-    assert.match(familyBridge, /\/api\\\/public\\\/storefront/);
+    assert.match(familyBridge, /expectedStorefrontPath/);
+    assert.match(familyBridge, /url\.pathname === expectedStorefrontPath/);
+    assert.match(familyBridge, /url\.search === ""/);
     assert.match(familyBridge, /response\.clone\(\)\.json\(\)/);
     assert.match(familyBridge, /dataset\.designFamily = family/);
     assert.match(familyBridge, /DEFAULT_FAMILY = "modern"/);
