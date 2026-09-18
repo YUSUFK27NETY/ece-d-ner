@@ -1,7 +1,6 @@
 (() => {
     "use strict";
 
-    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const REQUEST_TRANSITIONS = Object.freeze({
         new: ["new", "in_progress", "converted", "closed"],
         in_progress: ["in_progress", "converted", "closed"],
@@ -14,37 +13,23 @@
     });
 
     const ids = [
-        "auth-panel", "login-form", "tenant-id", "email", "password", "auth-message", "app", "refresh", "workspace-message",
+        "auth-panel", "login-form", "email", "password", "auth-message", "app", "refresh", "workspace-message",
         "stat-contacts", "stat-requests", "stat-conversion", "stat-overdue", "contact-form", "contact-name", "contact-company",
         "contact-email", "contact-phone", "contact-tags", "contact-note", "request-form", "request-contact", "request-title", "request-source",
         "request-due", "request-value", "request-currency", "request-description", "task-form", "task-title", "task-priority", "task-due",
         "task-request", "task-note", "contact-filter", "request-filter", "task-filter", "contact-list", "request-list", "task-list"
     ];
     const el = Object.fromEntries(ids.map(id => [id.replace(/-([a-z])/g, (_, c) => c.toUpperCase()), document.getElementById(id)]));
-    if (Object.values(el).some(value => value === null) || typeof firebase === "undefined" || !firebase.auth) return;
+    if (Object.values(el).some(value => value === null) || typeof firebase === "undefined" || !firebase.auth ||
+        typeof window.OWNER_SESSION_RESOLVER?.resolve !== "function") return;
 
+    const sessionResolver = window.OWNER_SESSION_RESOLVER;
     const state = { tenantId: "", contacts: [], requests: [], tasks: [] };
 
     function message(target, text = "", type = "") {
         target.textContent = text;
         target.className = "message";
         if (type) target.classList.add(type);
-    }
-
-    function normalizeTenantId(value) {
-        const tenantId = String(value ?? "").trim().toLowerCase();
-        return TENANT_ID_PATTERN.test(tenantId) && tenantId.length >= 3 ? tenantId : "";
-    }
-
-    function readTenantId() {
-        const params = new URLSearchParams(window.location.search);
-        const fromUrl = normalizeTenantId(params.get("tenant"));
-        if (fromUrl) return fromUrl;
-        try { return normalizeTenantId(window.sessionStorage.getItem("platformOwnerTenantId")); } catch { return ""; }
-    }
-
-    function persistTenantId(value) {
-        try { window.sessionStorage.setItem("platformOwnerTenantId", value); } catch { /* convenience only */ }
     }
 
     async function token() {
@@ -307,23 +292,23 @@
     const firebaseConfig = window.OWNER_BOOTSTRAP?.firebase;
     if (!firebaseConfig || typeof firebaseConfig !== "object") { message(el.authMessage, "Firebase bağlantısı yapılandırılmamış.", "error"); return; }
     firebase.initializeApp(firebaseConfig);
-    state.tenantId = readTenantId(); el.tenantId.value = state.tenantId;
 
     el.loginForm.addEventListener("submit", async event => {
         event.preventDefault();
-        const tenantId = normalizeTenantId(el.tenantId.value);
-        if (!tenantId) { message(el.authMessage, "Geçerli işletme kodu girin.", "error"); return; }
-        state.tenantId = tenantId; persistTenantId(tenantId);
         try { await firebase.auth().signInWithEmailAndPassword(el.email.value.trim(), el.password.value); }
         catch { message(el.authMessage, "Giriş başarısız.", "error"); }
     });
 
     firebase.auth().onAuthStateChanged(async user => {
         if (!user) { el.app.classList.add("hidden"); el.authPanel.classList.remove("hidden"); return; }
-        const tenantId = normalizeTenantId(el.tenantId.value) || state.tenantId;
-        if (!tenantId) { await firebase.auth().signOut(); message(el.authMessage, "İşletme kodu gerekli.", "error"); return; }
-        state.tenantId = tenantId; persistTenantId(tenantId);
-        try { await loadAll(); }
-        catch (error) { message(el.authMessage, error.message, "error"); el.app.classList.add("hidden"); el.authPanel.classList.remove("hidden"); }
+        try {
+            const session = await sessionResolver.resolve(user);
+            state.tenantId = session.tenantId;
+            await loadAll();
+        } catch (error) {
+            message(el.authMessage, error.message, "error");
+            el.app.classList.add("hidden");
+            el.authPanel.classList.remove("hidden");
+        }
     });
 })();
