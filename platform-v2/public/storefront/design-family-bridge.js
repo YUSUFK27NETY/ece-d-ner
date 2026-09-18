@@ -1,6 +1,7 @@
 (() => {
     "use strict";
 
+    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const DESIGN_FAMILIES = new Set([
         "modern",
         "warm",
@@ -25,6 +26,22 @@
     });
     const originalFetch = window.fetch.bind(window);
     let currentOffering = DEFAULT_OFFERING;
+
+    function tenantIdFromPath() {
+        const parts = window.location.pathname.split("/").filter(Boolean);
+        if (parts.length !== 2 || parts[0] !== "m") return "";
+        try {
+            const tenantId = decodeURIComponent(parts[1]);
+            return tenantId.length >= 3 && TENANT_ID_PATTERN.test(tenantId) ? tenantId : "";
+        } catch {
+            return "";
+        }
+    }
+
+    const tenantId = tenantIdFromPath();
+    const expectedStorefrontPath = tenantId
+        ? `/api/public/storefront/${encodeURIComponent(tenantId)}`
+        : "";
 
     function normalizeFamily(value) {
         const family = String(value ?? "").trim().toLowerCase();
@@ -110,14 +127,16 @@
         observer.observe(section, { attributes: true, attributeFilter: ["class"] });
     }
 
-    function isStorefrontApiRequest(input) {
+    function isCurrentStorefrontRequest(input) {
+        if (!expectedStorefrontPath) return false;
         try {
             const raw = typeof input === "string" || input instanceof URL
                 ? String(input)
                 : String(input?.url || "");
             const url = new URL(raw, window.location.origin);
             return url.origin === window.location.origin &&
-                /^\/api\/public\/storefront\/[a-z0-9-]+$/.test(url.pathname);
+                url.pathname === expectedStorefrontPath &&
+                url.search === "";
         } catch {
             return false;
         }
@@ -146,7 +165,7 @@
 
     window.fetch = async (...args) => {
         const response = await originalFetch(...args);
-        if (isStorefrontApiRequest(args[0])) {
+        if (isCurrentStorefrontRequest(args[0])) {
             void applyPresentationMetadataFromResponse(response);
         }
         return response;

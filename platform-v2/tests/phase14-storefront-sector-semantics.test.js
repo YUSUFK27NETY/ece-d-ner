@@ -54,8 +54,9 @@ test("restaurant mevcut katalog copy'sini korurken diger offering turleri generi
     assert.match(bridge, /case "portfolio"/);
 });
 
-test("bridge storefront disindaki veya cross-origin fetch cevaplarini presentation kaynagi yapmaz", () => {
+test("bridge yalnız current-tenant, same-origin ve query'siz storefront cevabını presentation kaynagi yapar", () => {
     assert.match(bridge, /url\.origin === window\.location\.origin/);
-    assert.match(bridge, /\^\\\/api\\\/public\\\/storefront\\\//);
+    assert.match(bridge, /url\.pathname === expectedStorefrontPath/);
+    assert.match(bridge, /url\.search === ""/);
     assert.match(bridge, /response\.clone\(\)\.json\(\)/);
 });
