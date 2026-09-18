@@ -3,6 +3,7 @@
 
     const bootstrap = window.PLATFORM_BOOTSTRAP || {};
     const firebaseConfig = bootstrap.firebase;
+    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
 
     const elements = {
         loginView: document.getElementById("login-view"),
@@ -108,7 +109,8 @@
         customerReadinessRequestVersion: 0,
         planCatalogRequestVersion: 0,
         planPreviewRequestVersion: 0,
-        configuredPlanIds: []
+        configuredPlanIds: [],
+        busy: false
     };
 
     const ALERT_SEVERITY_PRESENTATION = Object.freeze({
@@ -233,10 +235,24 @@
         }
     }
 
+    function canonicalTenantId(value) {
+        const raw = String(value ?? "");
+        const tenantId = raw.trim().toLowerCase();
+        if (tenantId.length < 3 || tenantId.length > 63 || !TENANT_ID_PATTERN.test(tenantId)) {
+            throw new Error("Tenant ID geçersiz.");
+        }
+        return tenantId;
+    }
+
     function setBusy(isBusy) {
+        state.busy = isBusy;
         elements.saveButton.disabled = isBusy;
         elements.refreshButton.disabled = isBusy;
         elements.newTenantButton.disabled = isBusy;
+        elements.cancelButton.disabled = isBusy;
+        for (const button of elements.tenantList.querySelectorAll(".tenant-card")) {
+            button.disabled = isBusy;
+        }
     }
 
     function showLogin() {
@@ -1493,6 +1509,7 @@
             const button = document.createElement("button");
             button.type = "button";
             button.className = "tenant-card";
+            button.disabled = state.busy;
 
             if (tenant.tenantId === state.selectedTenantId) {
                 button.classList.add("active");
@@ -1588,12 +1605,17 @@
     async function saveTenant(event) {
         event.preventDefault();
         setMessage(elements.formMessage);
+
+        const modeAtSubmit = state.mode;
+        const selectedTenantIdAtSubmit = state.selectedTenantId;
         setBusy(true);
 
         try {
-            if (state.mode === "create") {
+            if (modeAtSubmit === "create") {
+                const requestedTenantId = canonicalTenantId(elements.tenantId.value);
+                elements.tenantId.value = requestedTenantId;
                 const payload = {
-                    tenantId: elements.tenantId.value,
+                    tenantId: requestedTenantId,
                     displayName: elements.displayName.value,
                     sector: elements.sector.value,
                     plan: elements.plan.value,
@@ -1605,22 +1627,31 @@
                     body: JSON.stringify(payload)
                 });
 
+                if (state.mode !== modeAtSubmit || state.selectedTenantId !== selectedTenantIdAtSubmit) return;
+                if (!body?.tenant || body.tenant.tenantId !== requestedTenantId) {
+                    throw new Error("Tenant oluşturma yanıtı doğrulanamadı.");
+                }
                 state.tenants.unshift(body.tenant);
                 showTenant(body.tenant);
                 setMessage(elements.formMessage, "İşletme oluşturuldu.", "success");
-            } else if (state.mode === "edit") {
+            } else if (modeAtSubmit === "edit" && selectedTenantIdAtSubmit) {
                 const payload = {
                     displayName: elements.displayName.value,
                     plan: elements.plan.value,
                     features: featuresFromForm(),
                     profile: profileFromForm()
                 };
-                const body = await apiRequest(`/api/platform/tenants/${encodeURIComponent(state.selectedTenantId)}`, {
+                const body = await apiRequest(`/api/platform/tenants/${encodeURIComponent(selectedTenantIdAtSubmit)}`, {
                     method: "PATCH",
                     body: JSON.stringify(payload)
                 });
 
-                const index = state.tenants.findIndex(item => item.tenantId === body.tenant.tenantId);
+                if (state.mode !== modeAtSubmit ||
+                    state.selectedTenantId !== selectedTenantIdAtSubmit) return;
+                if (!body?.tenant || body.tenant.tenantId !== selectedTenantIdAtSubmit) {
+                    throw new Error("Tenant güncelleme yanıtı doğrulanamadı.");
+                }
+                const index = state.tenants.findIndex(item => item.tenantId === selectedTenantIdAtSubmit);
                 if (index !== -1) {
                     state.tenants[index] = body.tenant;
                 }
