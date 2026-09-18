@@ -1,7 +1,6 @@
 (() => {
     "use strict";
 
-    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const STATUS_LABELS = Object.freeze({
         pending: "Bekliyor",
         confirmed: "Onaylı",
@@ -65,9 +64,11 @@
         toast: document.getElementById("toast")
     });
 
-    if (Object.values(el).some(value => value === null) || typeof firebase === "undefined" || !firebase.auth) return;
+    if (Object.values(el).some(value => value === null) || typeof firebase === "undefined" || !firebase.auth ||
+        typeof window.OWNER_SESSION_RESOLVER?.resolve !== "function") return;
 
     const bootstrap = window.OWNER_BOOTSTRAP || {};
+    const sessionResolver = window.OWNER_SESSION_RESOLVER;
     const state = {
         tenantId: "",
         tenant: null,
@@ -77,22 +78,6 @@
         availabilityStaffId: "",
         busy: false
     };
-
-    function normalizeTenantId(value) {
-        const tenantId = String(value ?? "").trim().toLowerCase();
-        return tenantId.length >= 3 && TENANT_ID_PATTERN.test(tenantId) ? tenantId : "";
-    }
-
-    function initialTenantId() {
-        const params = new URLSearchParams(window.location.search);
-        const fromUrl = normalizeTenantId(params.get("tenant"));
-        if (fromUrl) return fromUrl;
-        try {
-            return normalizeTenantId(window.sessionStorage.getItem("platformOwnerTenantId"));
-        } catch {
-            return "";
-        }
-    }
 
     function ownerPath(suffix) {
         return `/api/tenant/tenants/${encodeURIComponent(state.tenantId)}/owner${suffix}`;
@@ -555,10 +540,8 @@
         }
     }
 
-    state.tenantId = initialTenantId();
-    const tenantQuery = state.tenantId ? `?tenant=${encodeURIComponent(state.tenantId)}` : "";
-    el.backLink.href = `/owner/${tenantQuery}`;
-    el.loginLink.href = `/owner/${tenantQuery}`;
+    el.backLink.href = "/owner/";
+    el.loginLink.href = "/owner/";
 
     const firebaseConfig = bootstrap.firebase;
     if (!firebaseConfig || typeof firebaseConfig !== "object") {
@@ -580,11 +563,26 @@
     firebase.initializeApp(firebaseConfig);
     firebase.auth().onAuthStateChanged(async user => {
         if (!user) {
+            state.tenantId = "";
+            state.tenant = null;
             el.authRequired.classList.remove("hidden");
             el.app.classList.add("hidden");
+            el.backLink.href = "/owner/";
+            el.loginLink.href = "/owner/";
             return;
         }
-        el.authRequired.classList.add("hidden");
-        await loadAll();
+        try {
+            const session = await sessionResolver.resolve(user);
+            state.tenantId = session.tenantId;
+            el.backLink.href = `/owner/panel.html?tenant=${encodeURIComponent(state.tenantId)}`;
+            el.authRequired.classList.add("hidden");
+            await loadAll();
+        } catch (error) {
+            state.tenantId = "";
+            state.tenant = null;
+            el.app.classList.add("hidden");
+            el.authRequired.classList.remove("hidden");
+            setMessage(error.message, "error");
+        }
     });
 })();
