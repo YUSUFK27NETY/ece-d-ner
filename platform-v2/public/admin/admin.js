@@ -3,6 +3,7 @@
 
     const bootstrap = window.PLATFORM_BOOTSTRAP || {};
     const firebaseConfig = bootstrap.firebase;
+    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
 
     const elements = {
         loginView: document.getElementById("login-view"),
@@ -232,6 +233,15 @@
         if (type) {
             element.classList.add(type);
         }
+    }
+
+    function canonicalTenantId(value) {
+        const raw = String(value ?? "");
+        const tenantId = raw.trim().toLowerCase();
+        if (tenantId.length < 3 || tenantId.length > 63 || !TENANT_ID_PATTERN.test(tenantId)) {
+            throw new Error("Tenant ID geçersiz.");
+        }
+        return tenantId;
     }
 
     function setBusy(isBusy) {
@@ -1602,7 +1612,8 @@
 
         try {
             if (modeAtSubmit === "create") {
-                const requestedTenantId = elements.tenantId.value;
+                const requestedTenantId = canonicalTenantId(elements.tenantId.value);
+                elements.tenantId.value = requestedTenantId;
                 const payload = {
                     tenantId: requestedTenantId,
                     displayName: elements.displayName.value,
