@@ -49,6 +49,7 @@
         refreshButton: document.getElementById("refresh-button"),
         logoutButton: document.getElementById("logout-button"),
         tabs: [...document.querySelectorAll(".tab[data-view]")],
+        featureNavigation: [...document.querySelectorAll("[data-feature], [data-feature-any]")],
         views: {
             dashboard: document.getElementById("dashboard-view"),
             products: document.getElementById("products-view"),
@@ -208,6 +209,8 @@
         elements.featureList.replaceChildren();
         elements.productList.replaceChildren();
         elements.orderList.replaceChildren();
+        for (const item of elements.featureNavigation) item.hidden = true;
+        setView("dashboard");
     }
 
     function renderFeatureList() {
@@ -220,6 +223,25 @@
             chip.textContent = `${features[key] === true ? "✓" : "–"} ${label}`;
             elements.featureList.append(chip);
         }
+    }
+
+    function renderFeatureNavigation() {
+        const features = state.tenant?.features || {};
+        for (const item of elements.featureNavigation) {
+            const exactFeature = item.dataset.feature || "";
+            const anyFeatures = String(item.dataset.featureAny || "")
+                .split(/\s+/)
+                .filter(Boolean);
+            const visible = exactFeature
+                ? features[exactFeature] === true
+                : anyFeatures.some(feature => features[feature] === true);
+            item.hidden = !visible;
+        }
+
+        const activeTab = elements.tabs.find(tab =>
+            tab.dataset.view === state.activeView && tab.hidden
+        );
+        if (activeTab) setView("dashboard");
     }
 
     function renderOverview(body) {
@@ -239,6 +261,7 @@
         elements.newProductButton.disabled = tenant.features?.catalog !== true;
         elements.ordersRefresh.disabled = tenant.features?.orders !== true;
         renderFeatureList();
+        renderFeatureNavigation();
     }
 
     function emptyCard(text) {
