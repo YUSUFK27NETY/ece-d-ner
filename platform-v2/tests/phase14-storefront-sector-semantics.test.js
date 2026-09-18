@@ -29,7 +29,9 @@ test("sector presentation adapterlari storefront offering semantigi icin tam soz
 
 test("presentation bridge katalog semantigini public manifest sector adapterindan alir", () => {
     assert.doesNotThrow(() => new Function(bridge));
-    assert.match(bridge, /body\?\.storefront\?\.presentation/);
+    assert.match(bridge, /const storefront = body\?\.storefront/);
+    assert.match(bridge, /storefront\?\.tenant\?\.tenantId !== tenantId/);
+    assert.match(bridge, /const presentation = storefront\.presentation/);
     assert.match(bridge, /normalizeOffering\(presentation\?\.sector\)/);
     assert.match(bridge, /input\.offeringKind/);
     assert.match(bridge, /input\.offeringLabel/);

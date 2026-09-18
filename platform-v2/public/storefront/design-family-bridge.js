@@ -146,7 +146,9 @@
         try {
             if (!response?.ok) return;
             const body = await response.clone().json();
-            const presentation = body?.storefront?.presentation;
+            const storefront = body?.storefront;
+            if (storefront?.tenant?.tenantId !== tenantId) return;
+            const presentation = storefront.presentation;
             const family = normalizeFamily(presentation?.designFamily);
             currentOffering = normalizeOffering(presentation?.sector);
             document.documentElement.dataset.designFamily = family;
