@@ -244,6 +244,16 @@
         return telHref(profile.phone) || "#contact";
     }
 
+    function featureActionHref(feature, title) {
+        if (feature === "appointments") {
+            return `/m/${encodeURIComponent(state.tenantId)}/appointments`;
+        }
+        if (feature === "quotes") {
+            return `/m/${encodeURIComponent(state.tenantId)}/quote`;
+        }
+        return moduleContactHref(title);
+    }
+
     function renderBrand() {
         const tenant = state.tenant;
         const profile = tenant.profile || {};
@@ -303,11 +313,11 @@
             el.heroActions.append(actionLink("Ürünleri İncele", "#catalog-section"));
         }
         if (features.appointments) {
-            el.heroActions.append(actionLink("Randevu İste", moduleContactHref("Randevu"), !features.catalog));
+            el.heroActions.append(actionLink("Randevu İste", featureActionHref("appointments", "Randevu"), !features.catalog));
         } else if (features.reservations) {
             el.heroActions.append(actionLink("Rezervasyon İste", moduleContactHref("Rezervasyon"), !features.catalog));
         } else if (features.quotes) {
-            el.heroActions.append(actionLink("Teklif İste", moduleContactHref("Teklif"), !features.catalog));
+            el.heroActions.append(actionLink("Teklif İste", featureActionHref("quotes", "Teklif"), !features.catalog));
         }
 
         const phone = telHref(profile.phone);
@@ -346,7 +356,7 @@
             action.textContent = module.action;
             const href = key === "orders" && state.products.length
                 ? "#catalog-section"
-                : moduleContactHref(module.title);
+                : featureActionHref(key, module.title);
             action.href = href;
             if (href.startsWith("http")) {
                 action.target = "_blank";
