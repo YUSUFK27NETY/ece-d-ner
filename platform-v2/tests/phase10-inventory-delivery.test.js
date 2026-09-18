@@ -363,15 +363,18 @@ test("transaction anındaki stok yetersizse yarış fail-closed kalır ve sipari
     assert.equal(db.state.get(stockPath).quantity, 1);
 });
 
-test("owner inventory UI güvenli DOM kullanır ve credential storage yapmaz", () => {
+test("owner inventory UI güvenli DOM ve shared tenant session resolver kullanır", () => {
     const html = fs.readFileSync(path.join(__dirname, "../public/owner/inventory.html"), "utf8");
     const script = fs.readFileSync(path.join(__dirname, "../public/owner/inventory.js"), "utf8");
+    const resolver = fs.readFileSync(path.join(__dirname, "../public/owner/session-resolver.js"), "utf8");
     assert.match(html, /Stok & Teslimat/);
+    assert.match(html, /\/owner\/session-resolver\.js/);
+    assert.match(script, /sessionResolver\.resolve\(user\)/);
     assert.match(script, /textContent/);
     assert.doesNotMatch(script, /innerHTML\s*=/);
-    assert.doesNotMatch(script, /localStorage/);
-    assert.match(script, /platformOwnerTenantId/);
-    assert.doesNotMatch(script, /sessionStorage\.setItem\([^,]+,\s*(?:token|password)/i);
+    assert.doesNotMatch(script, /sessionStorage|localStorage/);
+    assert.match(resolver, /platformOwnerTenantId/);
+    assert.doesNotMatch(resolver, /localStorage/);
 });
 
 test("production server inventory repository, service ve owner/public endpointleri wire eder", () => {
