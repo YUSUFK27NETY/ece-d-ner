@@ -11,6 +11,7 @@
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
     <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/session-resolver.js"></script>
     <script defer src="/owner/channels.js"></script>
 </head>
 <body>
@@ -18,7 +19,7 @@
         <form id="login-form" class="panel auth-card" autocomplete="on">
             <p class="eyebrow">Platform V2</p><h1>Paylaşım & Kanallar</h1>
             <p class="muted">İşletmenizin yayın bağlantısını ve teslim kanallarını yönetin.</p>
-            <label>İşletme kodu<input id="tenant-id" autocomplete="off" placeholder="firma-kodu" required></label>
+            <p class="muted">E-posta ve şifrenizle giriş yapın. Hesabınıza bağlı işletme otomatik açılır.</p>
             <label>E-posta<input id="email" type="email" autocomplete="username" required></label>
             <label>Şifre<input id="password" type="password" autocomplete="current-password" required></label>
             <button type="submit" class="primary">Giriş yap</button>

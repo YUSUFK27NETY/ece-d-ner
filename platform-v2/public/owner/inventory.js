@@ -1,7 +1,6 @@
 (() => {
     "use strict";
 
-    const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
     const statusLabels = Object.freeze({
         untracked: "Takipsiz",
         in_stock: "Stokta",
@@ -12,7 +11,6 @@
     const el = Object.freeze({
         authPanel: document.getElementById("auth-panel"),
         loginForm: document.getElementById("login-form"),
-        tenantId: document.getElementById("tenant-id"),
         email: document.getElementById("email"),
         password: document.getElementById("password"),
         authMessage: document.getElementById("auth-message"),
@@ -29,38 +27,16 @@
     });
 
     if (Object.values(el).some(value => value === null) ||
-        typeof firebase === "undefined" || !firebase.auth) return;
+        typeof firebase === "undefined" || !firebase.auth ||
+        typeof window.OWNER_SESSION_RESOLVER?.resolve !== "function") return;
 
+    const sessionResolver = window.OWNER_SESSION_RESOLVER;
     const state = { tenantId: "", inventory: [] };
 
     function message(target, text = "", type = "") {
         target.textContent = text;
         target.className = "message";
         if (type) target.classList.add(type);
-    }
-
-    function normalizeTenantId(value) {
-        const tenantId = String(value ?? "").trim().toLowerCase();
-        return TENANT_ID_PATTERN.test(tenantId) && tenantId.length >= 3 ? tenantId : "";
-    }
-
-    function readTenantId() {
-        const params = new URLSearchParams(window.location.search);
-        const fromUrl = normalizeTenantId(params.get("tenant"));
-        if (fromUrl) return fromUrl;
-        try {
-            return normalizeTenantId(window.sessionStorage.getItem("platformOwnerTenantId"));
-        } catch {
-            return "";
-        }
-    }
-
-    function persistTenantId(value) {
-        try {
-            window.sessionStorage.setItem("platformOwnerTenantId", value);
-        } catch {
-            // Tenant id convenience only; credentials are never stored.
-        }
     }
 
     async function token() {
@@ -228,18 +204,9 @@
         return;
     }
     firebase.initializeApp(firebaseConfig);
-    state.tenantId = readTenantId();
-    el.tenantId.value = state.tenantId;
 
     el.loginForm.addEventListener("submit", async event => {
         event.preventDefault();
-        const tenantId = normalizeTenantId(el.tenantId.value);
-        if (!tenantId) {
-            message(el.authMessage, "Geçerli işletme kodu girin.", "error");
-            return;
-        }
-        state.tenantId = tenantId;
-        persistTenantId(tenantId);
         try {
             await firebase.auth().signInWithEmailAndPassword(el.email.value.trim(), el.password.value);
         } catch {
@@ -280,14 +247,14 @@
             el.authPanel.classList.remove("hidden");
             return;
         }
-        const tenantId = normalizeTenantId(el.tenantId.value) || state.tenantId;
-        if (!tenantId) {
-            await firebase.auth().signOut();
-            message(el.authMessage, "İşletme kodu gerekli.", "error");
-            return;
+        try {
+            const session = await sessionResolver.resolve(user);
+            state.tenantId = session.tenantId;
+            await loadAll();
+        } catch (error) {
+            message(el.authMessage, error.message, "error");
+            el.app.classList.add("hidden");
+            el.authPanel.classList.remove("hidden");
         }
-        state.tenantId = tenantId;
-        persistTenantId(tenantId);
-        await loadAll();
     });
 })();
