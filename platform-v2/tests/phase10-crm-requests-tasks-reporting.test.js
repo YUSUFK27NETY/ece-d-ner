@@ -199,15 +199,19 @@ test("CRM tenant koleksiyonları exact tenant altında kalır", () => {
     assert.equal(tenantCollection("acme-b2b", TENANT_COLLECTIONS.crmTasks), "tenants/acme-b2b/crmTasks");
 });
 
-test("CRM owner UI güvenli DOM/session storage kullanır ve server wiring mevcuttur", () => {
+test("CRM owner UI güvenli DOM ve shared tenant session resolver kullanır", () => {
     const html = fs.readFileSync(path.join(__dirname, "../public/owner/crm.html"), "utf8");
     const script = fs.readFileSync(path.join(__dirname, "../public/owner/crm.js"), "utf8");
+    const resolver = fs.readFileSync(path.join(__dirname, "../public/owner/session-resolver.js"), "utf8");
     const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
     const endpoints = fs.readFileSync(path.join(__dirname, "../src/http/attach-crm-owner-endpoints.js"), "utf8");
 
+    assert.match(html, /\/owner\/session-resolver\.js/);
     assert.match(html, /\/owner\/crm\.js/);
-    assert.match(script, /sessionStorage/);
-    assert.doesNotMatch(script, /localStorage/);
+    assert.match(script, /sessionResolver\.resolve\(user\)/);
+    assert.doesNotMatch(script, /sessionStorage|localStorage/);
+    assert.match(resolver, /\/api\/tenant\/session/);
+    assert.match(resolver, /platformOwnerTenantId/);
     assert.doesNotMatch(script, /innerHTML\s*=/);
     assert.match(script, /textContent/);
     assert.match(endpoints, /\/owner\/crm/);
