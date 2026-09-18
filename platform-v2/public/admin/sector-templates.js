@@ -4,7 +4,9 @@
     const FEATURE_LABELS = Object.freeze({
         catalog: "Katalog", orders: "Sipariş", appointments: "Randevu",
         reservations: "Rezervasyon", whatsapp: "WhatsApp", inventory: "Stok",
-        quotes: "Teklif", crm: "CRM", fleet: "Filo", gallery: "Galeri"
+        quotes: "Teklif", crm: "CRM", fleet: "Filo", gallery: "Galeri",
+        delivery: "Teslimat", campaigns: "Kampanyalar", loyalty: "Sadakat",
+        staff: "Personel", reviews: "Yorumlar", analytics: "Analitik"
     });
     const SIMPLE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,63}$/;
     const templateSelect = document.getElementById("sector-template");
