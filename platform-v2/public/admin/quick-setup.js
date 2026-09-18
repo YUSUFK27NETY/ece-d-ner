@@ -9,7 +9,9 @@
     const FEATURE_LABELS = Object.freeze({
         catalog: "Katalog", orders: "Sipariş", appointments: "Randevu",
         reservations: "Rezervasyon", whatsapp: "WhatsApp", inventory: "Stok",
-        quotes: "Teklif", crm: "CRM", fleet: "Filo", gallery: "Galeri"
+        quotes: "Teklif", crm: "CRM", fleet: "Filo", gallery: "Galeri",
+        delivery: "Teslimat", campaigns: "Kampanyalar", loyalty: "Sadakat",
+        staff: "Personel", reviews: "Yorumlar", analytics: "Analitik"
     });
     const READINESS_LABELS = Object.freeze({
         profile: "Profil", health: "Sistem sağlığı", plan: "Plan",
