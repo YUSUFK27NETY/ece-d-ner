@@ -10,8 +10,15 @@
         whatsapp: "WhatsApp",
         inventory: "Stok",
         quotes: "Teklif",
+        crm: "CRM",
         fleet: "Filo",
-        gallery: "Galeri"
+        gallery: "Galeri",
+        delivery: "Teslimat",
+        campaigns: "Kampanyalar",
+        loyalty: "Sadakat",
+        staff: "Personel",
+        reviews: "Yorumlar",
+        analytics: "Analitik"
     });
     const ORDER_TRANSITIONS = Object.freeze({
         pending: Object.freeze(["preparing", "cancelled"]),
