@@ -10,6 +10,9 @@ const {
     createOperationalAlertService
 } = require("../src/operations/operational-alert-service");
 const {
+    createFirestoreOperationalAlertStore
+} = require("../src/firestore/firestore-operational-alert-store");
+const {
     createOperationalAlertMiddleware,
     resolveOperationalAlertScope
 } = require("../src/http/operational-alert-middleware");
@@ -53,6 +56,94 @@ function createMemoryAlertStore() {
         }
     };
 }
+
+test("Firestore operational alert store aynı alarmı atomik toplar ve yalnız platform admin okur", async () => {
+    const docs = new Map();
+    const db = {
+        doc(pathname) {
+            return { path: pathname };
+        },
+        async runTransaction(work) {
+            const transaction = {
+                async get(ref) {
+                    return {
+                        exists: docs.has(ref.path),
+                        data() { return docs.get(ref.path); }
+                    };
+                },
+                set(ref, value) {
+                    docs.set(ref.path, JSON.parse(JSON.stringify(value)));
+                }
+            };
+            return work(transaction);
+        },
+        collection(pathname) {
+            return {
+                orderBy(field, direction) {
+                    assert.equal(field, "lastSeenAt");
+                    assert.equal(direction, "desc");
+                    return {
+                        limit(limit) {
+                            return {
+                                async get() {
+                                    const rows = [...docs.entries()]
+                                        .filter(([key]) => key.startsWith(`${pathname}/`))
+                                        .map(([key, value]) => ({
+                                            id: key.slice(pathname.length + 1),
+                                            data() { return JSON.parse(JSON.stringify(value)); }
+                                        }))
+                                        .sort((a, b) =>
+                                            b.data().lastSeenAt.localeCompare(a.data().lastSeenAt)
+                                        )
+                                        .slice(0, limit);
+                                    return { docs: rows };
+                                }
+                            };
+                        }
+                    };
+                }
+            };
+        }
+    };
+    const store = createFirestoreOperationalAlertStore({ db });
+    const service = createOperationalAlertService({
+        store,
+        dedupeWindowMs: 10 * 60 * 1000,
+        criticalThreshold: 3
+    });
+
+    for (const occurredAt of [
+        "2026-09-19T16:00:01.000Z",
+        "2026-09-19T16:01:01.000Z",
+        "2026-09-19T16:02:01.000Z"
+    ]) {
+        await service.record({
+            tenantId: "ela-doner",
+            operation: "http.owner.tenant",
+            statusCode: 503,
+            occurredAt
+        });
+    }
+
+    const listed = await service.listTenant({
+        context: { role: "platform_admin", actorId: "admin-1" },
+        tenantId: "ela-doner",
+        limit: 20
+    });
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].eventCount, 3);
+    assert.equal(listed[0].severity, "critical");
+    assert.equal(listed[0].statusCode, 503);
+
+    await assert.rejects(
+        service.listTenant({
+            context: { role: "tenant_owner", actorId: "owner-1", tenantId: "ela-doner" },
+            tenantId: "ela-doner",
+            limit: 20
+        }),
+        error => error.code === "PERMISSION_DENIED"
+    );
+});
 
 test("operational alert service aynı 10 dakikalık 5xx grubunu toplar ve üçüncü olayda critical yapar", async () => {
     const store = createMemoryAlertStore();
