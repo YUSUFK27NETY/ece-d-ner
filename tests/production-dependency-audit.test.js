@@ -6,6 +6,7 @@ const assert = require("node:assert/strict");
 const {
     NPM_BULK_ADVISORY_ENDPOINT,
     buildBulkAdvisoryPayload,
+    chunkBulkAdvisoryPayload,
     enforceAuditThreshold,
     normalizeBulkResponse,
     packageNameFromLockPath,
@@ -67,6 +68,23 @@ test("lock path package adını nested ve scoped node_modules yollarından güve
     );
     assert.equal(packageNameFromLockPath(""), null);
     assert.equal(packageNameFromLockPath("packages/local"), null);
+});
+
+test("bulk advisory payloadını bounded paket gruplarına eksiksiz böler", () => {
+    const payload = Object.fromEntries(
+        Array.from({ length: 121 }, (_, index) => [
+            `package-${String(index).padStart(3, "0")}`,
+            ["1.0.0"]
+        ])
+    );
+    const batches = chunkBulkAdvisoryPayload(payload, 50);
+
+    assert.equal(batches.length, 3);
+    assert.deepEqual(batches.map(batch => Object.keys(batch).length), [50, 50, 21]);
+    assert.deepEqual(
+        Object.assign({}, ...batches),
+        payload
+    );
 });
 
 test("bulk advisory sorgusu yalnız sabit npm endpointine JSON POST yapar", async () => {
