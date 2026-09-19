@@ -2,6 +2,10 @@ const { requireTenantId } = require("../tenant/tenant-id");
 
 const TENANT_ROUTE_PATTERNS = Object.freeze([
     Object.freeze({
+        pattern: /^\/api\/platform\/support\/tickets\/([^/]+)(?:\/|$)/,
+        operation: "http.platform.support_ticket"
+    }),
+    Object.freeze({
         pattern: /^\/api\/platform\/tenants\/([^/]+)(?:\/|$)/,
         operation: "http.platform.tenant"
     }),
