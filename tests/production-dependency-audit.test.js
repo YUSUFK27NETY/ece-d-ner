@@ -131,12 +131,37 @@ test("moderate, high ve critical advisory audit eşiğini fail-closed durdurur",
     );
 });
 
+test("bulk advisory geçici 5xx sonrasında aynı payload ile retry edip başarılı olur", async () => {
+    const payload = { express: ["5.2.1"] };
+    let calls = 0;
+    const sleeps = [];
+
+    const findings = await queryBulkAdvisories({
+        payload,
+        attempts: 3,
+        retryDelayMs: 25,
+        sleepImplementation: async ms => {
+            sleeps.push(ms);
+        },
+        fetchImplementation: async () => {
+            calls += 1;
+            if (calls < 3) return response({ status: 503 });
+            return response({ body: {} });
+        }
+    });
+
+    assert.deepEqual(findings, []);
+    assert.equal(calls, 3);
+    assert.deepEqual(sleeps, [25, 25]);
+});
+
 test("bulk advisory HTTP, network ve bozuk response hataları fail-closed kalır", async () => {
     const payload = { express: ["5.2.1"] };
 
     await assert.rejects(
         queryBulkAdvisories({
             payload,
+            attempts: 1,
             fetchImplementation: async () => response({ status: 503 })
         }),
         /HTTP 503/
@@ -145,6 +170,7 @@ test("bulk advisory HTTP, network ve bozuk response hataları fail-closed kalır
     await assert.rejects(
         queryBulkAdvisories({
             payload,
+            attempts: 1,
             fetchImplementation: async () => {
                 throw new Error("network marker");
             }
