@@ -1,3 +1,4 @@
+const rateLimit = require("express-rate-limit");
 const { sendPlatformError } = require("./create-platform-app");
 
 const OWNER_SUPPORT_TICKETS_BASE =
@@ -53,7 +54,34 @@ function sendTicketError(res, error) {
     return sendPlatformError(res, error);
 }
 
-function attachSupportTicketOwnerEndpoints({ app, supportTicketService } = {}) {
+function createSupportTicketOwnerRateLimiter({
+    windowMs = 15 * 60 * 1000,
+    max = 30
+} = {}) {
+    if (!Number.isSafeInteger(windowMs) || windowMs < 60_000 ||
+        windowMs > 24 * 60 * 60 * 1000 ||
+        !Number.isSafeInteger(max) || max < 1 || max > 1000) {
+        throw new TypeError("Support ticket owner rate limit geçersiz.");
+    }
+    return rateLimit({
+        windowMs,
+        max,
+        standardHeaders: true,
+        legacyHeaders: false,
+        keyGenerator: req =>
+            `${req.tenantActor?.tenantId || "unknown"}:${req.tenantActor?.actorId || "unknown"}`,
+        message: {
+            success: false,
+            message: "Çok fazla destek talebi oluşturuldu. Bir süre sonra tekrar deneyin."
+        }
+    });
+}
+
+function attachSupportTicketOwnerEndpoints({
+    app,
+    supportTicketService,
+    createLimiter = null
+} = {}) {
     if (!app || typeof app.get !== "function" || typeof app.post !== "function") {
         throw new TypeError("Support ticket owner endpoint app geçersiz.");
     }
@@ -62,6 +90,11 @@ function attachSupportTicketOwnerEndpoints({ app, supportTicketService } = {}) {
         typeof supportTicketService.listOwnerTickets !== "function" ||
         typeof supportTicketService.getOwnerTicket !== "function") {
         throw new TypeError("Support ticket owner service geçersiz.");
+    }
+
+    const limiter = createLimiter || createSupportTicketOwnerRateLimiter();
+    if (typeof limiter !== "function") {
+        throw new TypeError("Support ticket owner limiter geçersiz.");
     }
 
     app.get(OWNER_SUPPORT_TICKETS_BASE, async (req, res) => {
@@ -79,7 +112,7 @@ function attachSupportTicketOwnerEndpoints({ app, supportTicketService } = {}) {
         }
     });
 
-    app.post(OWNER_SUPPORT_TICKETS_BASE, async (req, res) => {
+    app.post(OWNER_SUPPORT_TICKETS_BASE, limiter, async (req, res) => {
         try {
             noQuery(req);
             if (!req.is("application/json")) {
@@ -120,5 +153,6 @@ function attachSupportTicketOwnerEndpoints({ app, supportTicketService } = {}) {
 module.exports = {
     OWNER_SUPPORT_TICKETS_BASE,
     attachSupportTicketOwnerEndpoints,
+    createSupportTicketOwnerRateLimiter,
     sendTicketError
 };
