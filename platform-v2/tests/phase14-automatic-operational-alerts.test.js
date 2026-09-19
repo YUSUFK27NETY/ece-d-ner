@@ -26,7 +26,8 @@ function createMemoryAlertStore() {
         records,
         async record(input) {
             const current = records.get(input.alertId);
-            const eventCount = current ? current.eventCount + 1 : 1;
+            const sameWindow = current?.windowStartedAt === input.windowStartedAt;
+            const eventCount = sameWindow ? current.eventCount + 1 : 1;
             const next = Object.freeze({
                 schemaVersion: 1,
                 alertId: input.alertId,
@@ -36,7 +37,7 @@ function createMemoryAlertStore() {
                 operation: input.operation,
                 statusCode: input.statusCode,
                 eventCount,
-                firstSeenAt: current?.firstSeenAt || input.occurredAt,
+                firstSeenAt: sameWindow ? current.firstSeenAt : input.occurredAt,
                 lastSeenAt: input.occurredAt,
                 windowStartedAt: input.windowStartedAt
             });
