@@ -113,6 +113,7 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "ticket-admin-card";
+        button.disabled = state.busy;
         if (state.selected?.ticketId === ticket.ticketId) button.classList.add("active");
 
         const head = document.createElement("div");
@@ -170,6 +171,16 @@
             }
             el.detailHistory.append(row);
         }
+    }
+
+    function setBusy(value) {
+        state.busy = value;
+        el.refresh.disabled = value;
+        el.applyFilter.disabled = value;
+        for (const button of el.list.querySelectorAll(".ticket-admin-card")) {
+            button.disabled = value;
+        }
+        if (state.selected) renderStatusOptions(state.selected);
     }
 
     function renderStatusOptions(ticket) {
@@ -269,17 +280,24 @@
     async function updateStatus(event) {
         event.preventDefault();
         if (!state.selected || state.busy) return;
+
+        const selectedAtSubmit = Object.freeze({
+            tenantId: state.selected.tenantId,
+            ticketId: state.selected.ticketId,
+            status: state.selected.status,
+            requestVersion: state.requestVersion
+        });
         const next = el.nextStatus.value;
-        if (!(STATUS_TRANSITIONS[state.selected.status] || []).includes(next)) {
+        if (!(STATUS_TRANSITIONS[selectedAtSubmit.status] || []).includes(next)) {
             setMessage(el.statusMessage, "Geçersiz durum geçişi.", "error");
             return;
         }
-        state.busy = true;
-        renderStatusOptions(state.selected);
+
+        setBusy(true);
         setMessage(el.statusMessage, "Durum güncelleniyor...");
         try {
             const body = await apiRequest(
-                `/api/platform/support/tickets/${encodeURIComponent(state.selected.tenantId)}/${encodeURIComponent(state.selected.ticketId)}/status`,
+                `/api/platform/support/tickets/${encodeURIComponent(selectedAtSubmit.tenantId)}/${encodeURIComponent(selectedAtSubmit.ticketId)}/status`,
                 {
                     method: "PATCH",
                     body: JSON.stringify({
@@ -289,16 +307,29 @@
                 }
             );
             const updated = requireTicket(body?.ticket);
-            const index = state.tickets.findIndex(item => item.ticketId === updated.ticketId);
+            if (updated.tenantId !== selectedAtSubmit.tenantId ||
+                updated.ticketId !== selectedAtSubmit.ticketId ||
+                state.requestVersion !== selectedAtSubmit.requestVersion ||
+                state.selected?.tenantId !== selectedAtSubmit.tenantId ||
+                state.selected?.ticketId !== selectedAtSubmit.ticketId ||
+                state.selected?.status !== selectedAtSubmit.status) {
+                return;
+            }
+
+            const index = state.tickets.findIndex(item =>
+                item.tenantId === updated.tenantId &&
+                item.ticketId === updated.ticketId
+            );
             if (index >= 0) state.tickets[index] = updated;
             renderDetail(updated);
             setMessage(el.statusMessage, "Destek talebi güncellendi.", "success");
             await loadTickets();
         } catch (error) {
-            setMessage(el.statusMessage, error.message, "error");
+            if (state.requestVersion === selectedAtSubmit.requestVersion) {
+                setMessage(el.statusMessage, error.message, "error");
+            }
         } finally {
-            state.busy = false;
-            if (state.selected) renderStatusOptions(state.selected);
+            setBusy(false);
         }
     }
 
