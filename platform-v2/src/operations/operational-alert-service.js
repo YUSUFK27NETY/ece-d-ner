@@ -30,9 +30,9 @@ function normalizeOperation(value) {
     return operation;
 }
 
-function operationalAlertId({ tenantId, operation, statusCode, windowStartedAt }) {
+function operationalAlertId({ tenantId, operation, statusCode }) {
     return crypto.createHash("sha256")
-        .update(JSON.stringify([1, tenantId, operation, statusCode, windowStartedAt]))
+        .update(JSON.stringify([1, tenantId, operation, statusCode]))
         .digest("hex");
 }
 
@@ -81,8 +81,7 @@ function createOperationalAlertService({
             const alertId = operationalAlertId({
                 tenantId: safeTenantId,
                 operation: safeOperation,
-                statusCode: safeStatusCode,
-                windowStartedAt
+                statusCode: safeStatusCode
             });
 
             return store.record(Object.freeze({
