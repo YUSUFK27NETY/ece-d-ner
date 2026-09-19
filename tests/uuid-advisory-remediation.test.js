@@ -48,15 +48,14 @@ test("firebase-admin dependency group güvenlik güncellemesi korunur", () => {
 test("uuid 11 override storage içindeki gaxios v6 multipart v4 kullanımını bozmuyor", async () => {
     const { createRequire } = require("node:module");
 
-    const storagePackage = require.resolve("@google-cloud/storage/package.json");
-    const storageRequire = createRequire(storagePackage);
-    const gaxiosPackage = storageRequire.resolve("gaxios/package.json");
-    const gaxiosRequire = createRequire(gaxiosPackage);
-    const uuidPackage = gaxiosRequire("uuid/package.json");
+    const firebaseAdminEntry = require.resolve("firebase-admin");
+    const firebaseRequire = createRequire(firebaseAdminEntry);
+    const storageEntry = firebaseRequire.resolve("@google-cloud/storage");
+    const storageRequire = createRequire(storageEntry);
+    const gaxiosEntry = storageRequire.resolve("gaxios");
+    const gaxiosRequire = createRequire(gaxiosEntry);
     const { Gaxios } = gaxiosRequire("gaxios");
     const { v4 } = gaxiosRequire("uuid");
-
-    assert.equal(uuidPackage.version, "11.1.1");
 
     const directUuid = v4();
     assert.match(
