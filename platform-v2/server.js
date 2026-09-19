@@ -118,6 +118,9 @@ const {
 const { createConfigCostProvider } = require("./src/finops/cost-provider");
 const { createFinOpsService } = require("./src/finops/finops-service");
 const { createTenantOperationsService } = require("./src/operations/tenant-operations-service");
+const {
+    createPlatformSupportOverviewService
+} = require("./src/operations/platform-support-overview-service");
 const { loadR2BackupConfig } = require("./src/config/r2-backup-config");
 const { createR2ObjectStorageProvider } = require("./src/storage/r2-object-storage-provider");
 const {
@@ -382,6 +385,11 @@ function startPlatformServer() {
         resilienceService,
         signalListLimit: guardrailsConfig.security.signalListLimit
     });
+    const supportOverview = createPlatformSupportOverviewService({
+        tenantRegistry,
+        usageTelemetry,
+        securitySignals
+    });
     const app = createPlatformApp({
         auth,
         tenantRegistry,
@@ -399,6 +407,7 @@ function startPlatformServer() {
         customerReadinessService,
         commercialPlanPreviewService,
         tenantOperations,
+        supportOverview,
         finOpsService
     });
     attachSectorTemplateEndpoints({ app });
