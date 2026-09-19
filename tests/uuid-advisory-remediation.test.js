@@ -43,3 +43,54 @@ test("firebase-admin dependency group güvenlik güncellemesi korunur", () => {
     assert.equal(pkg.dependencies["firebase-admin"], "14.4.0");
     assert.equal(pkg.dependencies["express-rate-limit"], "^8.7.0");
 });
+
+
+test("uuid 11 override gaxios v6 multipart v4 kullanımını bozmuyor", async () => {
+    const { Gaxios } = require("gaxios");
+    const { v4 } = require("uuid");
+
+    const directUuid = v4();
+    assert.match(
+        directUuid,
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+
+    let prepared = null;
+    const client = new Gaxios();
+    const response = await client.request({
+        url: "https://example.invalid/upload",
+        multipart: [{
+            headers: { "Content-Type": "text/plain" },
+            content: "compatibility-check"
+        }],
+        adapter: async options => {
+            prepared = options;
+            return {
+                config: options,
+                data: { ok: true },
+                headers: new Headers(),
+                status: 200,
+                statusText: "OK",
+                request: { responseURL: String(options.url) }
+            };
+        }
+    });
+
+    assert.equal(response.status, 200);
+    assert.ok(prepared);
+    const contentType = prepared.headers["Content-Type"] ||
+        prepared.headers["content-type"];
+    assert.match(
+        String(contentType),
+        /^multipart\/related; boundary=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+    );
+});
+
+test("güncellenen Google production client modülleri Node runtime altında yüklenir", () => {
+    const firestore = require("@google-cloud/firestore");
+    const firebaseApp = require("firebase-admin/app");
+
+    assert.equal(typeof firestore.Firestore, "function");
+    assert.equal(typeof firebaseApp.initializeApp, "function");
+    assert.equal(typeof firebaseApp.getApps, "function");
+});
