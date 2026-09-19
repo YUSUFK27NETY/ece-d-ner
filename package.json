@@ -11,17 +11,17 @@
     "check": "node scripts/check-static-assets.js",
     "test": "node --test",
     "security:secrets": "node scripts/scan-secrets.js --history",
-    "security:dependencies": "npm ls --omit=dev --omit=optional && npm audit --omit=dev --omit=optional --audit-level=moderate",
+    "security:dependencies": "npm ls --omit=dev --omit=optional && node scripts/audit-production-dependencies.js",
     "security": "npm run security:secrets && npm run security:dependencies",
     "healthcheck": "node scripts/check-live-endpoints.js",
     "ci": "npm run check && npm test && npm run security:secrets",
     "grant-admin": "node scripts/set-admin-claim.js"
   },
   "dependencies": {
-    "@google-cloud/firestore": "8.7.1",
+    "@google-cloud/firestore": "9.1.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
-    "firebase-admin": "14.3.0"
+    "firebase-admin": "14.4.0"
   }
 }

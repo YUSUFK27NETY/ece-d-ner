@@ -210,6 +210,43 @@ async function checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs) 
     }
 }
 
+async function checkSupportDashboardAssets(fetchImplementation, baseUrl, timeoutMs) {
+    const htmlResponse = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/admin/support-dashboard.html`,
+        timeoutMs
+    );
+    assertOk(htmlResponse, "Support dashboard page");
+    const html = await htmlResponse.text();
+    for (const marker of [
+        "Destek Merkezi",
+        "Otomatik alarm",
+        "/admin/support-dashboard.css",
+        "/admin/support-dashboard.js"
+    ]) {
+        if (!html.includes(marker)) {
+            throw new Error(`Support dashboard page marker eksik: ${marker}`);
+        }
+    }
+
+    const jsResponse = await fetchWithTimeout(
+        fetchImplementation,
+        `${baseUrl}/admin/support-dashboard.js`,
+        timeoutMs
+    );
+    assertOk(jsResponse, "Support dashboard runtime");
+    const source = await jsResponse.text();
+    for (const marker of [
+        "PLATFORM_ADMIN_AUTH",
+        "/api/platform/support-overview?limit=200",
+        "operationalAlertText"
+    ]) {
+        if (!source.includes(marker)) {
+            throw new Error(`Support dashboard runtime marker eksik: ${marker}`);
+        }
+    }
+}
+
 async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
     const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
@@ -219,7 +256,8 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         checkPresentationStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkCoreStorefrontStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs),
-        checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs)
+        checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs),
+        checkSupportDashboardAssets(fetchImplementation, baseUrl, timeoutMs)
     ]);
     return Object.freeze({
         success: true,
@@ -227,7 +265,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         baseUrl,
         tenantId,
         deployedCommit: results[1],
-        endpoints: 8
+        endpoints: 10
     });
 }
 
