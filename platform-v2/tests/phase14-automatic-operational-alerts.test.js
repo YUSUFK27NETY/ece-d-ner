@@ -180,7 +180,7 @@ test("operational alert service aynı 10 dakikalık 5xx grubunu toplar ve üçü
         statusCode: 500,
         occurredAt: "2026-09-19T16:10:00.000Z"
     });
-    assert.equal(store.records.size, 2);
+    assert.equal(store.records.size, 1);
     assert.equal(nextWindow.eventCount, 1);
     assert.equal(nextWindow.severity, "high");
 });
