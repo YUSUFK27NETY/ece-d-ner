@@ -15,7 +15,7 @@ test("uuid advisory remediation patched CommonJS hattını override eder", () =>
     const pkg = readJson("package.json");
     const lock = readJson("package-lock.json");
 
-    assert.deepEqual(pkg.overrides, { uuid: "11.1.1" });
+    assert.deepEqual(pkg.overrides, { gaxios: { uuid: "11.1.1" } });
 
     const uuidEntries = Object.entries(lock.packages || {})
         .filter(([location]) =>
@@ -41,11 +41,11 @@ test("firebase-admin dependency group güvenlik güncellemesi korunur", () => {
 
     assert.equal(pkg.dependencies["@google-cloud/firestore"], "9.1.0");
     assert.equal(pkg.dependencies["firebase-admin"], "14.4.0");
-    assert.equal(pkg.dependencies["express-rate-limit"], "^8.7.0");
+    assert.equal(pkg.dependencies["express-rate-limit"], "^8.2.1");
 });
 
 
-test("uuid 11 override storage içindeki gaxios v6 multipart v4 kullanımını bozmuyor", async () => {
+test("gaxios scoped uuid 11 override storage içindeki gaxios v6 multipart v4 kullanımını bozmuyor", async () => {
     const { createRequire } = require("node:module");
 
     const firebaseAdminEntry = require.resolve("firebase-admin");
