@@ -9,6 +9,7 @@ const { createTenantLifecycleService } = require("../tenant/tenant-lifecycle-ser
 const { requireTenantId } = require("../tenant/tenant-id");
 const { createTenantRateLimitMiddleware } = require("../security/tenant-rate-limiter");
 const { createTenantTelemetryMiddleware } = require("./tenant-telemetry-middleware");
+const { createOperationalAlertMiddleware } = require("./operational-alert-middleware");
 const { assertSecurityPosture } = require("../security/security-posture-service");
 const {
     assertCustomerReadiness
@@ -155,6 +156,7 @@ function createPlatformApp({
     webConfig = null,
     allowedOrigins = [],
     usageTelemetry = null,
+    operationalAlerts = null,
     tenantRateLimiter = null,
     tenantRateLimitPolicy = null,
     securitySignals = null,
@@ -178,6 +180,9 @@ function createPlatformApp({
     const app = express();
     if (tenantOperations && typeof tenantOperations.getOverview !== "function") {
         throw new TypeError("Tenant operations service geçersiz.");
+    }
+    if (operationalAlerts && typeof operationalAlerts.record !== "function") {
+        throw new TypeError("Operational alert service geçersiz.");
     }
     if (supportOverview && typeof supportOverview.getOverview !== "function") {
         throw new TypeError("Platform support overview service geçersiz.");
@@ -269,6 +274,10 @@ function createPlatformApp({
         limit: "32kb",
         strict: true
     }));
+
+    if (operationalAlerts) {
+        app.use(createOperationalAlertMiddleware({ alerts: operationalAlerts }));
+    }
 
     const adminLimiter = rateLimit({
         windowMs: 15 * 60 * 1000,

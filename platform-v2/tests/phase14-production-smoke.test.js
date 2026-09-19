@@ -96,6 +96,36 @@ function createHealthyFetch({
         if (url.endsWith("/m/design-family-bridge.js")) {
             return response({ text: "const designFamily = true; document.documentElement.dataset.designFamily = 'modern';" });
         }
+        if (url.endsWith("/admin/support-dashboard.html")) {
+            return response({
+                text: '<h1>Destek Merkezi</h1><th>Otomatik alarm</th><link href="/admin/support-dashboard.css"><script src="/admin/support-dashboard.js"></script>'
+            });
+        }
+        if (url.endsWith("/admin/support-dashboard.js")) {
+            return response({
+                text: 'const adminAuth = window.PLATFORM_ADMIN_AUTH; fetch("/api/platform/support-overview?limit=200"); function operationalAlertText() {}'
+            });
+        }
+        if (url.endsWith("/owner/support.html")) {
+            return response({
+                text: '<h1>Destek Taleplerim</h1><link href="/owner/support.css"><script src="/owner/support.js"></script>'
+            });
+        }
+        if (url.endsWith("/owner/support.js")) {
+            return response({
+                text: 'window.OWNER_SESSION_RESOLVER.resolve(user); fetch("/owner/support/tickets"); element.textContent = value;'
+            });
+        }
+        if (url.endsWith("/admin/support-tickets.html")) {
+            return response({
+                text: '<h1>Destek Talepleri</h1><link href="/admin/support-tickets.css"><script src="/admin/support-tickets.js"></script>'
+            });
+        }
+        if (url.endsWith("/admin/support-tickets.js")) {
+            return response({
+                text: 'const adminAuth = window.PLATFORM_ADMIN_AUTH; fetch("/api/platform/support/tickets"); element.textContent = value;'
+            });
+        }
         return response({ status: 404 });
     };
     return { calls, fetchImplementation };
@@ -115,7 +145,7 @@ test("production smoke exact revision, storefront ve design family assetlerini d
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
     assert.equal(result.deployedCommit, COMMIT_A);
-    assert.equal(result.endpoints, 8);
+    assert.equal(result.endpoints, 14);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
         "https://example.com/api/public/deployment",
@@ -124,7 +154,13 @@ test("production smoke exact revision, storefront ve design family assetlerini d
         "https://example.com/m/presentation.css",
         "https://example.com/m/storefront.css",
         "https://example.com/m/design-families.css",
-        "https://example.com/m/design-family-bridge.js"
+        "https://example.com/m/design-family-bridge.js",
+        "https://example.com/admin/support-dashboard.html",
+        "https://example.com/admin/support-dashboard.js",
+        "https://example.com/owner/support.html",
+        "https://example.com/owner/support.js",
+        "https://example.com/admin/support-tickets.html",
+        "https://example.com/admin/support-tickets.js"
     ]));
 });
 

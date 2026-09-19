@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>Destek Taleplerim | Platform V2</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/support.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/session-resolver.js"></script>
+    <script defer src="/owner/support.js"></script>
+</head>
+<body>
+    <header class="topbar support-topbar">
+        <div>
+            <p class="eyebrow">Platform V2 · Destek</p>
+            <h1>Destek Taleplerim</h1>
+            <p id="tenant-label" class="muted">İşletme yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+            <a id="back-link" class="secondary support-link" href="/owner/">← İşletme paneli</a>
+            <button id="refresh-button" type="button" class="primary compact">Yenile</button>
+        </div>
+    </header>
+
+    <main class="support-shell">
+        <section id="auth-required" class="panel auth-notice hidden">
+            <h2>Owner oturumu gerekli</h2>
+            <p class="muted">Destek taleplerinizi görmek için işletme panelinden giriş yapın.</p>
+            <a class="primary support-link" href="/owner/">Giriş ekranına dön</a>
+        </section>
+
+        <section id="support-app" class="support-layout hidden">
+            <form id="ticket-form" class="panel support-create" novalidate>
+                <div>
+                    <p class="eyebrow">Yeni talep</p>
+                    <h2>Destek talebi oluştur</h2>
+                    <p class="muted">Sorunu kısa ve net yazın. Talebiniz merkezi destek ekranına düşer.</p>
+                </div>
+                <label>
+                    Konu
+                    <input id="ticket-subject" maxlength="120" minlength="3" required
+                        placeholder="Örn. Sipariş ekranı açılmıyor">
+                </label>
+                <label>
+                    Açıklama
+                    <textarea id="ticket-description" rows="6" maxlength="2000" minlength="5" required
+                        placeholder="Ne oldu, hangi ekranda oldu ve ne zaman fark ettiniz?"></textarea>
+                </label>
+                <button id="ticket-submit" type="submit" class="primary">Talep oluştur</button>
+                <p id="create-message" class="message" role="status" aria-live="polite"></p>
+            </form>
+
+            <section class="panel support-history">
+                <div class="section-head">
+                    <div>
+                        <p class="eyebrow">Geçmiş</p>
+                        <h2>Talepler</h2>
+                    </div>
+                    <label class="support-filter">
+                        Durum
+                        <select id="status-filter">
+                            <option value="all">Tümü</option>
+                            <option value="open">Açık</option>
+                            <option value="in_review">İnceleniyor</option>
+                            <option value="resolved">Çözüldü</option>
+                        </select>
+                    </label>
+                </div>
+                <p id="list-message" class="message" role="status" aria-live="polite"></p>
+                <div id="ticket-list" class="ticket-list"></div>
+            </section>
+        </section>
+    </main>
+</body>
+</html>

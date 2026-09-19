@@ -11,6 +11,9 @@ const {
 const { createFirestoreQuoteRepository } = require("./src/firestore/firestore-quote-repository");
 const { createFirestoreCrmRepository } = require("./src/firestore/firestore-crm-repository");
 const {
+    createFirestoreSupportTicketRepository
+} = require("./src/firestore/firestore-support-ticket-repository");
+const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
 const {
@@ -49,6 +52,12 @@ const {
     attachPublicChannelOwnerEndpoints
 } = require("./src/http/attach-public-channel-owner-endpoints");
 const {
+    attachSupportTicketOwnerEndpoints
+} = require("./src/http/attach-support-ticket-owner-endpoints");
+const {
+    attachSupportTicketAdminEndpoints
+} = require("./src/http/attach-support-ticket-admin-endpoints");
+const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
 const {
@@ -85,6 +94,12 @@ const { loadPlatformScalabilityConfig } = require("./src/config/platform-scalabi
 const { createFirestoreUsageStore } = require("./src/firestore/firestore-usage-store");
 const { createUsageTelemetryService } = require("./src/usage/usage-telemetry");
 const {
+    createFirestoreOperationalAlertStore
+} = require("./src/firestore/firestore-operational-alert-store");
+const {
+    createOperationalAlertService
+} = require("./src/operations/operational-alert-service");
+const {
     createFirestoreSecuritySignalStore
 } = require("./src/firestore/firestore-security-signal-store");
 const { createSecuritySignalService } = require("./src/security/security-signal");
@@ -108,6 +123,9 @@ const {
 } = require("./src/inventory/inventory-delivery-service");
 const { createQuoteService } = require("./src/quotes/quote-service");
 const { createCrmService } = require("./src/crm/crm-service");
+const {
+    createSupportTicketService
+} = require("./src/support/support-ticket-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -236,6 +254,9 @@ function startPlatformServer() {
     const usageTelemetry = createUsageTelemetryService({
         store: createFirestoreUsageStore({ db })
     });
+    const operationalAlerts = createOperationalAlertService({
+        store: createFirestoreOperationalAlertStore({ db })
+    });
     const securitySignals = createSecuritySignalService({
         store: createFirestoreSecuritySignalStore({ db })
     });
@@ -310,6 +331,9 @@ function startPlatformServer() {
         tenantRegistry,
         repository: crmRepository,
         entitlementService
+    });
+    const supportTicketService = createSupportTicketService({
+        repository: createFirestoreSupportTicketRepository({ db })
     });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
@@ -388,7 +412,8 @@ function startPlatformServer() {
     const supportOverview = createPlatformSupportOverviewService({
         tenantRegistry,
         usageTelemetry,
-        securitySignals
+        securitySignals,
+        operationalAlerts
     });
     const app = createPlatformApp({
         auth,
@@ -397,6 +422,7 @@ function startPlatformServer() {
         webConfig,
         allowedOrigins,
         usageTelemetry,
+        operationalAlerts,
         tenantRateLimiter: createTenantRateLimiter(),
         tenantRateLimitPolicy: guardrailsConfig.rateLimits.adminTenant,
         securitySignals,
@@ -425,6 +451,14 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachSupportTicketOwnerEndpoints({
+        app,
+        supportTicketService
+    });
+    attachSupportTicketAdminEndpoints({
+        app,
+        supportTicketService
     });
     attachPublicChannelOwnerEndpoints({
         app,

@@ -62,6 +62,7 @@
             !Object.hasOwn(HEALTH_LABELS, row.health) ||
             !Number.isSafeInteger(row.requestsToday) || row.requestsToday < 0 ||
             !Number.isSafeInteger(row.errorsToday) || row.errorsToday < 0 ||
+            !row.operational || typeof row.operational !== "object" ||
             !row.security || typeof row.security !== "object") {
             throw new Error("Destek merkezi tenant yanıtı doğrulanamadı.");
         }
@@ -160,6 +161,18 @@
         return [`${operation} · ${status}`, formatTimestamp(lastError.occurredAt)];
     }
 
+    function operationalAlertText(operational) {
+        const total = Number.isSafeInteger(operational?.total) ? operational.total : 0;
+        const severity = typeof operational?.highestSeverity === "string"
+            ? operational.highestSeverity
+            : "none";
+        const latest = operational?.latest;
+        const detail = latest && typeof latest === "object"
+            ? `${String(latest.operation || "İşlem bilinmiyor")} · ${Number.isInteger(latest.statusCode) ? `HTTP ${latest.statusCode}` : "Durum kodu yok"}`
+            : severity === "none" ? "Alarm yok" : `En yüksek: ${severity}`;
+        return [`${total} olay · ${severity}`, detail];
+    }
+
     function actionsCell(item) {
         const cell = document.createElement("td");
         const wrap = document.createElement("div");
@@ -175,7 +188,12 @@
         setup.href = `/admin/quick-setup.html?tenantId=${encodeURIComponent(item.tenantId)}`;
         setup.textContent = "Tenant";
 
-        wrap.append(security, setup);
+        const tickets = document.createElement("a");
+        tickets.className = "button secondary compact";
+        tickets.href = `/admin/support-tickets.html?tenantId=${encodeURIComponent(item.tenantId)}`;
+        tickets.textContent = "Ticketler";
+
+        wrap.append(security, setup, tickets);
 
         if (item.lifecycleStatus === "active") {
             const live = document.createElement("a");
@@ -219,6 +237,8 @@
                 `${item.requestsToday} istek`,
                 `${item.errorsToday} hata`
             );
+            const [alarmTitle, alarmDetail] = operationalAlertText(item.operational);
+            appendTextCell(row, alarmTitle, alarmDetail);
             appendTextCell(
                 row,
                 `Son kayıtlar: ${item.security.total || 0} sinyal`,
