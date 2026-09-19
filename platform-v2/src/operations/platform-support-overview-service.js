@@ -132,15 +132,14 @@ function deriveHealth({
     securityAvailable,
     operationalAvailable
 }) {
-    if (tenant.status === "archived" || tenant.status === "suspended") {
-        return "attention";
-    }
-
-    if (!usageAvailable || !securityAvailable || !operationalAvailable) return "unknown";
     if (security.highestSeverity === "critical" ||
         operational.highestSeverity === "critical") {
         return "critical";
     }
+    if (tenant.status === "archived" || tenant.status === "suspended") {
+        return "attention";
+    }
+    if (!usageAvailable || !securityAvailable || !operationalAvailable) return "unknown";
     if (tenant.status === "provisioning" ||
         safeCounter(usage.errorCount) > 0 ||
         SECURITY_RANK[security.highestSeverity] >= SECURITY_RANK.warning ||
