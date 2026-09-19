@@ -221,7 +221,7 @@
             );
             appendTextCell(
                 row,
-                `${item.security.total || 0} sinyal`,
+                `Son kayıtlar: ${item.security.total || 0} sinyal`,
                 `En yüksek: ${item.security.highestSeverity || "none"}`
             );
             const [errorTitle, errorTime] = lastErrorText(item.lastError);
@@ -255,12 +255,13 @@
             state.generatedAt = projected.generatedAt;
             renderSummary(projected.totals);
             renderRows();
-            setMessage(
-                projected.totals.critical > 0 || projected.totals.attention > 0
-                    ? "İncelenmesi gereken tenantlar var."
-                    : "Görünür kritik/dikkat durumu yok.",
-                projected.totals.critical > 0 ? "error" : "success"
-            );
+            if (projected.totals.critical > 0) {
+                setMessage("Kritik durumda tenant var; inceleme gerekli.", "error");
+            } else if (projected.totals.attention > 0) {
+                setMessage("İncelenmesi gereken tenantlar var.");
+            } else {
+                setMessage("Görünür kritik/dikkat durumu yok.", "success");
+            }
         } catch (error) {
             if (version !== state.requestVersion) return;
             state.rows = [];
