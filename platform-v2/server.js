@@ -85,6 +85,12 @@ const { loadPlatformScalabilityConfig } = require("./src/config/platform-scalabi
 const { createFirestoreUsageStore } = require("./src/firestore/firestore-usage-store");
 const { createUsageTelemetryService } = require("./src/usage/usage-telemetry");
 const {
+    createFirestoreOperationalAlertStore
+} = require("./src/firestore/firestore-operational-alert-store");
+const {
+    createOperationalAlertService
+} = require("./src/operations/operational-alert-service");
+const {
     createFirestoreSecuritySignalStore
 } = require("./src/firestore/firestore-security-signal-store");
 const { createSecuritySignalService } = require("./src/security/security-signal");
@@ -235,6 +241,9 @@ function startPlatformServer() {
     });
     const usageTelemetry = createUsageTelemetryService({
         store: createFirestoreUsageStore({ db })
+    });
+    const operationalAlerts = createOperationalAlertService({
+        store: createFirestoreOperationalAlertStore({ db })
     });
     const securitySignals = createSecuritySignalService({
         store: createFirestoreSecuritySignalStore({ db })
@@ -388,7 +397,8 @@ function startPlatformServer() {
     const supportOverview = createPlatformSupportOverviewService({
         tenantRegistry,
         usageTelemetry,
-        securitySignals
+        securitySignals,
+        operationalAlerts
     });
     const app = createPlatformApp({
         auth,
@@ -397,6 +407,7 @@ function startPlatformServer() {
         webConfig,
         allowedOrigins,
         usageTelemetry,
+        operationalAlerts,
         tenantRateLimiter: createTenantRateLimiter(),
         tenantRateLimitPolicy: guardrailsConfig.rateLimits.adminTenant,
         securitySignals,
