@@ -155,6 +155,13 @@ function createFirestoreSupportTicketRepository({ db }) {
         });
     }
 
+    async function getById(rawTenantId, rawTicketId) {
+        const tenantId = canonicalTenant(rawTenantId);
+        const ticketId = requireTicketId(rawTicketId);
+        const snapshot = await ticketRef(tenantId, ticketId).get();
+        return ticketFromSnapshot(snapshot, tenantId, ticketId);
+    }
+
     return Object.freeze({
         async create({ ticket, auditEvent } = {}) {
             const tenantId = canonicalTenant(ticket?.tenantId);
@@ -263,7 +270,7 @@ function createFirestoreSupportTicketRepository({ db }) {
                 .slice(0, safeLimit);
 
             const tickets = await Promise.all(indexes.map(index =>
-                this.getById(index.tenantId, index.ticketId)
+                getById(index.tenantId, index.ticketId)
             ));
             if (tickets.some(ticket => ticket === null)) {
                 throw safeError(
@@ -274,12 +281,7 @@ function createFirestoreSupportTicketRepository({ db }) {
             return tickets;
         },
 
-        async getById(rawTenantId, rawTicketId) {
-            const tenantId = canonicalTenant(rawTenantId);
-            const ticketId = requireTicketId(rawTicketId);
-            const snapshot = await ticketRef(tenantId, ticketId).get();
-            return ticketFromSnapshot(snapshot, tenantId, ticketId);
-        },
+        getById,
 
         async update({ expectedTicket, nextTicket, auditEvent } = {}) {
             const tenantId = canonicalTenant(expectedTicket?.tenantId);
