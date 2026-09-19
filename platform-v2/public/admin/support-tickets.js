@@ -293,6 +293,7 @@
             if (index >= 0) state.tickets[index] = updated;
             renderDetail(updated);
             setMessage(el.statusMessage, "Destek talebi güncellendi.", "success");
+            await loadTickets();
         } catch (error) {
             setMessage(el.statusMessage, error.message, "error");
         } finally {
