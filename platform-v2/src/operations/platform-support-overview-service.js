@@ -3,6 +3,7 @@ const { requireTenantId } = require("../tenant/tenant-id");
 const HEALTH_STATES = Object.freeze(["healthy", "attention", "critical", "unknown"]);
 const HEALTH_RANK = Object.freeze({ critical: 0, attention: 1, unknown: 2, healthy: 3 });
 const SECURITY_RANK = Object.freeze({ none: 0, info: 1, warning: 2, critical: 3 });
+const OPERATIONAL_RANK = Object.freeze({ none: 0, high: 1, critical: 2 });
 
 function requirePlatformAdmin(context) {
     if (!context || context.role !== "platform_admin") {
@@ -80,16 +81,70 @@ function summarizeSecurity(signals) {
     return Object.freeze({ total, highestSeverity, latestAt });
 }
 
-function deriveHealth({ tenant, usage, security, usageAvailable, securityAvailable }) {
+function summarizeOperationalAlerts(alerts, observedAt) {
+    if (!Array.isArray(alerts)) {
+        throw new TypeError("Destek merkezi operational alarmları geçersiz.");
+    }
+
+    const day = observedAt.toISOString().slice(0, 10);
+    let total = 0;
+    let groups = 0;
+    let highestSeverity = "none";
+    let latestAt = null;
+    let latest = null;
+
+    for (const alert of alerts) {
+        if (!alert || typeof alert !== "object" || Array.isArray(alert) ||
+            typeof alert.lastSeenAt !== "string" ||
+            alert.lastSeenAt.slice(0, 10) !== day) {
+            continue;
+        }
+        const severity = Object.hasOwn(OPERATIONAL_RANK, alert.severity)
+            ? alert.severity
+            : "none";
+        const eventCount = safeCounter(alert.eventCount);
+        if (eventCount < 1) continue;
+
+        total += eventCount;
+        groups += 1;
+        if (OPERATIONAL_RANK[severity] > OPERATIONAL_RANK[highestSeverity]) {
+            highestSeverity = severity;
+        }
+        if (!latestAt || alert.lastSeenAt > latestAt) {
+            latestAt = alert.lastSeenAt;
+            latest = Object.freeze({
+                operation: typeof alert.operation === "string" ? alert.operation : null,
+                statusCode: Number.isInteger(alert.statusCode) ? alert.statusCode : null,
+                eventCount
+            });
+        }
+    }
+
+    return Object.freeze({ total, groups, highestSeverity, latestAt, latest });
+}
+
+function deriveHealth({
+    tenant,
+    usage,
+    security,
+    operational,
+    usageAvailable,
+    securityAvailable,
+    operationalAvailable
+}) {
     if (tenant.status === "archived" || tenant.status === "suspended") {
         return "attention";
     }
 
-    if (!usageAvailable || !securityAvailable) return "unknown";
-    if (security.highestSeverity === "critical") return "critical";
+    if (!usageAvailable || !securityAvailable || !operationalAvailable) return "unknown";
+    if (security.highestSeverity === "critical" ||
+        operational.highestSeverity === "critical") {
+        return "critical";
+    }
     if (tenant.status === "provisioning" ||
         safeCounter(usage.errorCount) > 0 ||
-        SECURITY_RANK[security.highestSeverity] >= SECURITY_RANK.warning) {
+        SECURITY_RANK[security.highestSeverity] >= SECURITY_RANK.warning ||
+        OPERATIONAL_RANK[operational.highestSeverity] >= OPERATIONAL_RANK.high) {
         return "attention";
     }
 
@@ -121,6 +176,7 @@ function createPlatformSupportOverviewService({
     tenantRegistry,
     usageTelemetry,
     securitySignals,
+    operationalAlerts = null,
     concurrency = 8
 }) {
     if (!tenantRegistry || typeof tenantRegistry.list !== "function") {
@@ -131,6 +187,9 @@ function createPlatformSupportOverviewService({
     }
     if (!securitySignals || typeof securitySignals.listTenant !== "function") {
         throw new TypeError("Destek merkezi security signals gerekli.");
+    }
+    if (operationalAlerts && typeof operationalAlerts.listTenant !== "function") {
+        throw new TypeError("Destek merkezi operational alerts geçersiz.");
     }
 
     const safeConcurrency = normalizeConcurrency(concurrency);
@@ -157,24 +216,34 @@ function createPlatformSupportOverviewService({
                     if (tenantId !== tenant.tenantId) {
                         throw new TypeError("Destek merkezi tenant kimliği canonical olmalı.");
                     }
-                    const [usageResult, securityResult] = await Promise.allSettled([
-                        usageTelemetry.getAggregate({
-                            context,
-                            tenantId,
-                            period: "daily",
-                            at: observedAt
-                        }),
-                        securitySignals.listTenant({
-                            context,
-                            tenantId,
-                            limit: 10
-                        })
-                    ]);
+                    const [usageResult, securityResult, operationalResult] =
+                        await Promise.allSettled([
+                            usageTelemetry.getAggregate({
+                                context,
+                                tenantId,
+                                period: "daily",
+                                at: observedAt
+                            }),
+                            securitySignals.listTenant({
+                                context,
+                                tenantId,
+                                limit: 10
+                            }),
+                            operationalAlerts
+                                ? operationalAlerts.listTenant({
+                                    context,
+                                    tenantId,
+                                    limit: 20
+                                })
+                                : Promise.resolve([])
+                        ]);
 
                     const usageAvailable = usageResult.status === "fulfilled" &&
                         usageResult.value && typeof usageResult.value === "object";
                     const securityAvailable = securityResult.status === "fulfilled" &&
                         Array.isArray(securityResult.value);
+                    const operationalAvailable = operationalResult.status === "fulfilled" &&
+                        Array.isArray(operationalResult.value);
                     const usage = usageAvailable ? usageResult.value : {};
                     const security = securityAvailable
                         ? summarizeSecurity(securityResult.value)
@@ -183,12 +252,23 @@ function createPlatformSupportOverviewService({
                             highestSeverity: "none",
                             latestAt: null
                         });
+                    const operational = operationalAvailable
+                        ? summarizeOperationalAlerts(operationalResult.value, observedAt)
+                        : Object.freeze({
+                            total: 0,
+                            groups: 0,
+                            highestSeverity: "none",
+                            latestAt: null,
+                            latest: null
+                        });
                     const health = deriveHealth({
                         tenant,
                         usage,
                         security,
+                        operational,
                         usageAvailable,
-                        securityAvailable
+                        securityAvailable,
+                        operationalAvailable
                     });
 
                     return Object.freeze({
@@ -202,12 +282,14 @@ function createPlatformSupportOverviewService({
                         errorsToday: safeCounter(usage.errorCount),
                         lastError: projectLastError(usage.lastError),
                         security,
+                        operational,
                         telemetryUpdatedAt: typeof usage.updatedAt === "string"
                             ? usage.updatedAt
                             : null,
                         sources: Object.freeze({
                             usage: usageAvailable,
-                            security: securityAvailable
+                            security: securityAvailable,
+                            operational: operationalAvailable
                         })
                     });
                 }
@@ -248,5 +330,6 @@ module.exports = {
     normalizeConcurrency,
     normalizeLimit,
     projectLastError,
+    summarizeOperationalAlerts,
     summarizeSecurity
 };
