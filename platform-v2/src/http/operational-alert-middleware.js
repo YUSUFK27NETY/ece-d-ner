@@ -56,6 +56,31 @@ function resolveOperationalAlertScope(pathname) {
     return null;
 }
 
+function resolveTrustedOperationalAlertScope(locals) {
+    const scope = locals?.platformOperationalAlertScope;
+    if (!scope || typeof scope !== "object" || Array.isArray(scope) ||
+        Object.getPrototypeOf(scope) !== Object.prototype) {
+        return null;
+    }
+    const keys = Reflect.ownKeys(scope);
+    if (keys.length !== 2 || !keys.every(key => ["tenantId", "operation"].includes(key))) {
+        return null;
+    }
+
+    let tenantId;
+    try {
+        tenantId = requireTenantId(scope.tenantId);
+    } catch {
+        return null;
+    }
+    if (tenantId !== scope.tenantId ||
+        typeof scope.operation !== "string" ||
+        !/^[a-z0-9][a-z0-9_.:-]{1,119}$/i.test(scope.operation)) {
+        return null;
+    }
+    return Object.freeze({ tenantId, operation: scope.operation });
+}
+
 function createOperationalAlertMiddleware({ alerts, clock = Date.now }) {
     if (!alerts || typeof alerts.record !== "function") {
         throw new TypeError("Operational alert service gerekli.");
@@ -65,11 +90,11 @@ function createOperationalAlertMiddleware({ alerts, clock = Date.now }) {
     }
 
     return function operationalAlertMiddleware(req, res, next) {
-        const scope = resolveOperationalAlertScope(req.path);
-        if (!scope) return next();
+        const pathScope = resolveOperationalAlertScope(req.path);
 
         res.once("finish", () => {
-            if (!Number.isInteger(res.statusCode) ||
+            const scope = pathScope || resolveTrustedOperationalAlertScope(res.locals);
+            if (!scope || !Number.isInteger(res.statusCode) ||
                 res.statusCode < 500 || res.statusCode > 599) {
                 return;
             }
@@ -101,5 +126,6 @@ function createOperationalAlertMiddleware({ alerts, clock = Date.now }) {
 module.exports = {
     TENANT_ROUTE_PATTERNS,
     createOperationalAlertMiddleware,
-    resolveOperationalAlertScope
+    resolveOperationalAlertScope,
+    resolveTrustedOperationalAlertScope
 };
