@@ -77,6 +77,22 @@ function buildBulkAdvisoryPayload(lockfile) {
     ));
 }
 
+function chunkBulkAdvisoryPayload(payload, batchSize = 50) {
+    if (!isPlainObject(payload) || Object.keys(payload).length === 0 ||
+        !Number.isSafeInteger(batchSize) || batchSize < 1 || batchSize > 100) {
+        fail("Dependency audit batch ayarı geçersiz.");
+    }
+
+    const entries = Object.entries(payload);
+    const batches = [];
+    for (let index = 0; index < entries.length; index += batchSize) {
+        batches.push(Object.freeze(Object.fromEntries(
+            entries.slice(index, index + batchSize)
+        )));
+    }
+    return Object.freeze(batches);
+}
+
 function normalizeBulkResponse(value, payload) {
     if (!isPlainObject(value)) {
         fail("npm Bulk Advisory yanıtı geçersiz.");
@@ -241,15 +257,20 @@ async function auditProductionDependencies({
     }
 
     const payload = buildBulkAdvisoryPayload(lockfile);
-    const findings = await queryBulkAdvisories({
-        payload,
-        fetchImplementation
-    });
+    const batches = chunkBulkAdvisoryPayload(payload);
+    const findings = [];
+    for (const batch of batches) {
+        findings.push(...await queryBulkAdvisories({
+            payload: batch,
+            fetchImplementation
+        }));
+    }
     const result = enforceAuditThreshold(findings);
 
     return Object.freeze({
         ...result,
         packageCount: Object.keys(payload).length,
+        requestCount: batches.length,
         endpoint: NPM_BULK_ADVISORY_ENDPOINT
     });
 }
@@ -262,6 +283,7 @@ async function main() {
             success: true,
             packageCount: result.packageCount,
             advisoryCount: result.advisoryCount,
+            requestCount: result.requestCount,
             threshold: result.threshold
         }) + "\n");
     } catch (error) {
@@ -285,6 +307,7 @@ module.exports = {
     SEVERITY_RANK,
     auditProductionDependencies,
     buildBulkAdvisoryPayload,
+    chunkBulkAdvisoryPayload,
     enforceAuditThreshold,
     isRetryableAuditStatus,
     normalizeBulkResponse,
