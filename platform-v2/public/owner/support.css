@@ -1,0 +1,24 @@
+.support-link{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.support-shell{width:min(1180px,calc(100% - 28px));margin:24px auto 70px}
+.support-layout{display:grid;grid-template-columns:minmax(300px,.8fr) minmax(0,1.2fr);gap:16px;align-items:start}
+.support-create,.support-history{padding:20px}
+.support-create h2,.support-history h2{margin:4px 0 7px}
+.support-create p{line-height:1.5}
+.support-filter{margin:0;min-width:170px}
+.ticket-list{display:grid;gap:12px}
+.ticket-card{border:1px solid #263a55;border-radius:16px;background:#0a1625;padding:16px;display:grid;gap:12px}
+.ticket-card-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.ticket-card h3{margin:0 0 5px;font-size:17px}
+.ticket-card p{margin:0;line-height:1.55;color:#c8d4e4;white-space:pre-wrap;overflow-wrap:anywhere}
+.ticket-meta{font-size:12px;color:#8fa0b8}
+.ticket-status{display:inline-flex;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:900;border:1px solid}
+.ticket-status.open{color:#bfdbfe;background:#172554;border-color:#1d4ed8}
+.ticket-status.in_review{color:#fde68a;background:#422006;border-color:#a16207}
+.ticket-status.resolved{color:#bbf7d0;background:#052e16;border-color:#15803d}
+.ticket-history{display:grid;gap:7px;padding-top:10px;border-top:1px solid #22354c}
+.ticket-history-row{display:grid;grid-template-columns:auto 1fr;gap:8px 10px;font-size:12px;color:#9eb0c7}
+.ticket-history-row strong{color:#dce8f8}
+.ticket-history-note{grid-column:2;white-space:pre-wrap;overflow-wrap:anywhere}
+.auth-notice{padding:24px}
+@media(max-width:820px){.support-layout{grid-template-columns:1fr}.support-shell{width:calc(100% - 20px);margin-top:14px}}
+@media(max-width:520px){.support-create,.support-history{padding:15px}.ticket-card-head{display:grid}.support-filter{min-width:0;width:100%}.section-head{display:grid}.ticket-history-row{grid-template-columns:1fr}.ticket-history-note{grid-column:auto}}
