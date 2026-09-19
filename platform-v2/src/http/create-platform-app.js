@@ -165,6 +165,7 @@ function createPlatformApp({
     customerReadinessService = null,
     commercialPlanPreviewService = null,
     tenantOperations = null,
+    supportOverview = null,
     finOpsService = null
 }) {
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function" ||
@@ -177,6 +178,9 @@ function createPlatformApp({
     const app = express();
     if (tenantOperations && typeof tenantOperations.getOverview !== "function") {
         throw new TypeError("Tenant operations service geçersiz.");
+    }
+    if (supportOverview && typeof supportOverview.getOverview !== "function") {
+        throw new TypeError("Platform support overview service geçersiz.");
     }
     if (finOpsService && typeof finOpsService.getTopTenants !== "function") {
         throw new TypeError("FinOps service geçersiz.");
@@ -563,6 +567,29 @@ function createPlatformApp({
                 return res.json({
                     success: true,
                     overview
+                });
+            } catch (error) {
+                return sendPlatformError(res, error);
+            }
+        });
+    }
+
+    if (supportOverview) {
+        app.get("/api/platform/support-overview", async (req, res) => {
+            try {
+                const support = await supportOverview.getOverview({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    limit: normalizeApiListLimit(
+                        req.query.limit === undefined ? 200 : req.query.limit
+                    )
+                });
+
+                return res.json({
+                    success: true,
+                    support
                 });
             } catch (error) {
                 return sendPlatformError(res, error);
