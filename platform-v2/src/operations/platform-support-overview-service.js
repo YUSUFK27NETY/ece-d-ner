@@ -1,3 +1,5 @@
+const { requireTenantId } = require("../tenant/tenant-id");
+
 const HEALTH_STATES = Object.freeze(["healthy", "attention", "critical", "unknown"]);
 const HEALTH_RANK = Object.freeze({ critical: 0, attention: 1, unknown: 2, healthy: 3 });
 const SECURITY_RANK = Object.freeze({ none: 0, info: 1, warning: 2, critical: 3 });
@@ -151,7 +153,10 @@ function createPlatformSupportOverviewService({
                 tenants,
                 safeConcurrency,
                 async tenant => {
-                    const tenantId = String(tenant?.tenantId || "");
+                    const tenantId = requireTenantId(tenant?.tenantId);
+                    if (tenantId !== tenant.tenantId) {
+                        throw new TypeError("Destek merkezi tenant kimliği canonical olmalı.");
+                    }
                     const [usageResult, securityResult] = await Promise.allSettled([
                         usageTelemetry.getAggregate({
                             context,
