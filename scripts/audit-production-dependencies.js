@@ -111,11 +111,23 @@ function normalizeBulkResponse(value, payload) {
     return Object.freeze(findings);
 }
 
+function isRetryableAuditStatus(status) {
+    return status === 408 || status === 429 ||
+        Number.isInteger(status) && status >= 500 && status <= 599;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 async function queryBulkAdvisories({
     payload,
     fetchImplementation = globalThis.fetch,
     endpoint = NPM_BULK_ADVISORY_ENDPOINT,
-    timeoutMs = 20_000
+    timeoutMs = 20_000,
+    attempts = 3,
+    retryDelayMs = 500,
+    sleepImplementation = sleep
 } = {}) {
     if (!isPlainObject(payload) || Object.keys(payload).length === 0) {
         fail("npm Bulk Advisory payload geçersiz.");
@@ -129,39 +141,64 @@ async function queryBulkAdvisories({
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1_000 || timeoutMs > 60_000) {
         fail("Dependency audit timeout geçersiz.");
     }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    let response;
-    try {
-        response = await fetchImplementation(endpoint, {
-            method: "POST",
-            redirect: "error",
-            signal: controller.signal,
-            headers: {
-                Accept: "application/json",
-                "Content-Type": "application/json",
-                "User-Agent": "business-platform-v2-dependency-audit/1.0"
-            },
-            body: JSON.stringify(payload)
-        });
-    } catch {
-        fail("npm Bulk Advisory servisine ulaşılamadı.");
-    } finally {
-        clearTimeout(timer);
+    if (!Number.isSafeInteger(attempts) || attempts < 1 || attempts > 5 ||
+        !Number.isSafeInteger(retryDelayMs) || retryDelayMs < 0 || retryDelayMs > 5_000 ||
+        typeof sleepImplementation !== "function") {
+        fail("Dependency audit retry ayarı geçersiz.");
     }
 
-    if (!response || response.ok !== true || response.status !== 200) {
-        fail(`npm Bulk Advisory HTTP ${response?.status ?? "yanıt yok"}.`);
+    let lastStatus = null;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), timeoutMs);
+        let response = null;
+        let networkFailed = false;
+
+        try {
+            response = await fetchImplementation(endpoint, {
+                method: "POST",
+                redirect: "error",
+                signal: controller.signal,
+                headers: {
+                    Accept: "application/json",
+                    "Content-Type": "application/json",
+                    "User-Agent": "business-platform-v2-dependency-audit/1.0"
+                },
+                body: JSON.stringify(payload)
+            });
+        } catch {
+            networkFailed = true;
+        } finally {
+            clearTimeout(timer);
+        }
+
+        if (networkFailed) {
+            if (attempt < attempts) {
+                await sleepImplementation(retryDelayMs);
+                continue;
+            }
+            fail("npm Bulk Advisory servisine ulaşılamadı.");
+        }
+
+        lastStatus = response?.status ?? null;
+        if (!response || response.ok !== true || response.status !== 200) {
+            if (isRetryableAuditStatus(lastStatus) && attempt < attempts) {
+                await sleepImplementation(retryDelayMs);
+                continue;
+            }
+            fail(`npm Bulk Advisory HTTP ${lastStatus ?? "yanıt yok"}.`);
+        }
+
+        let body;
+        try {
+            body = await response.json();
+        } catch {
+            fail("npm Bulk Advisory JSON yanıtı okunamadı.");
+        }
+        return normalizeBulkResponse(body, payload);
     }
 
-    let body;
-    try {
-        body = await response.json();
-    } catch {
-        fail("npm Bulk Advisory JSON yanıtı okunamadı.");
-    }
-    return normalizeBulkResponse(body, payload);
+    fail(`npm Bulk Advisory HTTP ${lastStatus ?? "yanıt yok"}.`);
 }
 
 function enforceAuditThreshold(findings, threshold = AUDIT_THRESHOLD) {
@@ -249,6 +286,7 @@ module.exports = {
     auditProductionDependencies,
     buildBulkAdvisoryPayload,
     enforceAuditThreshold,
+    isRetryableAuditStatus,
     normalizeBulkResponse,
     packageNameFromLockPath,
     queryBulkAdvisories
