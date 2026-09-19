@@ -1,4 +1,7 @@
 const rateLimit = require("express-rate-limit");
+const {
+    assertTrustedTenantResolution
+} = require("../orders/trusted-tenant-resolution");
 
 const PUBLIC_ORDER_PATH = "/api/public/orders";
 const PUBLIC_ROUTE_HEADERS = Object.freeze({
@@ -127,13 +130,19 @@ function attachPublicOrderEndpoint({
                 throw new TypeError("Public order query kabul etmez.");
             }
 
-            const resolution = await publicTenantResolver.resolve({
-                method: req.method,
-                path: req.path,
-                domain: req.get(PUBLIC_ROUTE_HEADERS.domain),
-                timestamp: req.get(PUBLIC_ROUTE_HEADERS.timestamp),
-                signature: req.get(PUBLIC_ROUTE_HEADERS.signature)
-            });
+            const resolution = assertTrustedTenantResolution(
+                await publicTenantResolver.resolve({
+                    method: req.method,
+                    path: req.path,
+                    domain: req.get(PUBLIC_ROUTE_HEADERS.domain),
+                    timestamp: req.get(PUBLIC_ROUTE_HEADERS.timestamp),
+                    signature: req.get(PUBLIC_ROUTE_HEADERS.signature)
+                })
+            );
+            res.locals.platformOperationalAlertScope = {
+                tenantId: resolution.tenantId,
+                operation: "http.public.orders"
+            };
 
             const order = await orderService.createCustomerOrder({
                 resolution,
