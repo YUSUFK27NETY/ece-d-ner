@@ -123,29 +123,45 @@ function createFirestoreOperationalAlertStore({ db }) {
                         tenantId
                     });
                     if (current.operation !== operation ||
-                        current.statusCode !== statusCode ||
-                        current.windowStartedAt !== input.windowStartedAt) {
+                        current.statusCode !== statusCode) {
                         fail("aggregate identity");
                     }
-                    const eventCount = current.eventCount + 1;
-                    next = Object.freeze({
-                        ...current,
-                        severity: eventCount >= criticalThreshold ? "critical" : current.severity,
-                        eventCount,
-                        firstSeenAt: current.firstSeenAt < input.occurredAt
-                            ? current.firstSeenAt
-                            : input.occurredAt,
-                        lastSeenAt: current.lastSeenAt > input.occurredAt
-                            ? current.lastSeenAt
-                            : input.occurredAt
-                    });
+
+                    if (current.windowStartedAt !== input.windowStartedAt) {
+                        next = Object.freeze({
+                            schemaVersion: 1,
+                            alertId,
+                            tenantId,
+                            type: "server_error",
+                            severity: "high",
+                            operation,
+                            statusCode,
+                            eventCount: 1,
+                            firstSeenAt: input.occurredAt,
+                            lastSeenAt: input.occurredAt,
+                            windowStartedAt: input.windowStartedAt
+                        });
+                    } else {
+                        const eventCount = current.eventCount + 1;
+                        next = Object.freeze({
+                            ...current,
+                            severity: eventCount >= criticalThreshold ? "critical" : current.severity,
+                            eventCount,
+                            firstSeenAt: current.firstSeenAt < input.occurredAt
+                                ? current.firstSeenAt
+                                : input.occurredAt,
+                            lastSeenAt: current.lastSeenAt > input.occurredAt
+                                ? current.lastSeenAt
+                                : input.occurredAt
+                        });
+                    }
                 } else {
                     next = Object.freeze({
                         schemaVersion: 1,
                         alertId,
                         tenantId,
                         type: "server_error",
-                        severity: criticalThreshold <= 1 ? "critical" : "high",
+                        severity: "high",
                         operation,
                         statusCode,
                         eventCount: 1,
