@@ -11,6 +11,9 @@ const {
 const { createFirestoreQuoteRepository } = require("./src/firestore/firestore-quote-repository");
 const { createFirestoreCrmRepository } = require("./src/firestore/firestore-crm-repository");
 const {
+    createFirestoreSupportTicketRepository
+} = require("./src/firestore/firestore-support-ticket-repository");
+const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
 const {
@@ -48,6 +51,12 @@ const { attachCrmOwnerEndpoints } = require("./src/http/attach-crm-owner-endpoin
 const {
     attachPublicChannelOwnerEndpoints
 } = require("./src/http/attach-public-channel-owner-endpoints");
+const {
+    attachSupportTicketOwnerEndpoints
+} = require("./src/http/attach-support-ticket-owner-endpoints");
+const {
+    attachSupportTicketAdminEndpoints
+} = require("./src/http/attach-support-ticket-admin-endpoints");
 const {
     attachPublicStorefrontRuntime
 } = require("./src/http/attach-public-storefront-runtime");
@@ -114,6 +123,9 @@ const {
 } = require("./src/inventory/inventory-delivery-service");
 const { createQuoteService } = require("./src/quotes/quote-service");
 const { createCrmService } = require("./src/crm/crm-service");
+const {
+    createSupportTicketService
+} = require("./src/support/support-ticket-service");
 const {
     createPublicStorefrontService
 } = require("./src/public/public-storefront-service");
@@ -320,6 +332,9 @@ function startPlatformServer() {
         repository: crmRepository,
         entitlementService
     });
+    const supportTicketService = createSupportTicketService({
+        repository: createFirestoreSupportTicketRepository({ db })
+    });
     const commercialPlanPreviewService = createCommercialPlanPreviewService({
         config: guardrailsConfig,
         entitlementService
@@ -436,6 +451,14 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachSupportTicketOwnerEndpoints({
+        app,
+        supportTicketService
+    });
+    attachSupportTicketAdminEndpoints({
+        app,
+        supportTicketService
     });
     attachPublicChannelOwnerEndpoints({
         app,
