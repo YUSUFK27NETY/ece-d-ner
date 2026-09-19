@@ -51,7 +51,10 @@ function buildBulkAdvisoryPayload(lockfile) {
 
     const versionsByPackage = new Map();
     for (const [location, descriptor] of Object.entries(lockfile.packages)) {
-        if (!location || !isPlainObject(descriptor) || descriptor.dev === true) continue;
+        if (!location || !isPlainObject(descriptor) ||
+            descriptor.dev === true || descriptor.optional === true) {
+            continue;
+        }
         const name = packageNameFromLockPath(location);
         const version = descriptor.version;
         if (!name || typeof version !== "string" || !version ||
