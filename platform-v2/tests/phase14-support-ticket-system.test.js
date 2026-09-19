@@ -274,7 +274,8 @@ test("Platform Admin ticketı open -> in_review -> resolved yapar ve geçmiş/au
     const times = [
         new Date("2026-09-19T18:10:00.000Z"),
         new Date("2026-09-19T18:11:00.000Z"),
-        new Date("2026-09-19T18:12:00.000Z")
+        new Date("2026-09-19T18:12:00.000Z"),
+        new Date("2026-09-19T18:13:00.000Z")
     ];
     const service = createSupportTicketService({
         repository,
