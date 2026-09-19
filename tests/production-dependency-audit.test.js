@@ -23,7 +23,7 @@ function response({ status = 200, body = {} } = {}) {
     };
 }
 
-test("package-lock v3 production ve optional paketleri bulk advisory payloadına taşır", () => {
+test("package-lock v3 yalnız deployed production paketlerini bulk advisory payloadına taşır", () => {
     const payload = buildBulkAdvisoryPayload({
         lockfileVersion: 3,
         packages: {
@@ -54,10 +54,45 @@ test("package-lock v3 production ve optional paketleri bulk advisory payloadına
 
     assert.deepEqual(payload, {
         "@scope/tool": ["4.5.6"],
-        "optional-prod": ["2.0.0"],
         "prod": ["1.2.3", "1.2.4"]
     });
     assert.equal(Object.hasOwn(payload, "dev-only"), false);
+    assert.equal(Object.hasOwn(payload, "optional-prod"), false);
+});
+
+test("omit=optional production zincirindeki advisory paketini payload dışı bırakır", () => {
+    const payload = buildBulkAdvisoryPayload({
+        lockfileVersion: 3,
+        packages: {
+            "": {
+                name: "app",
+                version: "1.0.0",
+                dependencies: { "firebase-admin": "14.4.0" }
+            },
+            "node_modules/firebase-admin": {
+                version: "14.4.0"
+            },
+            "node_modules/@google-cloud/storage": {
+                version: "8.1.0",
+                optional: true
+            },
+            "node_modules/gaxios": {
+                version: "6.7.1",
+                optional: true
+            },
+            "node_modules/uuid": {
+                version: "9.0.1",
+                optional: true
+            }
+        }
+    });
+
+    assert.deepEqual(payload, {
+        "firebase-admin": ["14.4.0"]
+    });
+    assert.equal(Object.hasOwn(payload, "uuid"), false);
+    assert.equal(Object.hasOwn(payload, "gaxios"), false);
+    assert.equal(Object.hasOwn(payload, "@google-cloud/storage"), false);
 });
 
 test("lock path package adını nested ve scoped node_modules yollarından güvenli çıkarır", () => {
