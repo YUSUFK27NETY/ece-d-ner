@@ -440,6 +440,32 @@ test("ticket UI server-resolved owner session ve ayrı admin auth kullanır; inn
     assert.doesNotMatch(adminJs, /localStorage/);
 });
 
+test("admin ticket status update tenant/ticket contextini capture eder ve seçim yarışını kapatır", () => {
+    const adminJs = fs.readFileSync(
+        path.join(__dirname, "../public/admin/support-tickets.js"),
+        "utf8"
+    );
+
+    assert.match(adminJs, /button\.disabled = state\.busy/);
+    assert.match(adminJs, /function setBusy\(value\)/);
+    assert.match(adminJs, /const selectedAtSubmit = Object\.freeze\(/);
+    assert.match(adminJs, /tenantId: state\.selected\.tenantId/);
+    assert.match(adminJs, /ticketId: state\.selected\.ticketId/);
+    assert.match(adminJs, /requestVersion: state\.requestVersion/);
+    assert.match(
+        adminJs,
+        /updated\.tenantId !== selectedAtSubmit\.tenantId[\s\S]*updated\.ticketId !== selectedAtSubmit\.ticketId/
+    );
+    assert.match(
+        adminJs,
+        /state\.selected\?\.tenantId !== selectedAtSubmit\.tenantId[\s\S]*state\.selected\?\.ticketId !== selectedAtSubmit\.ticketId/
+    );
+    assert.match(
+        adminJs,
+        /item\.tenantId === updated\.tenantId[\s\S]*item\.ticketId === updated\.ticketId/
+    );
+});
+
 test("server runtime support ticket repository, service ve iki endpoint grubunu bağlar", () => {
     const server = fs.readFileSync(path.join(__dirname, "../server.js"), "utf8");
     assert.match(server, /createFirestoreSupportTicketRepository/);
