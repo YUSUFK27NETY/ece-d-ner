@@ -19,6 +19,9 @@ const {
 const {
     ROLE_PERMISSIONS
 } = require("../src/auth/authorize-tenant-action");
+const {
+    resolveOperationalAlertScope
+} = require("../src/http/operational-alert-middleware");
 
 function clone(value) {
     return JSON.parse(JSON.stringify(value));
@@ -386,6 +389,22 @@ test("Platform Admin tenant ve status filtreleriyle merkezi ticket kuyruğunu ok
             limit: 200
         }),
         error => error.code === "PERMISSION_DENIED"
+    );
+});
+
+test("admin ticket 5xx yolu tenant operational alarm scope'una bağlanır", () => {
+    assert.deepEqual(
+        resolveOperationalAlertScope(
+            "/api/platform/support/tickets/ela-doner/123e4567-e89b-12d3-a456-426614174000/status"
+        ),
+        {
+            tenantId: "ela-doner",
+            operation: "http.platform.support_ticket"
+        }
+    );
+    assert.equal(
+        resolveOperationalAlertScope("/api/platform/support/tickets"),
+        null
     );
 });
 
