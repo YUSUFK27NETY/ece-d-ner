@@ -198,16 +198,20 @@ test("operational alert middleware yalnız canonical tenant-scoped route ve 5xx 
         clock: () => Date.parse("2026-09-19T16:30:00.000Z")
     });
 
-    async function finish(pathname, statusCode) {
+    async function finish(pathname, statusCode, trustedScope = null) {
         const listeners = new Map();
         const req = { path: pathname };
         const res = {
             statusCode,
+            locals: {},
             once(event, handler) {
                 listeners.set(event, handler);
             }
         };
         middleware(req, res, () => {});
+        if (trustedScope) {
+            res.locals.platformOperationalAlertScope = trustedScope;
+        }
         const handler = listeners.get("finish");
         if (handler) handler();
         await new Promise(resolve => setImmediate(resolve));
@@ -215,6 +219,10 @@ test("operational alert middleware yalnız canonical tenant-scoped route ve 5xx 
 
     await finish("/api/public/storefront/ela-doner", 500);
     await finish("/api/tenant/tenants/ela-doner/owner/orders", 503);
+    await finish("/api/public/orders", 502, {
+        tenantId: "ela-doner",
+        operation: "http.public.orders"
+    });
     await finish("/api/public/storefront/ela-doner", 404);
     await finish("/api/public/storefront/ELA-DONER", 500);
     await finish("/api/public/deployment", 500);
@@ -230,6 +238,12 @@ test("operational alert middleware yalnız canonical tenant-scoped route ve 5xx 
             tenantId: "ela-doner",
             operation: "http.owner.tenant",
             statusCode: 503,
+            occurredAt: "2026-09-19T16:30:00.000Z"
+        },
+        {
+            tenantId: "ela-doner",
+            operation: "http.public.orders",
+            statusCode: 502,
             occurredAt: "2026-09-19T16:30:00.000Z"
         }
     ]);
