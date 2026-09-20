@@ -247,6 +247,46 @@ async function checkSupportDashboardAssets(fetchImplementation, baseUrl, timeout
     }
 }
 
+async function checkSupportTicketAssets(fetchImplementation, baseUrl, timeoutMs) {
+    const checks = [
+        {
+            path: "/owner/support.html",
+            label: "Owner support ticket page",
+            markers: ["Destek Taleplerim", "/owner/support.css", "/owner/support.js"]
+        },
+        {
+            path: "/owner/support.js",
+            label: "Owner support ticket runtime",
+            markers: ["OWNER_SESSION_RESOLVER", "/owner/support/tickets", "textContent"]
+        },
+        {
+            path: "/admin/support-tickets.html",
+            label: "Admin support ticket page",
+            markers: ["Destek Talepleri", "/admin/support-tickets.css", "/admin/support-tickets.js"]
+        },
+        {
+            path: "/admin/support-tickets.js",
+            label: "Admin support ticket runtime",
+            markers: ["PLATFORM_ADMIN_AUTH", "/api/platform/support/tickets", "textContent"]
+        }
+    ];
+
+    await Promise.all(checks.map(async check => {
+        const response = await fetchWithTimeout(
+            fetchImplementation,
+            `${baseUrl}${check.path}`,
+            timeoutMs
+        );
+        assertOk(response, check.label);
+        const source = await response.text();
+        for (const marker of check.markers) {
+            if (!source.includes(marker)) {
+                throw new Error(`${check.label} marker eksik: ${marker}`);
+            }
+        }
+    }));
+}
+
 async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
     const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
@@ -257,7 +297,8 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         checkCoreStorefrontStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs),
-        checkSupportDashboardAssets(fetchImplementation, baseUrl, timeoutMs)
+        checkSupportDashboardAssets(fetchImplementation, baseUrl, timeoutMs),
+        checkSupportTicketAssets(fetchImplementation, baseUrl, timeoutMs)
     ]);
     return Object.freeze({
         success: true,
@@ -265,7 +306,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         baseUrl,
         tenantId,
         deployedCommit: results[1],
-        endpoints: 10
+        endpoints: 14
     });
 }
 

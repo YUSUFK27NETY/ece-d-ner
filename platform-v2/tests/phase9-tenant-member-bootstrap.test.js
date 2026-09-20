@@ -390,12 +390,13 @@ test("ROLE_PERMISSIONS ve durable tenant status sözleşmeleri değişmeden kal�
             "tenant.read", "tenant.update", "catalog.manage", "orders.manage", "appointments.manage",
             "members.manage", "settings.manage", "audit.read",
             "tenant.telemetry.read", "tenant.cost.read", "tenant.security.read",
-            "tenant.operations.read"
+            "tenant.operations.read", "support.create", "support.read"
         ],
         tenant_admin: [
             "tenant.read", "tenant.update", "catalog.manage", "orders.manage", "appointments.manage",
             "settings.manage", "audit.read", "tenant.telemetry.read",
-            "tenant.cost.read", "tenant.security.read", "tenant.operations.read"
+            "tenant.cost.read", "tenant.security.read", "tenant.operations.read",
+            "support.create", "support.read"
         ],
         staff: ["tenant.read", "catalog.read", "orders.manage"],
         viewer: ["tenant.read", "catalog.read", "orders.read"]

@@ -188,7 +188,12 @@
         setup.href = `/admin/quick-setup.html?tenantId=${encodeURIComponent(item.tenantId)}`;
         setup.textContent = "Tenant";
 
-        wrap.append(security, setup);
+        const tickets = document.createElement("a");
+        tickets.className = "button secondary compact";
+        tickets.href = `/admin/support-tickets.html?tenantId=${encodeURIComponent(item.tenantId)}`;
+        tickets.textContent = "Ticketler";
+
+        wrap.append(security, setup, tickets);
 
         if (item.lifecycleStatus === "active") {
             const live = document.createElement("a");
