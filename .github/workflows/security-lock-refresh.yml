@@ -1,0 +1,93 @@
+name: Security dependency lock refresh
+
+on:
+  push:
+    branches:
+      - "security/firebase-admin-uuid-remediation"
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: >-
+      !contains(github.event.head_commit.message, '[lock-refresh]') &&
+      !contains(github.event.head_commit.message, '[cleanup-lock-refresh]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout security branch
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.ref_name }}
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Regenerate package lock
+        run: npm install --package-lock-only --ignore-scripts
+
+      - name: Verify patched dependency graph
+        run: |
+          node <<'NODE'
+          const fs = require("node:fs");
+          const lock = JSON.parse(fs.readFileSync("package-lock.json", "utf8"));
+          const root = lock.packages?.[""]?.dependencies || {};
+          if (root["firebase-admin"] !== "14.4.0") {
+            throw new Error("firebase-admin lock root is not 14.4.0");
+          }
+          if (root["@google-cloud/firestore"] !== "9.1.0") {
+            throw new Error("@google-cloud/firestore lock root is not 9.1.0");
+          }
+
+          function vulnerableUuid(version) {
+            const match = /^(\d+)\.(\d+)\.(\d+)(?:[-+].*)?$/.exec(String(version || ""));
+            if (!match) return true;
+            const major = Number(match[1]);
+            const minor = Number(match[2]);
+            const patch = Number(match[3]);
+            if (major < 11) return true;
+            if (major === 11) return minor < 1 || (minor === 1 && patch < 1);
+            if (major === 12) return minor === 0 && patch === 0;
+            if (major === 13) return minor === 0 && patch === 0;
+            return false;
+          }
+
+          const vulnerable = [];
+          for (const [location, descriptor] of Object.entries(lock.packages || {})) {
+            if (!location || !descriptor || descriptor.dev === true) continue;
+            const name = location.split("node_modules/").pop();
+            if (name === "uuid" && vulnerableUuid(descriptor.version)) {
+              vulnerable.push({ location, version: descriptor.version, optional: descriptor.optional === true });
+            }
+          }
+          if (vulnerable.length) {
+            throw new Error("Vulnerable production uuid remains: " + JSON.stringify(vulnerable));
+          }
+          console.log("Patched dependency graph verified.");
+          NODE
+
+      - name: Install exact lock
+        run: npm ci
+
+      - name: Run repository CI
+        run: npm run ci
+
+      - name: Audit production dependencies including optional
+        run: npm audit --omit=dev --audit-level=moderate
+
+      - name: Commit regenerated lock
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "package-lock.json already current."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "[lock-refresh] security: regenerate dependency lock"
+          git push origin "HEAD:${{ github.ref_name }}"
