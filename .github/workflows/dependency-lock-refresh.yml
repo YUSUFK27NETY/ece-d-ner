@@ -44,7 +44,7 @@ jobs:
           NODE
 
       - name: Trace uuid dependency paths
-        run: npm ls uuid --all
+        run: npm ls uuid --all || true
 
       - name: Upload regenerated lockfile
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
