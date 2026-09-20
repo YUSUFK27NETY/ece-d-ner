@@ -17,7 +17,10 @@ test("uuid advisory remediation doğrudan production paketlerini major yükseltm
     assert.equal(pkg.dependencies["@google-cloud/firestore"], "8.7.1");
     assert.equal(pkg.dependencies["firebase-admin"], "14.3.0");
     assert.equal(pkg.dependencies["express-rate-limit"], "^8.2.1");
-    assert.deepEqual(pkg.overrides, {\n        gaxios: { uuid: "11.1.1" },\n        "teeny-request": { uuid: "11.1.1" }\n    });
+    assert.deepEqual(pkg.overrides, {
+        gaxios: { uuid: "11.1.1" },
+        "teeny-request": { uuid: "11.1.1" }
+    });
 });
 
 test("lockfile içindeki bütün uuid çözümü patched 11.1.1 sürümündedir", () => {
