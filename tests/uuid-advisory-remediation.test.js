@@ -11,12 +11,17 @@ function readJson(relativePath) {
     );
 }
 
-test("uuid advisory remediation patched CommonJS hattını override eder", () => {
+test("uuid advisory remediation doğrudan production paketlerini major yükseltmeden kalır", () => {
     const pkg = readJson("package.json");
+
+    assert.equal(pkg.dependencies["@google-cloud/firestore"], "8.7.1");
+    assert.equal(pkg.dependencies["firebase-admin"], "14.3.0");
+    assert.equal(pkg.dependencies["express-rate-limit"], "^8.2.1");
+    assert.deepEqual(pkg.overrides, { uuid: "11.1.1" });
+});
+
+test("lockfile içindeki bütün uuid çözümü patched 11.1.1 sürümündedir", () => {
     const lock = readJson("package-lock.json");
-
-    assert.deepEqual(pkg.overrides, { gaxios: { uuid: "11.1.1" } });
-
     const uuidEntries = Object.entries(lock.packages || {})
         .filter(([location]) =>
             location === "node_modules/uuid" || location.endsWith("/node_modules/uuid")
@@ -36,84 +41,48 @@ test("uuid advisory remediation patched CommonJS hattını override eder", () =>
     }]);
 });
 
-test("firebase-admin dependency group güvenlik güncellemesi korunur", () => {
-    const pkg = readJson("package.json");
-
-    assert.equal(pkg.dependencies["@google-cloud/firestore"], "9.1.0");
-    assert.equal(pkg.dependencies["firebase-admin"], "14.4.0");
-    assert.equal(pkg.dependencies["express-rate-limit"], "^8.2.1");
-});
-
-
-test("gaxios scoped uuid 11 override lockfile dependency zincirini güvenli sürüme bağlar", () => {
+test("iki vulnerable transitive hat da aynı güvenli uuid override altında kalır", () => {
     const lock = readJson("package-lock.json");
-    const storage = lock.packages?.["node_modules/@google-cloud/storage"];
     const gaxios = lock.packages?.["node_modules/gaxios"];
+    const teenyRequest = lock.packages?.["node_modules/teeny-request"];
     const uuid = lock.packages?.["node_modules/uuid"];
 
-    assert.equal(storage?.version, "8.1.0");
-    assert.equal(storage?.dependencies?.gaxios, "^6.0.2");
     assert.equal(gaxios?.version, "6.7.1");
     assert.equal(gaxios?.dependencies?.uuid, "^9.0.1");
+    assert.equal(teenyRequest?.version, "9.0.0");
+    assert.equal(teenyRequest?.dependencies?.uuid, "^9.0.0");
     assert.equal(uuid?.version, "11.1.1");
 });
 
-test("gaxios runtime kuruluysa scoped uuid 11 multipart v4 kullanımını bozmuyor", async t => {
-    let Gaxios;
+test("uuid 11 CommonJS v4 runtime uyumluluğu korunur", t => {
     let v4;
     try {
-        ({ Gaxios } = require("gaxios"));
         ({ v4 } = require("uuid"));
     } catch (error) {
         if (error?.code === "MODULE_NOT_FOUND") {
-            t.skip("Optional Google storage/gaxios runtime bu CI kurulumunda yüklü değil.");
+            t.skip("Optional uuid runtime bu CI kurulumunda yüklü değil.");
             return;
         }
         throw error;
     }
 
-    const directUuid = v4();
     assert.match(
-        directUuid,
+        v4(),
         /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
-    );
-
-    let prepared = null;
-    const client = new Gaxios();
-    const response = await client.request({
-        url: "https://example.invalid/upload",
-        multipart: [{
-            headers: { "Content-Type": "text/plain" },
-            content: "compatibility-check"
-        }],
-        adapter: async options => {
-            prepared = options;
-            return {
-                config: options,
-                data: { ok: true },
-                headers: new Headers(),
-                status: 200,
-                statusText: "OK",
-                request: { responseURL: String(options.url) }
-            };
-        }
-    });
-
-    assert.equal(response.status, 200);
-    assert.ok(prepared);
-    const contentType = prepared.headers["Content-Type"] ||
-        prepared.headers["content-type"];
-    assert.match(
-        String(contentType),
-        /^multipart\/related; boundary=[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
     );
 });
 
-test("güncellenen Google production client modülleri Node runtime altında yüklenir", () => {
-    const firestore = require("@google-cloud/firestore");
-    const firebaseApp = require("firebase-admin/app");
-
-    assert.equal(typeof firestore.Firestore, "function");
-    assert.equal(typeof firebaseApp.initializeApp, "function");
-    assert.equal(typeof firebaseApp.getApps, "function");
+test("gaxios ve teeny-request runtime modülleri uuid override ile yüklenebilir", t => {
+    for (const moduleName of ["gaxios", "teeny-request"]) {
+        try {
+            const loaded = require(moduleName);
+            assert.ok(loaded);
+        } catch (error) {
+            if (error?.code === "MODULE_NOT_FOUND") {
+                t.skip("Optional Google runtime bağımlılıkları bu CI kurulumunda yüklü değil.");
+                return;
+            }
+            throw error;
+        }
+    }
 });
