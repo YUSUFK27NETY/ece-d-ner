@@ -52,6 +52,9 @@ const {
     attachPublicChannelOwnerEndpoints
 } = require("./src/http/attach-public-channel-owner-endpoints");
 const {
+    attachOwnerSettingsEndpoints
+} = require("./src/http/attach-owner-settings-endpoints");
+const {
     attachSupportTicketOwnerEndpoints
 } = require("./src/http/attach-support-ticket-owner-endpoints");
 const {
@@ -115,6 +118,7 @@ const {
 const { createTenantRateLimiter } = require("./src/security/tenant-rate-limiter");
 const { createEntitlementService } = require("./src/entitlements/entitlement-service");
 const { createTenantManagementService } = require("./src/tenant/tenant-management-service");
+const { createOwnerSettingsService } = require("./src/tenant/owner-settings-service");
 const { createCatalogService } = require("./src/catalog/catalog-service");
 const { createOrderService } = require("./src/orders/order-service");
 const { createAppointmentService } = require("./src/appointments/appointment-service");
@@ -228,6 +232,10 @@ function startPlatformServer() {
     const tenantManagementService = createTenantManagementService({
         tenantRegistry,
         auditWriter
+    });
+    const ownerSettingsService = createOwnerSettingsService({
+        tenantRegistry,
+        tenantManagementService
     });
     const auditReader = createFirestoreAuditReader({ db });
     const lastAuditReadModel = createLastAuditReadModel({ auditReader });
@@ -451,6 +459,10 @@ function startPlatformServer() {
         tenantRegistry,
         catalogService,
         orderService
+    });
+    attachOwnerSettingsEndpoints({
+        app,
+        ownerSettingsService
     });
     attachSupportTicketOwnerEndpoints({
         app,

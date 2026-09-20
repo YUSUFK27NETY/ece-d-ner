@@ -287,6 +287,37 @@ async function checkSupportTicketAssets(fetchImplementation, baseUrl, timeoutMs)
     }));
 }
 
+
+async function checkOwnerSettingsAssets(fetchImplementation, baseUrl, timeoutMs) {
+    const checks = [
+        {
+            path: "/owner/settings.html",
+            label: "Owner settings page",
+            markers: ["İşletme Ayarları", "/owner/settings.css", "/owner/settings.js"]
+        },
+        {
+            path: "/owner/settings.js",
+            label: "Owner settings runtime",
+            markers: ["OWNER_SESSION_RESOLVER", "/owner/settings", "textContent"]
+        }
+    ];
+
+    await Promise.all(checks.map(async check => {
+        const response = await fetchWithTimeout(
+            fetchImplementation,
+            `${baseUrl}${check.path}`,
+            timeoutMs
+        );
+        assertOk(response, check.label);
+        const source = await response.text();
+        for (const marker of check.markers) {
+            if (!source.includes(marker)) {
+                throw new Error(`${check.label} marker eksik: ${marker}`);
+            }
+        }
+    }));
+}
+
 async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
     const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
@@ -298,7 +329,8 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         checkDesignFamilyStylesheet(fetchImplementation, baseUrl, timeoutMs),
         checkDesignFamilyBridge(fetchImplementation, baseUrl, timeoutMs),
         checkSupportDashboardAssets(fetchImplementation, baseUrl, timeoutMs),
-        checkSupportTicketAssets(fetchImplementation, baseUrl, timeoutMs)
+        checkSupportTicketAssets(fetchImplementation, baseUrl, timeoutMs),
+        checkOwnerSettingsAssets(fetchImplementation, baseUrl, timeoutMs)
     ]);
     return Object.freeze({
         success: true,
@@ -306,7 +338,7 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         baseUrl,
         tenantId,
         deployedCommit: results[1],
-        endpoints: 14
+        endpoints: 16
     });
 }
 
