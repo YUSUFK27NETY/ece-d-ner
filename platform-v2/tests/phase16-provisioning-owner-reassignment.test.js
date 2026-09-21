@@ -7,6 +7,9 @@ const crypto = require("node:crypto");
 const {
     createProvisioningOwnerReassignmentService
 } = require("../src/onboarding/provisioning-owner-reassignment-service");
+const {
+    createFirestoreProvisioningOwnerReassignmentRepository
+} = require("../src/firestore/firestore-provisioning-owner-reassignment-repository");
 
 const TENANT_ID = "doydoy-doner";
 const CURRENT_SUBJECT = "firebase:" + "a".repeat(64);
@@ -327,4 +330,205 @@ test("admin and owner clients keep reassignment secret out of query and storage"
         assert.doesNotMatch(source, /innerHTML\s*=/);
         assert.doesNotMatch(source, /console\./);
     }
+});
+
+
+function fakeFirestore() {
+    const docs = new Map();
+
+    function ref(path) {
+        return {
+            path,
+            id: path.split("/").at(-1),
+            async get() {
+                const value = docs.get(path);
+                return value === undefined
+                    ? { exists: false, id: path.split("/").at(-1) }
+                    : {
+                        exists: true,
+                        id: path.split("/").at(-1),
+                        data: () => ({ ...value })
+                    };
+            }
+        };
+    }
+
+    return {
+        docs,
+        doc: ref,
+        collection(name) {
+            return {
+                doc(id) {
+                    return ref(name + "/" + id);
+                }
+            };
+        },
+        async runTransaction(callback) {
+            const writes = [];
+            const transaction = {
+                async get(documentRef) {
+                    return documentRef.get();
+                },
+                set(documentRef, value) {
+                    writes.push({ kind: "set", path: documentRef.path, value: { ...value } });
+                },
+                create(documentRef, value) {
+                    if (docs.has(documentRef.path) ||
+                        writes.some(write => write.path === documentRef.path)) {
+                        throw new Error("duplicate create: " + documentRef.path);
+                    }
+                    writes.push({ kind: "create", path: documentRef.path, value: { ...value } });
+                },
+                delete(documentRef) {
+                    writes.push({ kind: "delete", path: documentRef.path });
+                }
+            };
+
+            const result = await callback(transaction);
+            for (const write of writes) {
+                if (write.kind === "delete") docs.delete(write.path);
+                else docs.set(write.path, write.value);
+            }
+            return result;
+        }
+    };
+}
+
+test("Firestore owner reassignment atomically revokes old owner and activates new owner", async () => {
+    const db = fakeFirestore();
+    const oldSubject = "firebase:" + "a".repeat(64);
+    const newSubject = "firebase:" + "b".repeat(64);
+    const observedAt = "2026-09-21T14:05:00.000Z";
+    const expectedTenant = tenant();
+
+    const { id, ...persistedTenant } = expectedTenant;
+    db.docs.set("platformTenants/" + TENANT_ID, persistedTenant);
+    db.docs.set(
+        "tenants/" + TENANT_ID + "/settings/initial-owner-binding",
+        {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            subjectRef: oldSubject,
+            kind: "initial_owner",
+            role: "tenant_owner",
+            source: "controlled_external_identity",
+            state: "verified",
+            observedAt: "2026-09-21T13:00:00.000Z"
+        }
+    );
+    db.docs.set(
+        "tenants/" + TENANT_ID + "/settings/admin-bootstrap-readiness",
+        {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            kind: "initial_owner",
+            role: "tenant_owner",
+            source: "controlled_external_identity",
+            state: "verified",
+            observedAt: "2026-09-21T13:00:00.000Z"
+        }
+    );
+    db.docs.set(
+        "tenants/" + TENANT_ID + "/members/" + oldSubject,
+        {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            subjectRef: oldSubject,
+            role: "tenant_owner",
+            source: "firebase_auth",
+            state: "active",
+            createdAt: "2026-09-21T13:00:00.000Z",
+            updatedAt: "2026-09-21T13:00:00.000Z"
+        }
+    );
+
+    const repository = createFirestoreProvisioningOwnerReassignmentRepository({ db });
+    const emailHash = "c".repeat(64);
+    const tokenHash = "d".repeat(64);
+
+    await repository.createInvite({
+        expectedTenant,
+        invite: {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            emailHash,
+            tokenHash,
+            expectedOwnerSubjectRef: oldSubject,
+            role: "tenant_owner",
+            state: "pending",
+            delivery: "firebase_email_link",
+            createdAt: "2026-09-21T14:00:00.000Z",
+            expiresAt: "2026-09-21T14:30:00.000Z"
+        },
+        auditEvent: {
+            eventId: "11111111-1111-4111-8111-111111111111",
+            tenantId: TENANT_ID,
+            action: "tenant.initial_owner.reassignment.invite.created"
+        }
+    });
+
+    await repository.commitReassignment({
+        expectedTenant,
+        emailHash,
+        tokenHash,
+        acceptedAt: observedAt,
+        newBinding: {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            subjectRef: newSubject,
+            role: "tenant_owner",
+            source: "firebase_auth",
+            state: "active",
+            createdAt: observedAt,
+            updatedAt: observedAt
+        },
+        newOwnerSlot: {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            subjectRef: newSubject,
+            kind: "initial_owner",
+            role: "tenant_owner",
+            source: "controlled_external_identity",
+            state: "verified",
+            observedAt
+        },
+        newEvidence: {
+            schemaVersion: 1,
+            tenantId: TENANT_ID,
+            kind: "initial_owner",
+            role: "tenant_owner",
+            source: "controlled_external_identity",
+            state: "verified",
+            observedAt
+        },
+        auditEvent: {
+            eventId: "22222222-2222-4222-8222-222222222222",
+            tenantId: TENANT_ID,
+            action: "tenant.initial_owner.reassigned"
+        }
+    });
+
+    assert.equal(
+        db.docs.get("tenants/" + TENANT_ID + "/members/" + oldSubject).state,
+        "revoked"
+    );
+    assert.equal(
+        db.docs.get("tenants/" + TENANT_ID + "/members/" + newSubject).state,
+        "active"
+    );
+    assert.equal(
+        db.docs.get("tenants/" + TENANT_ID + "/settings/initial-owner-binding").subjectRef,
+        newSubject
+    );
+    assert.equal(
+        db.docs.get("tenants/" + TENANT_ID + "/settings/admin-bootstrap-readiness").state,
+        "verified"
+    );
+    assert.equal(
+        db.docs.has(
+            "tenants/" + TENANT_ID +
+            "/settings/initial-owner-reassignment-invite"
+        ),
+        false
+    );
 });
