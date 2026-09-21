@@ -15,6 +15,10 @@ const INITIAL_OWNER_INVITE_PATH =
     "/api/platform/tenants/:tenantId/admin-bootstrap/initial-owner-invite";
 const INITIAL_OWNER_INVITE_ACCEPT_PATH =
     "/api/tenant-invitations/:tenantId/initial-owner/accept";
+const OWNER_REASSIGNMENT_INVITE_PATH =
+    "/api/platform/tenants/:tenantId/admin-bootstrap/owner-reassignment-invite";
+const OWNER_REASSIGNMENT_ACCEPT_PATH =
+    "/api/tenant-invitations/:tenantId/owner-reassignment/accept";
 const TENANT_MEMBER_SESSION_PATH = "/api/tenant/tenants/:tenantId/session";
 const TENANT_MEMBER_RESOLVE_SESSION_PATH = "/api/tenant/session";
 const OWNER_SESSION_ROLES = new Set(["tenant_owner", "tenant_admin"]);
@@ -48,6 +52,14 @@ function requireInviteAcceptBody(body) {
     return requireExactBody(body, "inviteToken", "Initial owner davet kabul");
 }
 
+function requireOwnerReassignmentInviteBody(body) {
+    return requireExactBody(body, "email", "Owner reassignment daveti");
+}
+
+function requireOwnerReassignmentAcceptBody(body) {
+    return requireExactBody(body, "inviteToken", "Owner reassignment kabul");
+}
+
 function bearerToken(req) {
     const authorization = String(req.headers.authorization || "");
     if (!authorization.startsWith("Bearer ")) return null;
@@ -77,6 +89,53 @@ function sendInitialOwnerError(res, error) {
         return res.status(503).json({
             success: false,
             message: "Initial owner bootstrap şu anda kullanılamıyor."
+        });
+    }
+    return sendPlatformError(res, error);
+}
+
+function sendOwnerReassignmentError(res, error) {
+    if (error?.code === "OWNER_REASSIGNMENT_AUTH_INVALID") {
+        return res.status(401).json({
+            success: false,
+            message: "Owner değiştirme oturumu geçersiz veya süresi dolmuş."
+        });
+    }
+    if (error?.code === "OWNER_REASSIGNMENT_IDENTITY_NOT_ELIGIBLE") {
+        return res.status(403).json({
+            success: false,
+            message: "Bu Firebase kimliği yeni owner için uygun değil."
+        });
+    }
+    if (error?.code === "TENANT_NOT_FOUND") {
+        return res.status(404).json({
+            success: false,
+            message: "İşletme bulunamadı."
+        });
+    }
+    if (error?.code === "TENANT_OWNER_REASSIGNMENT_INVITE_EXPIRED") {
+        return res.status(410).json({
+            success: false,
+            message: "Owner değiştirme davetinin süresi dolmuş."
+        });
+    }
+    if (new Set([
+        "TENANT_OWNER_REASSIGNMENT_INVALID_STATE",
+        "TENANT_OWNER_REASSIGNMENT_OWNER_MISSING",
+        "TENANT_OWNER_REASSIGNMENT_STATE_CHANGED",
+        "TENANT_OWNER_REASSIGNMENT_INVITE_INVALID",
+        "TENANT_OWNER_REASSIGNMENT_TARGET_EXISTS",
+        "TENANT_OWNER_REASSIGNMENT_SAME_SUBJECT"
+    ]).has(error?.code)) {
+        return res.status(409).json({
+            success: false,
+            message: "Owner değiştirme mevcut işletme/kimlik durumuyla uyumlu değil."
+        });
+    }
+    if (error?.code === "TENANT_OWNER_REASSIGNMENT_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "Owner değiştirme şu anda kullanılamıyor."
         });
     }
     return sendPlatformError(res, error);
@@ -121,6 +180,7 @@ function attachTenantMemberIdentityEndpoints({
     bindingReader,
     tenantRegistry,
     initialOwnerBootstrapService,
+    ownerReassignmentService = null,
     allowedOrigins = []
 }) {
     if (!app || typeof app.use !== "function" || typeof app.get !== "function" ||
@@ -183,6 +243,44 @@ function attachTenantMemberIdentityEndpoints({
         });
     }
 
+    if (ownerReassignmentService) {
+        if (typeof ownerReassignmentService.createInvite !== "function" ||
+            typeof ownerReassignmentService.acceptInvite !== "function") {
+            throw new TypeError("Owner reassignment service geçersiz.");
+        }
+
+        app.post(OWNER_REASSIGNMENT_INVITE_PATH, async (req, res) => {
+            try {
+                if (!req.is("application/json")) {
+                    return res.status(415).json({
+                        success: false,
+                        message: "Content-Type application/json olmalı."
+                    });
+                }
+                if (Reflect.ownKeys(req.query).length > 0) {
+                    throw new TypeError(
+                        "Owner reassignment daveti sorgu parametresi kabul etmez."
+                    );
+                }
+                const invite = await ownerReassignmentService.createInvite({
+                    context: {
+                        role: req.platformActor.role,
+                        actorId: req.platformActor.uid
+                    },
+                    tenantId: req.params.tenantId,
+                    email: requireOwnerReassignmentInviteBody(req.body),
+                    requestId: req.requestId
+                });
+                return res.status(201).json({
+                    success: true,
+                    invite
+                });
+            } catch (error) {
+                return sendOwnerReassignmentError(res, error);
+            }
+        });
+    }
+
     const tenantCors = createPlatformCorsMiddleware(allowedOrigins);
     if (typeof initialOwnerBootstrapService.acceptInitialOwnerInvite === "function") {
         const inviteLimiter = rateLimit({
@@ -214,6 +312,43 @@ function attachTenantMemberIdentityEndpoints({
                 return res.status(201).json({ success: true, bootstrap });
             } catch (error) {
                 return sendInviteError(res, error);
+            }
+        });
+    }
+
+    if (ownerReassignmentService) {
+        app.post(OWNER_REASSIGNMENT_ACCEPT_PATH, async (req, res) => {
+            try {
+                if (!req.is("application/json")) {
+                    return res.status(415).json({
+                        success: false,
+                        message: "Content-Type application/json olmalı."
+                    });
+                }
+                if (Reflect.ownKeys(req.query).length > 0) {
+                    throw new TypeError(
+                        "Owner reassignment kabul sorgu parametresi kabul etmez."
+                    );
+                }
+                const idToken = bearerToken(req);
+                if (!idToken) {
+                    return res.status(401).json({
+                        success: false,
+                        message: "Firebase oturumu gerekli."
+                    });
+                }
+                const bootstrap = await ownerReassignmentService.acceptInvite({
+                    tenantId: req.params.tenantId,
+                    inviteToken: requireOwnerReassignmentAcceptBody(req.body),
+                    idToken,
+                    requestId: req.requestId
+                });
+                return res.status(201).json({
+                    success: true,
+                    bootstrap
+                });
+            } catch (error) {
+                return sendOwnerReassignmentError(res, error);
             }
         });
     }
@@ -324,6 +459,8 @@ module.exports = {
     INITIAL_OWNER_BOOTSTRAP_PATH,
     INITIAL_OWNER_INVITE_PATH,
     INITIAL_OWNER_INVITE_ACCEPT_PATH,
+    OWNER_REASSIGNMENT_INVITE_PATH,
+    OWNER_REASSIGNMENT_ACCEPT_PATH,
     TENANT_MEMBER_SESSION_PATH,
     TENANT_MEMBER_RESOLVE_SESSION_PATH,
     attachTenantMemberIdentityEndpoints
