@@ -1,6 +1,13 @@
 name: Rollback readiness drill
 
 on:
+  pull_request:
+    paths:
+      - ".github/workflows/rollback-drill.yml"
+      - "tests/v2-rollback-readiness.test.js"
+      - "package.json"
+      - "package-lock.json"
+      - "platform-v2/**"
   schedule:
     - cron: "23 3 * * 0"
   workflow_dispatch:
