@@ -307,6 +307,18 @@ test("admin and owner clients keep reassignment secret out of query and storage"
 
     assert.match(adminHtml, /İlk Owner'ı Değiştir/);
     assert.match(adminHtml, /src="\/admin\/owner-reassignment\.js"/);
+    assert.equal(
+        (adminHtml.match(/id="send-owner-reassignment"/g) || []).length,
+        1
+    );
+    assert.equal(
+        (adminHtml.match(/id="owner-reassignment-status"/g) || []).length,
+        1
+    );
+    assert.equal(
+        (adminHtml.match(/src="\/admin\/owner-reassignment\.js"/g) || []).length,
+        1
+    );
     assert.match(adminClient, /owner-reassignment-invite/);
     assert.match(adminClient, /fragment\.set\("flow", "owner_reassignment"\)/);
     assert.match(adminClient, /sendSignInLinkToEmail/);
