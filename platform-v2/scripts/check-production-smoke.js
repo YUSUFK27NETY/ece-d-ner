@@ -78,6 +78,17 @@ async function checkHealth(fetchImplementation, baseUrl, timeoutMs) {
     }
 }
 
+async function checkReadiness(fetchImplementation, baseUrl, timeoutMs) {
+    const response = await fetchWithTimeout(fetchImplementation, `${baseUrl}/ready`, timeoutMs);
+    assertOk(response, "Platform readiness");
+    const body = await response.json();
+    if (body?.success !== true || body?.status !== "ready" ||
+        body?.service !== "platform-v2-admin-api" ||
+        !body?.checks || typeof body.checks !== "object") {
+        throw new Error("Platform readiness yanıtı beklenen sözleşmede değil.");
+    }
+}
+
 async function checkDeployment(fetchImplementation, baseUrl, timeoutMs, expectedCommit) {
     const response = await fetchWithTimeout(
         fetchImplementation,
@@ -321,6 +332,7 @@ async function checkOwnerSettingsAssets(fetchImplementation, baseUrl, timeoutMs)
 async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expectedCommit }) {
     const results = await Promise.all([
         checkHealth(fetchImplementation, baseUrl, timeoutMs),
+        checkReadiness(fetchImplementation, baseUrl, timeoutMs),
         checkDeployment(fetchImplementation, baseUrl, timeoutMs, expectedCommit),
         checkStorefrontApi(fetchImplementation, baseUrl, tenantId, timeoutMs),
         checkStorefrontPage(fetchImplementation, baseUrl, tenantId, timeoutMs),
@@ -337,8 +349,8 @@ async function runOnce({ fetchImplementation, baseUrl, tenantId, timeoutMs, expe
         checkedAt: new Date().toISOString(),
         baseUrl,
         tenantId,
-        deployedCommit: results[1],
-        endpoints: 16
+        deployedCommit: results[2],
+        endpoints: 17
     });
 }
 
