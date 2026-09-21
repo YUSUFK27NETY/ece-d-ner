@@ -21,6 +21,12 @@ function stateChanged() {
     return error;
 }
 
+function updateStateChanged() {
+    const error = new Error("Tenant kaydı eşzamanlı olarak değişti; işlem yeniden değerlendirilmeli.");
+    error.code = "TENANT_UPDATE_STATE_CHANGED";
+    return error;
+}
+
 function requireLifecycleTenant(record, tenantId, label) {
     if (!record || typeof record !== "object" || Array.isArray(record) ||
         record.tenantId !== tenantId ||
@@ -39,6 +45,18 @@ function requireLifecycleAuditEvent(event, tenantId) {
         typeof event.action !== "string" ||
         !event.action.startsWith("tenant.lifecycle.")) {
         throw new TypeError("Lifecycle audit event geçersiz.");
+    }
+    return event;
+}
+
+function requireTenantUpdateAuditEvent(event, tenantId) {
+    if (!event || typeof event !== "object" || Array.isArray(event) ||
+        event.tenantId !== tenantId ||
+        requireTenantId(event.tenantId) !== tenantId ||
+        typeof event.eventId !== "string" ||
+        !AUDIT_EVENT_ID_PATTERN.test(event.eventId) ||
+        event.action !== "tenant.updated") {
+        throw new TypeError("Tenant update audit event geçersiz.");
     }
     return event;
 }
@@ -106,6 +124,60 @@ function createFirestoreTenantRegistry({
 
             await collection.doc(tenantId).update({ ...tenant });
             return tenant;
+        },
+
+        async commitTenantUpdate({
+            tenantId: rawTenantId,
+            expectedTenant,
+            nextTenant,
+            auditEvent
+        } = {}) {
+            const tenantId = requireTenantId(rawTenantId);
+            if (tenantId !== rawTenantId) {
+                throw new TypeError("Tenant update kimliği canonical olmalı.");
+            }
+            requireLifecycleTenant(expectedTenant, tenantId, "Expected update");
+            requireLifecycleTenant(nextTenant, tenantId, "Next update");
+            requireTenantUpdateAuditEvent(auditEvent, tenantId);
+
+            if (typeof db.runTransaction !== "function" ||
+                typeof db.doc !== "function") {
+                throw new TypeError("Atomic tenant update persistence kullanılamıyor.");
+            }
+
+            const tenantRef = collection.doc(tenantId);
+            const auditPath = tenantCollection(
+                tenantId,
+                TENANT_COLLECTIONS.audit
+            );
+            const auditRef = db.doc(`${auditPath}/${auditEvent.eventId}`);
+
+            return db.runTransaction(async transaction => {
+                if (!transaction || typeof transaction.get !== "function" ||
+                    typeof transaction.update !== "function" ||
+                    typeof transaction.create !== "function") {
+                    throw new TypeError("Atomic tenant update transaction geçersiz.");
+                }
+
+                const snapshot = await transaction.get(tenantRef);
+                if (!snapshot || snapshot.exists !== true ||
+                    typeof snapshot.data !== "function") {
+                    throw updateStateChanged();
+                }
+
+                const persisted = {
+                    id: snapshot.id,
+                    ...snapshot.data()
+                };
+
+                if (!isDeepStrictEqual(persisted, expectedTenant)) {
+                    throw updateStateChanged();
+                }
+
+                transaction.update(tenantRef, { ...nextTenant });
+                transaction.create(auditRef, { ...auditEvent });
+                return nextTenant;
+            });
         },
 
         async commitLifecycleTransition({
