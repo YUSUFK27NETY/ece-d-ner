@@ -23,9 +23,6 @@ const {
     createFirestoreProvisioningOwnerReassignmentRepository
 } = require("./src/firestore/firestore-provisioning-owner-reassignment-repository");
 const {
-    createFirestoreProvisioningOwnerReassignmentRepository
-} = require("./src/firestore/firestore-provisioning-owner-reassignment-repository");
-const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
 const {
@@ -49,9 +46,6 @@ const {
 const {
     attachInitialOwnerDiagnosticEndpoint
 } = require("./src/http/attach-initial-owner-diagnostic-endpoint");
-const {
-    attachProvisioningOwnerReassignmentEndpoints
-} = require("./src/http/attach-provisioning-owner-reassignment-endpoints");
 const {
     attachTenantOwnerRuntime
 } = require("./src/http/attach-tenant-owner-runtime");
@@ -202,9 +196,6 @@ const {
     createProvisioningOwnerReassignmentService
 } = require("./src/onboarding/provisioning-owner-reassignment-service");
 const {
-    createProvisioningOwnerReassignmentService
-} = require("./src/onboarding/provisioning-owner-reassignment-service");
-const {
     createSecurityLaunchReviewService
 } = require("./src/onboarding/security-launch-review-service");
 
@@ -262,12 +253,6 @@ function startPlatformServer() {
         auth,
         tenantRegistry,
         reassignmentRepository: ownerReassignmentRepository
-    });
-    const ownerReassignmentService = createProvisioningOwnerReassignmentService({
-        auth,
-        tenantRegistry,
-        reassignmentRepository:
-            createFirestoreProvisioningOwnerReassignmentRepository({ db })
     });
     const auditWriter = createFirestoreAuditWriter({ db });
     const tenantManagementService = createTenantManagementService({
@@ -498,10 +483,6 @@ function startPlatformServer() {
     attachInitialOwnerDiagnosticEndpoint({
         app,
         diagnosticService: initialOwnerDiagnosticService
-    });
-    attachProvisioningOwnerReassignmentEndpoints({
-        app,
-        ownerReassignmentService
     });
     attachTenantOwnerRuntime({
         app,
