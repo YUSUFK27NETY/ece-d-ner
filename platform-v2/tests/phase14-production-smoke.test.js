@@ -36,6 +36,16 @@ function createHealthyFetch({
                 json: { success: true, status: "ok", service: "platform-v2-admin-api" }
             });
         }
+        if (url.endsWith("/ready")) {
+            return response({
+                json: {
+                    success: true,
+                    status: "ready",
+                    service: "platform-v2-admin-api",
+                    checks: { firestore: { status: "ready" } }
+                }
+            });
+        }
         if (url.endsWith("/api/public/deployment")) {
             return response({
                 json: { success: true, deployment: { commit: deployedCommit } }
@@ -155,9 +165,10 @@ test("production smoke exact revision, storefront ve design family assetlerini d
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
     assert.equal(result.deployedCommit, COMMIT_A);
-    assert.equal(result.endpoints, 16);
+    assert.equal(result.endpoints, 17);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
+        "https://example.com/ready",
         "https://example.com/api/public/deployment",
         "https://example.com/api/public/storefront/ela-doner",
         "https://example.com/m/ela-doner",
@@ -289,6 +300,35 @@ test("health sözleşmesi bozuksa smoke başarısız olur", async () => {
             timeoutMs: 1000
         }),
         /health yanıtı beklenen sözleşmede değil/
+    );
+});
+
+test("V2 Firestore readiness hazır değilse production smoke fail closed olur", async () => {
+    const { fetchImplementation: healthyFetch } = createHealthyFetch();
+    const fetchImplementation = async url => {
+        if (url.endsWith("/ready")) {
+            return response({
+                status: 503,
+                json: {
+                    success: false,
+                    status: "not_ready",
+                    service: "platform-v2-admin-api",
+                    checks: { firestore: { status: "unavailable" } }
+                }
+            });
+        }
+        return healthyFetch(url);
+    };
+
+    await assert.rejects(
+        () => checkPlatformV2Production({
+            fetchImplementation,
+            baseUrl: "https://example.com",
+            tenantId: "ela-doner",
+            expectedCommit: COMMIT_A,
+            timeoutMs: 1000
+        }),
+        /Platform readiness HTTP 503/
     );
 });
 
