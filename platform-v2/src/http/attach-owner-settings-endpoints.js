@@ -29,6 +29,18 @@ function sendOwnerSettingsError(res, error) {
             message: "Arşivlenmiş işletme güncellenemez."
         });
     }
+    if (error?.code === "TENANT_UPDATE_STATE_CHANGED") {
+        return res.status(409).json({
+            success: false,
+            message: "İşletme ayarları başka bir işlemde değişti. Yenileyip tekrar deneyin."
+        });
+    }
+    if (error?.code === "TENANT_UPDATE_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "İşletme ayarları şu anda güvenli şekilde kaydedilemiyor."
+        });
+    }
     if (error instanceof TypeError) {
         return res.status(400).json({
             success: false,

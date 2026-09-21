@@ -1,3 +1,4 @@
+const { createAuditEvent } = require("../audit/audit-event");
 const { requireTenantId } = require("./tenant-id");
 const { TENANT_STATUSES } = require("./tenant-record");
 const { createFeatureFlags } = require("./feature-catalog");
@@ -133,18 +134,42 @@ function createTenantManagementService({ tenantRegistry, auditWriter = null }) {
                 );
             }
 
+            const auditInput = {
+                tenantId: normalizedTenantId,
+                action: "tenant.updated",
+                actorId: actorId ? String(actorId) : null,
+                requestId,
+                metadata: {
+                    fields: keys.sort()
+                },
+                now
+            };
+
+            if (typeof tenantRegistry.commitTenantUpdate === "function") {
+                const auditEvent = createAuditEvent(auditInput);
+                try {
+                    return await tenantRegistry.commitTenantUpdate({
+                        tenantId: normalizedTenantId,
+                        expectedTenant: current,
+                        nextTenant: next,
+                        auditEvent
+                    });
+                } catch (error) {
+                    if (error?.code === "TENANT_UPDATE_STATE_CHANGED") {
+                        throw error;
+                    }
+                    const unavailable = new Error(
+                        "Tenant güncellemesi şu anda güvenli şekilde tamamlanamıyor."
+                    );
+                    unavailable.code = "TENANT_UPDATE_UNAVAILABLE";
+                    throw unavailable;
+                }
+            }
+
             const updated = await tenantRegistry.update(normalizedTenantId, next);
 
             if (auditWriter) {
-                await auditWriter.write({
-                    tenantId: normalizedTenantId,
-                    action: "tenant.updated",
-                    actorId: actorId ? String(actorId) : null,
-                    requestId,
-                    metadata: {
-                        fields: keys.sort()
-                    }
-                });
+                await auditWriter.write(auditInput);
             }
 
             return updated;

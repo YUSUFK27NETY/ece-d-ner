@@ -37,12 +37,24 @@ function sendChannelError(res, error) {
     if (new Set(["TENANT_SCOPE_MISMATCH", "PERMISSION_DENIED"]).has(error?.code)) {
         return res.status(403).json({ success: false, message: "Bu işlem için yetki yok." });
     }
-    if (new Set(["PUBLIC_CHANNELS_NOT_AVAILABLE", "TENANT_ARCHIVED"]).has(error?.code)) {
+    if (new Set([
+        "PUBLIC_CHANNELS_NOT_AVAILABLE",
+        "TENANT_ARCHIVED",
+        "TENANT_UPDATE_STATE_CHANGED"
+    ]).has(error?.code)) {
         return res.status(409).json({
             success: false,
             message: error.code === "TENANT_ARCHIVED"
                 ? "Arşivlenmiş işletme güncellenemez."
-                : "QR mevcut işletme durumunda kullanılamıyor."
+                : error.code === "TENANT_UPDATE_STATE_CHANGED"
+                    ? "İşletme ayarları başka bir işlemde değişti. Yenileyip tekrar deneyin."
+                    : "QR mevcut işletme durumunda kullanılamıyor."
+        });
+    }
+    if (error?.code === "TENANT_UPDATE_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "Paylaşım ayarları şu anda güvenli şekilde kaydedilemiyor."
         });
     }
     if (error instanceof TypeError) {

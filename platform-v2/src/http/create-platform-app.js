@@ -745,10 +745,18 @@ function sendPlatformError(res, error) {
         });
     }
 
+    if (error?.code === "TENANT_UPDATE_UNAVAILABLE") {
+        return res.status(503).json({
+            success: false,
+            message: "Tenant güncellemesi şu anda güvenli şekilde tamamlanamıyor."
+        });
+    }
+
     if (new Set([
         "TENANT_LIFECYCLE_ACTION_REQUIRED",
         "TENANT_LIFECYCLE_INVALID_TRANSITION",
         "TENANT_LIFECYCLE_STATE_CHANGED",
+        "TENANT_UPDATE_STATE_CHANGED",
         "TENANT_ACTIVATION_NOT_READY",
         "TENANT_RESUME_NOT_READY"
     ]).has(error?.code)) {
