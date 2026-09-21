@@ -17,6 +17,9 @@ const {
     createFirestoreTenantMemberBindingRepository
 } = require("./src/firestore/firestore-tenant-member-binding-repository");
 const {
+    createFirestoreInitialOwnerDiagnosticReader
+} = require("./src/firestore/firestore-initial-owner-diagnostic-reader");
+const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
 const {
@@ -37,6 +40,9 @@ const {
 const {
     attachTenantMemberIdentityEndpoints
 } = require("./src/http/attach-tenant-member-identity-endpoints");
+const {
+    attachInitialOwnerDiagnosticEndpoint
+} = require("./src/http/attach-initial-owner-diagnostic-endpoint");
 const {
     attachTenantOwnerRuntime
 } = require("./src/http/attach-tenant-owner-runtime");
@@ -181,6 +187,9 @@ const {
     createTenantInitialOwnerBootstrapService
 } = require("./src/onboarding/tenant-initial-owner-bootstrap-service");
 const {
+    createInitialOwnerDiagnosticService
+} = require("./src/onboarding/initial-owner-diagnostic-service");
+const {
     createSecurityLaunchReviewService
 } = require("./src/onboarding/security-launch-review-service");
 
@@ -227,6 +236,10 @@ function startPlatformServer() {
         auth,
         tenantRegistry,
         bindingRepository: tenantMemberBindingRepository
+    });
+    const initialOwnerDiagnosticService = createInitialOwnerDiagnosticService({
+        tenantRegistry,
+        stateReader: createFirestoreInitialOwnerDiagnosticReader({ db })
     });
     const auditWriter = createFirestoreAuditWriter({ db });
     const tenantManagementService = createTenantManagementService({
@@ -452,6 +465,10 @@ function startPlatformServer() {
         tenantRegistry,
         initialOwnerBootstrapService,
         allowedOrigins
+    });
+    attachInitialOwnerDiagnosticEndpoint({
+        app,
+        diagnosticService: initialOwnerDiagnosticService
     });
     attachTenantOwnerRuntime({
         app,
