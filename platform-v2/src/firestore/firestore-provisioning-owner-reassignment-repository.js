@@ -318,6 +318,46 @@ function createFirestoreProvisioningOwnerReassignmentRepository({
     }
 
     return Object.freeze({
+        async readCurrentOwner({ expectedTenant } = {}) {
+            const tenantId = requireProvisioningTenant(expectedTenant);
+            const baseRefs = refs(tenantId);
+            const ownerSnapshot = await baseRefs.ownerSlotRef.get();
+            const evidenceSnapshot = await baseRefs.evidenceRef.get();
+            if (!ownerSnapshot || typeof ownerSnapshot.exists !== "boolean" ||
+                !evidenceSnapshot || typeof evidenceSnapshot.exists !== "boolean") {
+                fail("snapshot");
+            }
+            if (!ownerSnapshot.exists || !evidenceSnapshot.exists ||
+                typeof ownerSnapshot.data !== "function" ||
+                typeof evidenceSnapshot.data !== "function") {
+                throw ownerMissing();
+            }
+            const ownerSlot = projectOwnerSlot(ownerSnapshot.data(), tenantId);
+            const evidence = projectEvidence(evidenceSnapshot.data(), tenantId);
+            const oldRef = memberRef(tenantId, ownerSlot.subjectRef);
+            const oldSnapshot = await oldRef.get();
+            if (!oldSnapshot || typeof oldSnapshot.exists !== "boolean") {
+                fail("snapshot");
+            }
+            if (!oldSnapshot.exists || typeof oldSnapshot.data !== "function") {
+                throw ownerMissing();
+            }
+            const oldMember = projectMember(
+                oldSnapshot.data(),
+                tenantId,
+                ownerSlot.subjectRef
+            );
+            requireCurrentOwnerConsistency({
+                ownerSlot,
+                evidence,
+                member: oldMember
+            });
+            return Object.freeze({
+                tenantId,
+                subjectRef: ownerSlot.subjectRef
+            });
+        },
+
         async createInvite(input = {}) {
             const tenantId = requireProvisioningTenant(input.expectedTenant);
             const invite = projectInvite(input.invite, tenantId);
