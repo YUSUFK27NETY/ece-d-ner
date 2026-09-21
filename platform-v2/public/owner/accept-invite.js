@@ -28,10 +28,13 @@
         const fragment = new URLSearchParams(url.hash.startsWith("#") ? url.hash.slice(1) : url.hash);
         const tenantId = fragment.get("tenantId") || "";
         const inviteToken = fragment.get("inviteToken") || "";
-        if (!TENANT_ID_PATTERN.test(tenantId) || !INVITE_TOKEN_PATTERN.test(inviteToken)) {
+        const flow = fragment.get("flow") || "initial_owner";
+        if (!TENANT_ID_PATTERN.test(tenantId) ||
+            !INVITE_TOKEN_PATTERN.test(inviteToken) ||
+            !["initial_owner", "owner_reassignment"].includes(flow)) {
             throw new Error("Owner davet bağlantısı geçersiz.");
         }
-        return Object.freeze({ tenantId, inviteToken });
+        return Object.freeze({ tenantId, inviteToken, flow });
     }
 
     function normalizedEmail() {
@@ -42,9 +45,12 @@
         return email;
     }
 
-    async function acceptServerInvite(tenantId, inviteToken, idToken) {
+    async function acceptServerInvite(tenantId, inviteToken, idToken, flow) {
+        const suffix = flow === "owner_reassignment"
+            ? "owner-reassignment/accept"
+            : "initial-owner/accept";
         const response = await fetch(
-            `/api/tenant-invitations/${encodeURIComponent(tenantId)}/initial-owner/accept`,
+            `/api/tenant-invitations/${encodeURIComponent(tenantId)}/${suffix}`,
             {
                 method: "POST",
                 headers: {
@@ -115,13 +121,23 @@
             const user = credential?.user || firebase.auth().currentUser;
             if (!user) throw new Error("Firebase owner oturumu oluşturulamadı.");
             const idToken = await user.getIdToken(true);
-            await acceptServerInvite(inviteState.tenantId, inviteState.inviteToken, idToken);
+            const result = await acceptServerInvite(
+                inviteState.tenantId,
+                inviteState.inviteToken,
+                idToken,
+                inviteState.flow
+            );
             emailInput.value = "";
             scrubAfterSuccess(inviteState.tenantId);
             ownerConsoleLink.href = `/owner/set-password.html?tenant=${encodeURIComponent(inviteState.tenantId)}`;
             next.hidden = false;
             form.hidden = true;
-            setMessage("Owner daveti kabul edildi. Şimdi kalıcı şifreni belirle.", "success");
+            setMessage(
+                result.ownerReassigned === true
+                    ? "Owner değişikliği tamamlandı. Şimdi kalıcı şifreni belirle."
+                    : "Owner daveti kabul edildi. Şimdi kalıcı şifreni belirle.",
+                "success"
+            );
         } catch (error) {
             setMessage(error?.message || "Owner daveti kabul edilemedi.", "error");
             setEnabled(true);

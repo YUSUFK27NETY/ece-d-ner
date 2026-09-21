@@ -20,6 +20,9 @@ const {
     createFirestoreInitialOwnerDiagnosticReader
 } = require("./src/firestore/firestore-initial-owner-diagnostic-reader");
 const {
+    createFirestoreProvisioningOwnerReassignmentRepository
+} = require("./src/firestore/firestore-provisioning-owner-reassignment-repository");
+const {
     createFirestoreAdminBootstrapEvidenceProvider
 } = require("./src/firestore/firestore-admin-bootstrap-evidence-provider");
 const {
@@ -190,6 +193,9 @@ const {
     createInitialOwnerDiagnosticService
 } = require("./src/onboarding/initial-owner-diagnostic-service");
 const {
+    createProvisioningOwnerReassignmentService
+} = require("./src/onboarding/provisioning-owner-reassignment-service");
+const {
     createSecurityLaunchReviewService
 } = require("./src/onboarding/security-launch-review-service");
 
@@ -240,6 +246,13 @@ function startPlatformServer() {
     const initialOwnerDiagnosticService = createInitialOwnerDiagnosticService({
         tenantRegistry,
         stateReader: createFirestoreInitialOwnerDiagnosticReader({ db })
+    });
+    const ownerReassignmentRepository =
+        createFirestoreProvisioningOwnerReassignmentRepository({ db });
+    const ownerReassignmentService = createProvisioningOwnerReassignmentService({
+        auth,
+        tenantRegistry,
+        reassignmentRepository: ownerReassignmentRepository
     });
     const auditWriter = createFirestoreAuditWriter({ db });
     const tenantManagementService = createTenantManagementService({
@@ -464,6 +477,7 @@ function startPlatformServer() {
         bindingReader: tenantMemberBindingRepository,
         tenantRegistry,
         initialOwnerBootstrapService,
+        ownerReassignmentService,
         allowedOrigins
     });
     attachInitialOwnerDiagnosticEndpoint({
