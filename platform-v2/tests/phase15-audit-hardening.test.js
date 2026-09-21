@@ -118,7 +118,7 @@ function transactionalDb(initial, { failAudit = false, beforeRead = null } = {})
 test("Firestore tenant update ve audit tek transaction outcome olarak commit olur", async () => {
     const state = transactionalDb(record());
     const registry = createFirestoreTenantRegistry({ db: state.db });
-    const service = createTenantManagementService({ tenantRegistry });
+    const service = createTenantManagementService({ tenantRegistry: registry });
 
     const updated = await service.update({
         tenantId: "ela-doner",
@@ -148,7 +148,7 @@ test("audit create başarısızsa tenant update commit edilmez", async () => {
     const original = record();
     const state = transactionalDb(original, { failAudit: true });
     const registry = createFirestoreTenantRegistry({ db: state.db });
-    const service = createTenantManagementService({ tenantRegistry });
+    const service = createTenantManagementService({ tenantRegistry: registry });
 
     await assert.rejects(
         service.update({
@@ -175,7 +175,7 @@ test("eşzamanlı tenant değişikliği stale update ile overwrite edilmez", asy
         }
     });
     const registry = createFirestoreTenantRegistry({ db: state.db });
-    const service = createTenantManagementService({ tenantRegistry });
+    const service = createTenantManagementService({ tenantRegistry: registry });
 
     await assert.rejects(
         service.update({
