@@ -1,4 +1,5 @@
 const express = require("express");
+const rateLimit = require("express-rate-limit");
 const path = require("node:path");
 const { FEATURE_CATALOG, createFeatureFlags } = require("../tenant/feature-catalog");
 const { createTenantProfile } = require("../tenant/tenant-profile");
@@ -29,6 +30,28 @@ const OWNER_CSP = [
 ].join("; ");
 
 const OWNER_ROLES = new Set(["tenant_owner", "tenant_admin"]);
+
+function createMediaRateLimiter({
+    windowMs = 60_000,
+    max = 300,
+    message = "Çok fazla medya isteği gönderildi."
+} = {}) {
+    if (!Number.isInteger(windowMs) || windowMs < 1 ||
+        !Number.isInteger(max) || max < 1 ||
+        typeof message !== "string" || message.length < 1 || message.length > 120) {
+        throw new TypeError("Media rate limit geçersiz.");
+    }
+    return rateLimit({
+        windowMs,
+        max,
+        standardHeaders: true,
+        legacyHeaders: false,
+        message: {
+            success: false,
+            message
+        }
+    });
+}
 
 function requireOwnerRole(req, res, next) {
     if (!req.tenantActor || !OWNER_ROLES.has(req.tenantActor.role)) {
@@ -187,8 +210,18 @@ function attachTenantOwnerRuntime({
         throw new TypeError("Tenant owner media upload service geçersiz.");
     }
 
+    const publicMediaLimiter = createMediaRateLimiter({
+        windowMs: 60_000,
+        max: 300
+    });
+    const ownerMediaUploadLimiter = createMediaRateLimiter({
+        windowMs: 15 * 60_000,
+        max: 30,
+        message: "Çok fazla görsel yükleme isteği gönderildi."
+    });
+
     if (resolvedMediaUploadService !== null) {
-        app.get(PUBLIC_MEDIA_PATH, async (req, res) => {
+        app.get(PUBLIC_MEDIA_PATH, publicMediaLimiter, async (req, res) => {
             try {
                 if (Reflect.ownKeys(req.query).length > 0) {
                     return res.status(400).type("text/plain").send("Geçersiz medya isteği.");
@@ -261,7 +294,7 @@ function attachTenantOwnerRuntime({
             type: () => true,
             limit: MAX_MEDIA_BYTES
         });
-        app.post(productMediaPath, rawImageParser, async (req, res) => {
+        app.post(productMediaPath, ownerMediaUploadLimiter, rawImageParser, async (req, res) => {
             try {
                 if (Reflect.ownKeys(req.query).length > 0) {
                     throw new TypeError("Media upload sorgu parametresi kabul etmez.");
@@ -439,6 +472,7 @@ module.exports = {
     PUBLIC_MEDIA_PATH,
     OWNER_CSP,
     OWNER_ROLES,
+    createMediaRateLimiter,
     attachTenantOwnerRuntime,
     projectOwnerTenant,
     requireOwnerRole,
