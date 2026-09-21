@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <meta name="robots" content="noindex,nofollow,noarchive">
+    <meta name="theme-color" content="#0b1220">
+    <title>İşletme Ayarları | Platform V2</title>
+    <link rel="stylesheet" href="/owner/owner.css">
+    <link rel="stylesheet" href="/owner/settings.css">
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <script defer src="/owner/config.js"></script>
+    <script defer src="/owner/session-resolver.js"></script>
+    <script defer src="/owner/settings.js"></script>
+</head>
+<body>
+    <header class="topbar settings-topbar">
+        <div>
+            <p class="eyebrow">Platform V2 · Self-Service</p>
+            <h1>İşletme Ayarları</h1>
+            <p id="tenant-label" class="muted">İşletme yükleniyor...</p>
+        </div>
+        <div class="top-actions">
+            <a id="back-link" class="secondary settings-link" href="/owner/">← İşletme paneli</a>
+            <button id="refresh-button" type="button" class="secondary">Yenile</button>
+        </div>
+    </header>
+
+    <main class="settings-shell">
+        <section id="auth-required" class="panel auth-notice hidden">
+            <h2>Owner oturumu gerekli</h2>
+            <p class="muted">İşletme ayarlarını değiştirmek için işletme panelinden giriş yapın.</p>
+            <a class="primary settings-link" href="/owner/">Giriş ekranına dön</a>
+        </section>
+
+        <form id="settings-form" class="panel settings-form hidden" novalidate>
+            <div class="section-head">
+                <div>
+                    <p class="eyebrow">Kendi kendine yönetim</p>
+                    <h2>İşletme bilgileri</h2>
+                    <p class="muted">Paket, özellikler, tenant durumu ve tasarım ayarları bu ekrandan değiştirilemez.</p>
+                </div>
+            </div>
+
+            <div class="settings-grid">
+                <label>
+                    İşletme adı
+                    <input id="display-name" maxlength="120" minlength="2" required autocomplete="organization">
+                </label>
+                <label>
+                    Marka adı
+                    <input id="brand-name" maxlength="120" autocomplete="organization">
+                </label>
+                <label>
+                    Telefon
+                    <input id="phone" maxlength="32" inputmode="tel" autocomplete="tel">
+                </label>
+                <label>
+                    WhatsApp
+                    <input id="whatsapp" maxlength="32" inputmode="tel">
+                </label>
+                <label>
+                    E-posta
+                    <input id="business-email" type="email" maxlength="254" autocomplete="email">
+                </label>
+                <label>
+                    Web sitesi
+                    <input id="website" type="url" maxlength="2048" placeholder="https://...">
+                </label>
+                <label>
+                    Instagram
+                    <input id="instagram-url" type="url" maxlength="2048" placeholder="https://instagram.com/...">
+                </label>
+                <label>
+                    Google / Maps
+                    <input id="google-url" type="url" maxlength="2048" placeholder="https://...">
+                </label>
+                <label>
+                    Saat dilimi
+                    <input id="timezone" maxlength="64" placeholder="Europe/Istanbul">
+                </label>
+            </div>
+
+            <label>
+                Adres
+                <textarea id="address" rows="3" maxlength="500"></textarea>
+            </label>
+
+            <label>
+                Çalışma saatleri
+                <textarea id="business-hours" rows="4" maxlength="500"
+                    placeholder="Örn. Her gün 09:00–21:00"></textarea>
+            </label>
+
+            <div class="settings-actions">
+                <button id="save-button" type="submit" class="primary">Ayarları kaydet</button>
+                <span id="save-message" class="message" role="status" aria-live="polite"></span>
+            </div>
+        </form>
+    </main>
+</body>
+</html>

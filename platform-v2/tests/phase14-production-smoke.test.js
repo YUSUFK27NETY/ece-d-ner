@@ -116,6 +116,16 @@ function createHealthyFetch({
                 text: 'window.OWNER_SESSION_RESOLVER.resolve(user); fetch("/owner/support/tickets"); element.textContent = value;'
             });
         }
+        if (url.endsWith("/owner/settings.html")) {
+            return response({
+                text: '<h1>İşletme Ayarları</h1><link href="/owner/settings.css"><script src="/owner/settings.js"></script>'
+            });
+        }
+        if (url.endsWith("/owner/settings.js")) {
+            return response({
+                text: 'window.OWNER_SESSION_RESOLVER.resolve(user); fetch("/owner/settings"); element.textContent = value;'
+            });
+        }
         if (url.endsWith("/admin/support-tickets.html")) {
             return response({
                 text: '<h1>Destek Talepleri</h1><link href="/admin/support-tickets.css"><script src="/admin/support-tickets.js"></script>'
@@ -145,7 +155,7 @@ test("production smoke exact revision, storefront ve design family assetlerini d
     assert.equal(result.baseUrl, "https://example.com");
     assert.equal(result.tenantId, "ela-doner");
     assert.equal(result.deployedCommit, COMMIT_A);
-    assert.equal(result.endpoints, 14);
+    assert.equal(result.endpoints, 16);
     assert.deepEqual(new Set(calls), new Set([
         "https://example.com/health",
         "https://example.com/api/public/deployment",
@@ -159,6 +169,8 @@ test("production smoke exact revision, storefront ve design family assetlerini d
         "https://example.com/admin/support-dashboard.js",
         "https://example.com/owner/support.html",
         "https://example.com/owner/support.js",
+        "https://example.com/owner/settings.html",
+        "https://example.com/owner/settings.js",
         "https://example.com/admin/support-tickets.html",
         "https://example.com/admin/support-tickets.js"
     ]));
