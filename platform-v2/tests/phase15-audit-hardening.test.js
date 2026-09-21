@@ -12,6 +12,9 @@ const {
 const {
     createTenantManagementService
 } = require("../src/tenant/tenant-management-service");
+const {
+    createMediaRateLimiter
+} = require("../src/http/attach-tenant-owner-runtime");
 
 function record(overrides = {}) {
     return {
@@ -243,6 +246,24 @@ test("production smoke periyodik çalışır ve workflow action referansları SH
         visual,
         /actions\/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02/
     );
+});
+
+test("public media ve owner upload yüzeyi bounded rate limiter kullanır", () => {
+    assert.equal(typeof createMediaRateLimiter(), "function");
+    assert.equal(typeof createMediaRateLimiter({
+        windowMs: 15 * 60_000,
+        max: 30,
+        message: "Çok fazla görsel yükleme isteği gönderildi."
+    }), "function");
+    assert.throws(() => createMediaRateLimiter({ windowMs: 0, max: 1 }), TypeError);
+    assert.throws(() => createMediaRateLimiter({ windowMs: 1000, max: 0 }), TypeError);
+
+    const source = fs.readFileSync(
+        path.join(__dirname, "../src/http/attach-tenant-owner-runtime.js"),
+        "utf8"
+    );
+    assert.match(source, /app\.get\(PUBLIC_MEDIA_PATH, publicMediaLimiter/);
+    assert.match(source, /app\.post\(productMediaPath, ownerMediaUploadLimiter, rawImageParser/);
 });
 
 test("HTTP sınırları concurrent tenant update'i conflict olarak projekte eder", () => {
