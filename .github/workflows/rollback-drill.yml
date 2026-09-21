@@ -1,53 +1,99 @@
 name: Rollback readiness drill
 
 on:
+  schedule:
+    - cron: "23 3 * * 0"
   workflow_dispatch:
     inputs:
       ref:
-        description: Rollback branch, tag or commit
-        required: true
-        default: backup/pre-security-v1-2026-08-29
+        description: Optional rollback branch, tag or commit. Empty uses previous main commit.
+        required: false
+        default: ""
         type: string
 
 permissions:
   contents: read
 
+concurrency:
+  group: rollback-readiness-drill
+  cancel-in-progress: false
+
 jobs:
   validate:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    env:
+      REQUESTED_REF: ${{ inputs.ref }}
     steps:
-      - name: Checkout rollback target
+      - name: Checkout current main history
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ inputs.ref }}
           fetch-depth: 0
           persist-credentials: false
+
+      - name: Resolve immutable rollback target
+        id: target
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -n "${REQUESTED_REF}" ]]; then
+            TARGET_SHA="$(git rev-parse --verify "${REQUESTED_REF}^{commit}")"
+          else
+            TARGET_SHA="$(git rev-parse --verify "HEAD^1")"
+          fi
+          git cat-file -e "${TARGET_SHA}^{commit}"
+          echo "target_sha=${TARGET_SHA}" >> "${GITHUB_OUTPUT}"
+          echo "source_sha=$(git rev-parse HEAD)" >> "${GITHUB_OUTPUT}"
+
+      - name: Checkout exact rollback target
+        shell: bash
+        run: |
+          set -euo pipefail
+          git checkout --detach "${{ steps.target.outputs.target_sha }}"
+          test "$(git rev-parse HEAD)" = "${{ steps.target.outputs.target_sha }}"
+
       - name: Setup Node.js
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - name: Verify rollback target
+
+      - name: Verify V2 rollback target
+        shell: bash
         run: |
+          set -euo pipefail
+          test -f package.json
+          test -f package-lock.json
+          test -f platform-v2/server.js
           git fsck --full
           npm ci
           npm run ci
-          npm audit --omit=dev --audit-level=high
-      - name: Build non-production rollback artifact
+          npm run security:dependencies
+          node --check platform-v2/server.js
+
+      - name: Build non-production V2 rollback artifact
+        shell: bash
         run: |
-          mkdir rollback-site
-          for file in index.html admin.html style.css script.js hero.jpg logo.jpg robots.txt sitemap.xml; do
-            if [ -f "$file" ]; then cp "$file" rollback-site/; fi
-          done
-          tar -czf ece-doner-rollback-site.tar.gz -C rollback-site .
-          sha256sum ece-doner-rollback-site.tar.gz > ece-doner-rollback-site.tar.gz.sha256
+          set -euo pipefail
+          mkdir -p rollback-v2
+          cp package.json package-lock.json rollback-v2/
+          cp -R platform-v2 rollback-v2/
+          if [[ -d scripts ]]; then cp -R scripts rollback-v2/; fi
+          cat > rollback-v2/ROLLBACK-METADATA.txt <<EOF
+          target_sha=${{ steps.target.outputs.target_sha }}
+          source_sha=${{ steps.target.outputs.source_sha }}
+          generated_by=rollback-readiness-drill
+          production_mutation=false
+          EOF
+          tar -czf platform-v2-rollback.tar.gz rollback-v2
+          sha256sum platform-v2-rollback.tar.gz > platform-v2-rollback.tar.gz.sha256
+
       - name: Store rollback drill artifact
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: ece-doner-rollback-drill-${{ github.run_id }}
+          name: platform-v2-rollback-drill-${{ github.run_id }}
           path: |
-            ece-doner-rollback-site.tar.gz
-            ece-doner-rollback-site.tar.gz.sha256
-          retention-days: 7
+            platform-v2-rollback.tar.gz
+            platform-v2-rollback.tar.gz.sha256
+          retention-days: 14
           if-no-files-found: error
