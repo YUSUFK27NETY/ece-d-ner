@@ -232,6 +232,7 @@ function createProvisioningOwnerReassignmentService({
         throw new TypeError("Owner reassignment tenant registry gerekli.");
     }
     if (!reassignmentRepository ||
+        typeof reassignmentRepository.readCurrentOwner !== "function" ||
         typeof reassignmentRepository.createInvite !== "function" ||
         typeof reassignmentRepository.commitReassignment !== "function") {
         throw new TypeError("Owner reassignment repository gerekli.");
@@ -276,7 +277,7 @@ function createProvisioningOwnerReassignmentService({
                 );
             }
 
-            const ownerState = await reassignmentRepository.readCurrentOwner?.({
+            const ownerState = await reassignmentRepository.readCurrentOwner({
                 expectedTenant: tenant
             });
             if (!ownerState ||
