@@ -590,3 +590,15 @@ test("owner invite acceptance explains customer owner email and sanitizes Fireba
     assert.match(acceptClient, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
     assert.doesNotMatch(acceptClient, /localStorage|sessionStorage/);
 });
+
+
+test("owner reassignment admin client does not expose raw unknown Firebase errors", () => {
+    const client = fs.readFileSync(
+        path.join(__dirname, "../public/admin/owner-reassignment.js"),
+        "utf8"
+    );
+
+    assert.match(client, /code\.startsWith\("auth\/"\)/);
+    assert.match(client, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
+    assert.doesNotMatch(client, /return error\?\.message/);
+});
