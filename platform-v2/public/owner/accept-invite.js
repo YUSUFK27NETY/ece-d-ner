@@ -65,6 +65,18 @@
         return "Owner daveti doğrulanamadı. Davet e-postasını ve bağlantının güncel olduğunu kontrol et.";
     }
 
+    function friendlyInviteError(error) {
+        const code = String(error?.code || "");
+        if (code.startsWith("auth/")) return friendlyFirebaseError(error);
+
+        const safeMessage = String(error?.message || "").trim();
+        if (safeMessage && safeMessage.length <= 220 && !/^Firebase:/i.test(safeMessage)) {
+            return safeMessage;
+        }
+
+        return "Owner daveti doğrulanamadı. Davet e-postasını ve bağlantının güncel olduğunu kontrol et.";
+    }
+
     async function acceptServerInvite(tenantId, inviteToken, idToken, flow) {
         const suffix = flow === "owner_reassignment"
             ? "owner-reassignment/accept"
@@ -159,7 +171,7 @@
                 "success"
             );
         } catch (error) {
-            setMessage(friendlyFirebaseError(error), "error");
+            setMessage(friendlyInviteError(error), "error");
             setEnabled(true);
         }
     });
