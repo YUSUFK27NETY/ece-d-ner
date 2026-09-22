@@ -544,3 +544,47 @@ test("Firestore owner reassignment atomically revokes old owner and activates ne
         false
     );
 });
+
+
+test("owner invite acceptance explains customer owner email and sanitizes Firebase action-code errors", () => {
+    const acceptHtml = fs.readFileSync(
+        path.join(__dirname, "../public/owner/accept-invite.html"),
+        "utf8"
+    );
+    const acceptClient = fs.readFileSync(
+        path.join(__dirname, "../public/owner/accept-invite.js"),
+        "utf8"
+    );
+
+    assert.match(
+        acceptHtml,
+        /owner'ı olarak davet gönderilen müşteri e-posta adresini gir/
+    );
+    assert.match(acceptHtml, /Platform Admin e-postasını yazma/);
+    assert.match(
+        acceptHtml,
+        /Owner olarak davet edilen müşteri e-postası/
+    );
+
+    for (const code of [
+        "auth/invalid-action-code",
+        "auth/expired-action-code",
+        "auth/invalid-email",
+        "auth/user-disabled",
+        "auth/too-many-requests",
+        "auth/network-request-failed"
+    ]) {
+        assert.match(acceptClient, new RegExp(code.replace("/", "\\/")));
+    }
+
+    assert.match(
+        acceptClient,
+        /Bu owner davet bağlantısı geçersiz, süresi dolmuş veya daha önce kullanılmış/
+    );
+    assert.match(acceptClient, /friendlyFirebaseError\(error\)/);
+    assert.doesNotMatch(
+        acceptClient,
+        /setMessage\(error\?\.message \|\| "Owner daveti kabul edilemedi\."/
+    );
+    assert.doesNotMatch(acceptClient, /localStorage|sessionStorage/);
+});
