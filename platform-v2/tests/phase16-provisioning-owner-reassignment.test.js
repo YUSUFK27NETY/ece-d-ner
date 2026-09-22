@@ -581,10 +581,12 @@ test("owner invite acceptance explains customer owner email and sanitizes Fireba
         acceptClient,
         /Bu owner davet bağlantısı geçersiz, süresi dolmuş veya daha önce kullanılmış/
     );
-    assert.match(acceptClient, /friendlyFirebaseError\(error\)/);
+    assert.match(acceptClient, /friendlyInviteError\(error\)/);
     assert.doesNotMatch(
         acceptClient,
         /setMessage\(error\?\.message \|\| "Owner daveti kabul edilemedi\."/
     );
+    assert.match(acceptClient, /code\.startsWith\("auth\/"\)/);
+    assert.match(acceptClient, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
     assert.doesNotMatch(acceptClient, /localStorage|sessionStorage/);
 });
