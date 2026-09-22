@@ -114,6 +114,65 @@ test("tenant management sadece izinli alanları günceller ve mevcut feature fla
     );
 });
 
+test("tenant management unavailable featureı false-to-true açmaz ve legacy true kaydı koruyabilir", async () => {
+    const base = createTenantRecord({
+        tenantId: "legacy-feature-tenant",
+        displayName: "Legacy Feature Tenant",
+        sector: "general"
+    });
+    let stored = {
+        ...base,
+        features: {
+            ...base.features,
+            campaigns: true
+        }
+    };
+
+    const service = createTenantManagementService({
+        tenantRegistry: {
+            async getById() {
+                return stored;
+            },
+            async update(_id, next) {
+                stored = next;
+                return next;
+            }
+        }
+    });
+
+    const preserved = await service.update({
+        tenantId: "legacy-feature-tenant",
+        actorId: "platform-admin",
+        patch: {
+            displayName: "Legacy Feature Tenant Updated",
+            features: { campaigns: true }
+        }
+    });
+    assert.equal(preserved.features.campaigns, true);
+
+    const disabled = await service.update({
+        tenantId: "legacy-feature-tenant",
+        actorId: "platform-admin",
+        patch: {
+            features: { campaigns: false }
+        }
+    });
+    assert.equal(disabled.features.campaigns, false);
+
+    const beforeBlocked = stored;
+    await assert.rejects(
+        () => service.update({
+            tenantId: "legacy-feature-tenant",
+            actorId: "platform-admin",
+            patch: {
+                features: { campaigns: true }
+            }
+        }),
+        /campaigns modülü henüz runtime kullanımına açık değil/
+    );
+    assert.strictEqual(stored, beforeBlocked);
+});
+
 test("tenant management bulunmayan tenant için fail-closed çalışır", async () => {
     const service = createTenantManagementService({
         tenantRegistry: {
