@@ -302,3 +302,15 @@ test("Firestore invite consumption deletes pending invite in the same transactio
     assert.match(source, /transaction\.delete\(refs\.inviteRef\)/);
     assert.match(source, /TENANT_INITIAL_OWNER_INVITE_EXPIRED/);
 });
+
+
+test("owner invite admin client does not expose raw unknown Firebase errors", () => {
+    const client = fs.readFileSync(
+        path.join(__dirname, "../public/admin/owner-email-invite.js"),
+        "utf8"
+    );
+
+    assert.match(client, /code\.startsWith\("auth\/"\)/);
+    assert.match(client, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
+    assert.doesNotMatch(client, /return error\?\.message/);
+});
