@@ -45,6 +45,26 @@
         return email;
     }
 
+    function friendlyFirebaseError(error) {
+        const code = String(error?.code || "");
+        if (code === "auth/invalid-action-code" || code === "auth/expired-action-code") {
+            return "Bu owner davet bağlantısı geçersiz, süresi dolmuş veya daha önce kullanılmış. Platform yöneticisinden yeni owner daveti iste.";
+        }
+        if (code === "auth/invalid-email") {
+            return "Owner olarak davet gönderilen müşteri e-posta adresini kontrol et.";
+        }
+        if (code === "auth/user-disabled") {
+            return "Bu owner hesabı Firebase Authentication tarafında devre dışı.";
+        }
+        if (code === "auth/too-many-requests") {
+            return "Çok fazla giriş denemesi yapıldı. Bir süre sonra yeni davet bağlantısıyla tekrar dene.";
+        }
+        if (code === "auth/network-request-failed") {
+            return "Ağ bağlantısı nedeniyle owner daveti doğrulanamadı. İnternet bağlantısını kontrol edip tekrar dene.";
+        }
+        return "Owner daveti doğrulanamadı. Davet e-postasını ve bağlantının güncel olduğunu kontrol et.";
+    }
+
     async function acceptServerInvite(tenantId, inviteToken, idToken, flow) {
         const suffix = flow === "owner_reassignment"
             ? "owner-reassignment/accept"
@@ -139,7 +159,7 @@
                 "success"
             );
         } catch (error) {
-            setMessage(error?.message || "Owner daveti kabul edilemedi.", "error");
+            setMessage(friendlyFirebaseError(error), "error");
             setEnabled(true);
         }
     });
