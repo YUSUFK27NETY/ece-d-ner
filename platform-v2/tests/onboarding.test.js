@@ -2,6 +2,9 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const {
+    FEATURE_CATALOG,
+    RUNTIME_UNAVAILABLE_FEATURES,
+    assertFeatureActivationAvailable,
     createFeatureFlags
 } = require("../src/tenant/feature-catalog");
 const {
@@ -36,6 +39,37 @@ test("feature flag kataloğu bilinmeyen anahtarları reddeder", () => {
         () => createFeatureFlags({ unknown: true }),
         TypeError
     );
+});
+
+test("runtime unavailable featurelar yeni tenant veya yeni aktivasyon olarak açılamaz", () => {
+    assert.deepEqual(
+        [...RUNTIME_UNAVAILABLE_FEATURES].sort(),
+        ["analytics", "campaigns", "delivery", "loyalty", "reviews", "staff"]
+    );
+    for (const feature of RUNTIME_UNAVAILABLE_FEATURES) {
+        assert.equal(FEATURE_CATALOG[feature].runtimeAvailable, false);
+        assert.throws(
+            () => createTenantRecord({
+                tenantId: "blocked-" + feature,
+                displayName: "Blocked " + feature,
+                sector: "general",
+                features: { [feature]: true }
+            }),
+            new RegExp(feature)
+        );
+    }
+
+    const legacy = assertFeatureActivationAvailable({
+        currentFeatures: { campaigns: true },
+        nextFeatures: { campaigns: true }
+    });
+    assert.equal(legacy.campaigns, true);
+
+    const disabled = assertFeatureActivationAvailable({
+        currentFeatures: { campaigns: true },
+        nextFeatures: { campaigns: false }
+    });
+    assert.equal(disabled.campaigns, false);
 });
 
 test("tenant record merkezi registry için stabil metadata üretir", () => {
