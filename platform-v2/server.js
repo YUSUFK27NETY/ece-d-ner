@@ -384,6 +384,7 @@ function startPlatformServer() {
         securitySignals
     });
     const backupEvidenceProvider = createConfiguredBackupEvidenceProvider({ db });
+    const publicRouteReader = createFirestorePublicRouteReader({ db });
     const domainReadinessService = createRuntimeDomainReadinessService({ db });
     const adminBootstrapEvidenceProvider =
         createFirestoreAdminBootstrapEvidenceProvider({ db });
@@ -526,7 +527,8 @@ function startPlatformServer() {
     });
     attachPublicStorefrontRuntime({
         app,
-        storefrontService
+        storefrontService,
+        routeReader: publicRouteReader
     });
     attachPublicAppointmentRuntime({
         app,
