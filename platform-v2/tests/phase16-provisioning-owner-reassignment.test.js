@@ -30,6 +30,7 @@ function tenant(status = "provisioning") {
 function createHarness() {
     let record = tenant();
     let now = new Date("2026-09-21T14:00:00.000Z");
+    let activeBinding = null;
     const calls = {
         createInvite: [],
         commit: []
@@ -86,6 +87,11 @@ function createHarness() {
             }
         },
         reassignmentRepository: repository,
+        bindingReader: {
+            async findActiveBySubject() {
+                return activeBinding ? { ...activeBinding } : null;
+            }
+        },
         clock: () => new Date(now),
         randomBytes: size => {
             assert.equal(size, 32);
@@ -102,6 +108,9 @@ function createHarness() {
         },
         setNow(value) {
             now = new Date(value);
+        },
+        setActiveBinding(value) {
+            activeBinding = value ? { ...value } : null;
         }
     };
 }
@@ -197,6 +206,35 @@ test("reassignment acceptance creates new owner artifacts and delegates atomic s
     );
 });
 
+test("reassignment rejects target Firebase subject active in another tenant", async () => {
+    const harness = createHarness();
+    const invite = await harness.service.createInvite({
+        context: {
+            role: "platform_admin",
+            actorId: "platform-admin-1"
+        },
+        tenantId: TENANT_ID,
+        email: "canpoyraz277@gmail.com",
+        requestId: "request-reassign-create"
+    });
+    harness.setActiveBinding({
+        tenantId: "other-tenant",
+        role: "tenant_owner",
+        state: "active"
+    });
+
+    await assert.rejects(
+        () => harness.service.acceptInvite({
+            tenantId: TENANT_ID,
+            inviteToken: invite.inviteToken,
+            idToken: "firebase-id-token",
+            requestId: "request-reassign-accept"
+        }),
+        error => error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
+    );
+    assert.equal(harness.calls.commit.length, 0);
+});
+
 test("owner reassignment is fail-closed outside provisioning lifecycle", async () => {
     const harness = createHarness();
     harness.setStatus("active");
@@ -277,6 +315,10 @@ test("Firestore reassignment swaps owner atomically and revokes old member only 
     assert.match(source, /state: "revoked"/);
     assert.match(source, /transaction\.set\(\s*current\.oldMemberRef/);
     assert.match(source, /transaction\.create\(\s*newMemberRef/);
+    assert.match(source, /newSubjectIndexRef/);
+    assert.match(source, /oldSubjectIndexRef/);
+    assert.match(source, /createTenantMemberSubjectIndex/);
+    assert.match(source, /TENANT_MEMBER_SUBJECT_ALREADY_BOUND/);
     assert.match(source, /transaction\.set\(\s*baseRefs\.ownerSlotRef/);
     assert.match(source, /transaction\.set\(\s*baseRefs\.evidenceRef/);
     assert.match(source, /transaction\.delete\(baseRefs\.inviteRef\)/);
@@ -335,6 +377,10 @@ test("admin and owner clients keep reassignment secret out of query and storage"
     assert.match(
         endpointSource,
         /owner-reassignment\/accept/
+    );
+    assert.match(
+        endpointSource,
+        /TENANT_MEMBER_SUBJECT_ALREADY_BOUND/
     );
 
     for (const source of [adminClient, acceptClient]) {
@@ -543,6 +589,16 @@ test("Firestore owner reassignment atomically revokes old owner and activates ne
         ),
         false
     );
+    assert.deepEqual(
+        db.docs.get("platformTenantMemberSubjects/" + newSubject),
+        {
+            schemaVersion: 1,
+            subjectRef: newSubject,
+            tenantId: TENANT_ID,
+            state: "active",
+            observedAt
+        }
+    );
 });
 
 
@@ -590,7 +646,6 @@ test("owner invite acceptance explains customer owner email and sanitizes Fireba
     assert.match(acceptClient, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
     assert.doesNotMatch(acceptClient, /localStorage|sessionStorage/);
 });
-
 
 test("owner reassignment admin client does not expose raw unknown Firebase errors", () => {
     const client = fs.readFileSync(
