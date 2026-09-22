@@ -29,8 +29,17 @@ test("media bridge is installed before storefront runtime initiates the public f
 test("storefront runtime remains the only initiator of the public storefront request", () => {
     assert.match(
         storefrontRuntime,
-        /fetch\(`\/api\/public\/storefront\/\$\{encodeURIComponent\(state\.tenantId\)\}`/
+        /const endpoint = hostMode/
     );
+    assert.match(
+        storefrontRuntime,
+        /"\/api\/public\/storefront-host"/
+    );
+    assert.match(
+        storefrontRuntime,
+        /`\/api\/public\/storefront\/\$\{encodeURIComponent\(state\.tenantId\)\}`/
+    );
+    assert.match(storefrontRuntime, /const response = await fetch\(endpoint/);
     assert.doesNotMatch(mediaBridge, /\bfetch\s*\(/);
     assert.doesNotMatch(mediaBridge, /async function load\s*\(/);
     assert.match(mediaBridge, /const originalFetch = window\.fetch\.bind\(window\);/);
@@ -39,18 +48,15 @@ test("storefront runtime remains the only initiator of the public storefront req
 });
 
 test("media response reuse is exact-tenant, same-origin and fail-closed", () => {
-    assert.match(
-        mediaBridge,
-        /const expectedStorefrontPath = `\/api\/public\/storefront\/\$\{encodeURIComponent\(tenantId\)\}`;/
-    );
+    assert.match(mediaBridge, /window\.location\.pathname === "\/"/);
+    assert.match(mediaBridge, /"\/api\/public\/storefront-host"/);
     assert.match(
         mediaBridge,
         /url\.origin === window\.location\.origin &&\s*url\.pathname === expectedStorefrontPath &&\s*url\.search === ""/
     );
-    assert.match(
-        mediaBridge,
-        /storefront\?\.tenant\?\.tenantId !== tenantId \|\| !Array\.isArray\(storefront\.products\)/
-    );
+    assert.match(mediaBridge, /const responseTenantId = storefront\?\.tenant\?\.tenantId/);
+    assert.match(mediaBridge, /\(tenantId && responseTenantId !== tenantId\)/);
+    assert.match(mediaBridge, /!Array\.isArray\(storefront\.products\)/);
     assert.match(
         mediaBridge,
         /state\.galleryEnabled = storefront\.tenant\?\.features\?\.gallery === true/
