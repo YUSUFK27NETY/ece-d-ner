@@ -41,7 +41,9 @@
     const tenantId = tenantIdFromPath();
     const expectedStorefrontPath = tenantId
         ? `/api/public/storefront/${encodeURIComponent(tenantId)}`
-        : "";
+        : window.location.pathname === "/"
+            ? "/api/public/storefront-host"
+            : "";
 
     function normalizeFamily(value) {
         const family = String(value ?? "").trim().toLowerCase();
@@ -147,7 +149,13 @@
             if (!response?.ok) return;
             const body = await response.clone().json();
             const storefront = body?.storefront;
-            if (storefront?.tenant?.tenantId !== tenantId) return;
+            const responseTenantId = storefront?.tenant?.tenantId;
+            if (typeof responseTenantId !== "string" ||
+                responseTenantId.length < 3 ||
+                !TENANT_ID_PATTERN.test(responseTenantId) ||
+                (tenantId && responseTenantId !== tenantId)) {
+                return;
+            }
             const presentation = storefront.presentation;
             const family = normalizeFamily(presentation?.designFamily);
             currentOffering = normalizeOffering(presentation?.sector);

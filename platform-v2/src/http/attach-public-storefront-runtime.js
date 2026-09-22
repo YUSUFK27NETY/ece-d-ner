@@ -2,8 +2,10 @@ const express = require("express");
 const rateLimit = require("express-rate-limit");
 const path = require("node:path");
 const { requireTenantId } = require("../tenant/tenant-id");
+const { normalizeDomain } = require("../tenant/tenant-profile");
 
 const PUBLIC_STOREFRONT_API = "/api/public/storefront/:tenantId";
+const PUBLIC_HOST_STOREFRONT_API = "/api/public/storefront-host";
 const PUBLIC_DEPLOYMENT_API = "/api/public/deployment";
 const GIT_COMMIT_PATTERN = /^[0-9a-f]{40}$/;
 const PUBLIC_TENANT_EDGE_NOISE = /^[\s\p{Cf}]+|[\s\p{Cf}]+$/gu;
@@ -52,6 +54,57 @@ function canonicalTenantId(value) {
     } catch {
         return null;
     }
+}
+
+function canonicalRequestDomain(req) {
+    const hostname = String(req?.hostname || "").trim().toLowerCase();
+    if (!hostname) return null;
+    try {
+        const domain = normalizeDomain(hostname);
+        return domain === hostname ? domain : null;
+    } catch {
+        return null;
+    }
+}
+
+function safeStorefrontError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+}
+
+async function resolveActivePublicRoute({ routeReader, req }) {
+    if (!routeReader || typeof routeReader.getByDomain !== "function") {
+        throw safeStorefrontError(
+            "STOREFRONT_NOT_AVAILABLE",
+            "Custom domain storefront kullanılamıyor."
+        );
+    }
+    const domain = canonicalRequestDomain(req);
+    if (!domain) {
+        throw safeStorefrontError(
+            "STOREFRONT_NOT_AVAILABLE",
+            "Custom domain storefront kullanılamıyor."
+        );
+    }
+
+    let route;
+    try {
+        route = await routeReader.getByDomain(domain);
+    } catch {
+        throw safeStorefrontError(
+            "STOREFRONT_UNAVAILABLE",
+            "Custom domain route şu anda okunamıyor."
+        );
+    }
+    if (!route || route.domain !== domain || route.state !== "active" ||
+        !canonicalTenantId(route.tenantId)) {
+        throw safeStorefrontError(
+            "STOREFRONT_NOT_AVAILABLE",
+            "Custom domain storefront kullanılamıyor."
+        );
+    }
+    return route;
 }
 
 function recoverPublicTenantId(value) {
@@ -105,12 +158,18 @@ function sendStorefrontError(res, error) {
     });
 }
 
-function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = null }) {
+function attachPublicStorefrontRuntime({ app, storefrontService, routeReader = null, rateLimiter = null }) {
     if (!app || typeof app.use !== "function" || typeof app.get !== "function") {
         throw new TypeError("Public storefront app geçersiz.");
     }
     if (!storefrontService || typeof storefrontService.get !== "function") {
         throw new TypeError("Public storefront service geçersiz.");
+    }
+    if (routeReader !== null &&
+        (!routeReader || typeof routeReader.getByDomain !== "function" ||
+            typeof storefrontService.verifyDomainRoute !== "function" ||
+            typeof storefrontService.getByDomain !== "function")) {
+        throw new TypeError("Custom domain storefront runtime geçersiz.");
     }
     const limiter = rateLimiter || createStorefrontRateLimiter();
     if (typeof limiter !== "function") {
@@ -118,6 +177,32 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
     }
 
     const publicDir = path.join(__dirname, "../../public/storefront");
+
+    app.get("/", limiter, async (req, res, next) => {
+        if (routeReader === null) return next();
+        try {
+            const route = await resolveActivePublicRoute({ routeReader, req });
+            await storefrontService.verifyDomainRoute({
+                tenantId: route.tenantId,
+                domain: route.domain
+            });
+            res.set("Content-Security-Policy", PUBLIC_STOREFRONT_CSP);
+            res.set("Referrer-Policy", "strict-origin-when-cross-origin");
+            return res.sendFile(path.join(publicDir, "index.html"));
+        } catch (error) {
+            if (error?.code === "STOREFRONT_UNAVAILABLE") {
+                res.set("Content-Security-Policy", PUBLIC_STOREFRONT_CSP);
+                return res.status(503).send("İşletme sayfası şu anda kullanılamıyor.");
+            }
+            if (error?.code === "STOREFRONT_NOT_AVAILABLE" ||
+                error instanceof TypeError) {
+                return next();
+            }
+            console.error("Custom domain storefront shell doğrulanamadı.");
+            res.set("Content-Security-Policy", PUBLIC_STOREFRONT_CSP);
+            return res.status(503).send("İşletme sayfası şu anda kullanılamıyor.");
+        }
+    });
     app.use("/m", (req, res, next) => {
         if (hasMalformedPathEncoding(req.url)) {
             return res.status(404).send("İşletme bulunamadı.");
@@ -148,6 +233,22 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
             return sendInvalidStorefrontPage(res, req.params.tenantId);
         }
         return res.sendFile(path.join(publicDir, "index.html"));
+    });
+
+    app.get(PUBLIC_HOST_STOREFRONT_API, limiter, async (req, res) => {
+        try {
+            if (Reflect.ownKeys(req.query).length > 0) {
+                throw new TypeError("Host storefront sorgu parametresi kabul etmez.");
+            }
+            const route = await resolveActivePublicRoute({ routeReader, req });
+            const storefront = await storefrontService.getByDomain({
+                tenantId: route.tenantId,
+                domain: route.domain
+            });
+            return res.json({ success: true, storefront });
+        } catch (error) {
+            return sendStorefrontError(res, error);
+        }
     });
 
     app.get(PUBLIC_DEPLOYMENT_API, limiter, (req, res) => {
@@ -193,12 +294,15 @@ function attachPublicStorefrontRuntime({ app, storefrontService, rateLimiter = n
 
 module.exports = {
     PUBLIC_DEPLOYMENT_API,
+    PUBLIC_HOST_STOREFRONT_API,
     PUBLIC_STOREFRONT_API,
     PUBLIC_STOREFRONT_CSP,
     attachPublicStorefrontRuntime,
     createStorefrontRateLimiter,
+    canonicalRequestDomain,
     deploymentRevision,
     hasMalformedPathEncoding,
+    resolveActivePublicRoute,
     recoverPublicTenantId,
     sendStorefrontError
 };

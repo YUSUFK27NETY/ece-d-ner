@@ -12,10 +12,14 @@
     }
 
     const tenantId = tenantIdFromPath();
-    if (!tenantId) return;
+    const expectedStorefrontPath = tenantId
+        ? `/api/public/storefront/${encodeURIComponent(tenantId)}`
+        : window.location.pathname === "/"
+            ? "/api/public/storefront-host"
+            : "";
+    if (!expectedStorefrontPath) return;
 
     const originalFetch = window.fetch.bind(window);
-    const expectedStorefrontPath = `/api/public/storefront/${encodeURIComponent(tenantId)}`;
 
     function isCurrentStorefrontRequest(input) {
         try {

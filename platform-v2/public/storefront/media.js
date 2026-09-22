@@ -15,10 +15,14 @@
     }
 
     const tenantId = tenantIdFromPath();
-    if (!tenantId) return;
+    const expectedStorefrontPath = tenantId
+        ? `/api/public/storefront/${encodeURIComponent(tenantId)}`
+        : window.location.pathname === "/"
+            ? "/api/public/storefront-host"
+            : "";
+    if (!expectedStorefrontPath) return;
 
     const originalFetch = window.fetch.bind(window);
-    const expectedStorefrontPath = `/api/public/storefront/${encodeURIComponent(tenantId)}`;
 
     function isCurrentStorefrontRequest(input) {
         try {
@@ -95,7 +99,14 @@
             if (!response?.ok) return;
             const payload = await response.clone().json();
             const storefront = payload?.storefront;
-            if (storefront?.tenant?.tenantId !== tenantId || !Array.isArray(storefront.products)) return;
+            const responseTenantId = storefront?.tenant?.tenantId;
+            if (typeof responseTenantId !== "string" ||
+                responseTenantId.length < 3 ||
+                !TENANT_ID_PATTERN.test(responseTenantId) ||
+                (tenantId && responseTenantId !== tenantId) ||
+                !Array.isArray(storefront.products)) {
+                return;
+            }
             state.galleryEnabled = storefront.tenant?.features?.gallery === true;
             state.products = storefront.products;
             decorate();

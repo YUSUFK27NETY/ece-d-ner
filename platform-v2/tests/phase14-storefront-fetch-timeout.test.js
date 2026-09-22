@@ -17,7 +17,10 @@ const storefrontRuntime = fs.readFileSync(
     "utf8"
 );
 
-function createRuntime({ immediateTimeout = false } = {}) {
+function createRuntime({
+    immediateTimeout = false,
+    pathname = "/m/ela-doner"
+} = {}) {
     const fetchCalls = [];
     const timeoutCalls = [];
     const clearCalls = [];
@@ -26,7 +29,7 @@ function createRuntime({ immediateTimeout = false } = {}) {
     const window = {
         location: {
             origin: "https://example.com",
-            pathname: "/m/ela-doner"
+            pathname
         },
         async fetch(input, init = {}) {
             fetchCalls.push({ input, init });
@@ -86,6 +89,24 @@ test("current tenant storefront request has an 18 second fail-closed timeout", a
     assert.equal(fetchCalls.length, 1);
     assert.equal(fetchCalls[0].init.signal instanceof AbortSignal, true);
     assert.equal(fetchCalls[0].init.signal.aborted, true);
+    assert.deepEqual(timeoutCalls.map(item => item.delay), [18_000]);
+    assert.deepEqual(clearCalls, [timeoutCalls[0].id]);
+});
+
+test("custom domain root host storefront request also has the same 18 second timeout", async () => {
+    const { window, fetchCalls, timeoutCalls, clearCalls } = createRuntime({
+        immediateTimeout: true,
+        pathname: "/"
+    });
+
+    await assert.rejects(
+        () => window.fetch("/api/public/storefront-host", {
+            headers: { Accept: "application/json" }
+        }),
+        /İşletme sayfası zaman aşımına uğradı\. Tekrar deneyin\./
+    );
+
+    assert.equal(fetchCalls.length, 1);
     assert.deepEqual(timeoutCalls.map(item => item.delay), [18_000]);
     assert.deepEqual(clearCalls, [timeoutCalls[0].id]);
 });

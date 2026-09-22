@@ -158,8 +158,16 @@
     function readTenantId() {
         const parts = window.location.pathname.split("/").filter(Boolean);
         if (parts.length !== 2 || parts[0] !== "m") return "";
-        const candidate = decodeURIComponent(parts[1]);
-        return TENANT_ID_PATTERN.test(candidate) && candidate.length >= 3 ? candidate : "";
+        try {
+            const candidate = decodeURIComponent(parts[1]);
+            return TENANT_ID_PATTERN.test(candidate) && candidate.length >= 3 ? candidate : "";
+        } catch {
+            return "";
+        }
+    }
+
+    function customDomainRoot() {
+        return window.location.pathname === "/";
     }
 
     function phoneDigits(value) {
@@ -689,16 +697,21 @@
     }
 
     async function load() {
-        state.tenantId = readTenantId();
-        if (!state.tenantId) {
+        const pathTenantId = readTenantId();
+        const hostMode = !pathTenantId && customDomainRoot();
+        if (!pathTenantId && !hostMode) {
             showError("İşletme bağlantısı geçersiz.");
             return;
         }
+        state.tenantId = pathTenantId;
         el.errorView.classList.add("hidden");
         el.storefront.classList.add("hidden");
         el.loading.classList.remove("hidden");
         try {
-            const response = await fetch(`/api/public/storefront/${encodeURIComponent(state.tenantId)}`, {
+            const endpoint = hostMode
+                ? "/api/public/storefront-host"
+                : `/api/public/storefront/${encodeURIComponent(state.tenantId)}`;
+            const response = await fetch(endpoint, {
                 headers: { Accept: "application/json" }
             });
             let body = null;
@@ -709,6 +722,15 @@
             }
             if (!response.ok) {
                 throw new Error(body?.message || "İşletme sayfası yüklenemedi.");
+            }
+            if (hostMode) {
+                const resolvedTenantId = body?.storefront?.tenant?.tenantId;
+                if (typeof resolvedTenantId !== "string" ||
+                    resolvedTenantId.length < 3 ||
+                    !TENANT_ID_PATTERN.test(resolvedTenantId)) {
+                    throw new Error("İşletme domaini doğrulanamadı.");
+                }
+                state.tenantId = resolvedTenantId;
             }
             renderStorefront(body);
         } catch (error) {

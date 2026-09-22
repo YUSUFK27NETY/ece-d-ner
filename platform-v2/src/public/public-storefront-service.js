@@ -1,5 +1,5 @@
 const { FEATURE_CATALOG, createFeatureFlags } = require("../tenant/feature-catalog");
-const { createTenantProfile } = require("../tenant/tenant-profile");
+const { createTenantProfile, normalizeDomain } = require("../tenant/tenant-profile");
 const { requireTenantId } = require("../tenant/tenant-id");
 const { projectProduct } = require("../catalog/product-model");
 const {
@@ -21,6 +21,17 @@ function requireCanonicalTenantId(value) {
         throw new TypeError("Storefront tenantId geçersiz.");
     }
     return tenantId;
+}
+
+function requireCanonicalDomain(value) {
+    if (typeof value !== "string") {
+        throw new TypeError("Storefront domain geçersiz.");
+    }
+    const domain = normalizeDomain(value);
+    if (!domain || domain !== value) {
+        throw new TypeError("Storefront domain geçersiz.");
+    }
+    return domain;
 }
 
 function requireDependency(value, methods, label) {
@@ -97,41 +108,76 @@ function createPublicStorefrontService({
         throw new TypeError("Storefront ürün limiti geçersiz.");
     }
 
-    return Object.freeze({
-        async get({ tenantId: rawTenantId } = {}) {
-            const tenantId = requireCanonicalTenantId(rawTenantId);
-            const tenant = await tenants.getById(tenantId);
+    async function loadActiveTenant({ tenantId, expectedDomain = null }) {
+        const tenant = await tenants.getById(tenantId);
 
-            if (!tenant || tenant.tenantId !== tenantId || tenant.status !== "active") {
+        if (!tenant || tenant.tenantId !== tenantId || tenant.status !== "active") {
+            throw safeError("STOREFRONT_NOT_AVAILABLE", "Storefront kullanılamıyor.");
+        }
+
+        if (expectedDomain !== null) {
+            const profile = createTenantProfile(tenant.profile || {});
+            if (profile.customDomain !== expectedDomain) {
                 throw safeError("STOREFRONT_NOT_AVAILABLE", "Storefront kullanılamıyor.");
             }
+        }
 
-            const effectiveFeatures = projectEffectiveFeatures({
-                tenant,
-                entitlementService: entitlements
-            });
-            const presentation = createStorefrontPresentationManifest({
-                tenant,
-                effectiveFeatures
-            });
-            let publicProducts = [];
+        return tenant;
+    }
 
-            if (effectiveFeatures.catalog) {
-                const records = await products.listByTenant(tenantId, { limit: productLimit });
-                if (!Array.isArray(records)) {
-                    throw safeError("STOREFRONT_UNAVAILABLE", "Storefront catalog alınamadı.");
-                }
-                publicProducts = records
-                    .filter(product => product && product.archived !== true && product.available === true)
-                    .map(product => projectPublicProduct(product, {
-                        includeImage: effectiveFeatures.gallery === true
-                    }));
+    async function projectStorefront({ tenantId, expectedDomain = null }) {
+        const tenant = await loadActiveTenant({ tenantId, expectedDomain });
+
+        const effectiveFeatures = projectEffectiveFeatures({
+            tenant,
+            entitlementService: entitlements
+        });
+        const presentation = createStorefrontPresentationManifest({
+            tenant,
+            effectiveFeatures
+        });
+        let publicProducts = [];
+
+        if (effectiveFeatures.catalog) {
+            const records = await products.listByTenant(tenantId, { limit: productLimit });
+            if (!Array.isArray(records)) {
+                throw safeError("STOREFRONT_UNAVAILABLE", "Storefront catalog alınamadı.");
             }
+            publicProducts = records
+                .filter(product => product && product.archived !== true && product.available === true)
+                .map(product => projectPublicProduct(product, {
+                    includeImage: effectiveFeatures.gallery === true
+                }));
+        }
 
-            return Object.freeze({
-                tenant: projectPublicTenant(tenant, effectiveFeatures),
-                products: Object.freeze(publicProducts),
-                presentation
+        return Object.freeze({
+            tenant: projectPublicTenant(tenant, effectiveFeatures),
+            products: Object.freeze(publicProducts),
+            presentation
+        });
+    }
+
+    return Object.freeze({
+        async get({ tenantId: rawTenantId } = {}) {
+            return projectStorefront({
+                tenantId: requireCanonicalTenantId(rawTenantId)
+            });
+        },
+
+        async verifyDomainRoute({ tenantId: rawTenantId, domain: rawDomain } = {}) {
+            const tenantId = requireCanonicalTenantId(rawTenantId);
+            const domain = requireCanonicalDomain(rawDomain);
+            await loadActiveTenant({
+                tenantId,
+                expectedDomain: domain
+            });
+            return Object.freeze({ tenantId, domain });
+        },
+
+        async getByDomain({ tenantId: rawTenantId, domain: rawDomain } = {}) {
+            return projectStorefront({
+                tenantId: requireCanonicalTenantId(rawTenantId),
+                expectedDomain: requireCanonicalDomain(rawDomain)
             });
         }
     });
