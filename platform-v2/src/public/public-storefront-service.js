@@ -48,7 +48,10 @@ function projectEffectiveFeatures({ tenant, entitlementService }) {
     return Object.freeze(effective);
 }
 
-function projectPublicProduct(product) {
+function projectPublicProduct(product, { includeImage = true } = {}) {
+    if (typeof includeImage !== "boolean") {
+        throw new TypeError("Storefront product image projection geçersiz.");
+    }
     const safe = projectProduct(product);
     return Object.freeze({
         productId: safe.productId,
@@ -56,7 +59,7 @@ function projectPublicProduct(product) {
         category: safe.category,
         price: safe.price,
         description: safe.description,
-        imageUrl: safe.imageUrl
+        imageUrl: includeImage ? safe.imageUrl : ""
     });
 }
 
@@ -120,7 +123,9 @@ function createPublicStorefrontService({
                 }
                 publicProducts = records
                     .filter(product => product && product.archived !== true && product.available === true)
-                    .map(projectPublicProduct);
+                    .map(product => projectPublicProduct(product, {
+                        includeImage: effectiveFeatures.gallery === true
+                    }));
             }
 
             return Object.freeze({
