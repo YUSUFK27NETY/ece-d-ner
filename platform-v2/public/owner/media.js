@@ -276,6 +276,12 @@
                 throw new Error("İşletme doğrulanamadı.");
             }
             el.tenantLabel.textContent = tenant.profile?.brandName || tenant.displayName || tenant.tenantId;
+            if (tenant.features?.catalog !== true || tenant.features?.gallery !== true) {
+                state.products = [];
+                renderProducts();
+                setMessage("Ürün/hizmet görselleri için Katalog ve Galeri modülleri birlikte aktif olmalı.", "error");
+                return;
+            }
             const catalog = await jsonRequest(ownerPath("/catalog/products?limit=200"));
             state.products = Array.isArray(catalog?.products) ? catalog.products : [];
             setMessage();
