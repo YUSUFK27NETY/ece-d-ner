@@ -49,7 +49,7 @@
         refreshButton: document.getElementById("refresh-button"),
         logoutButton: document.getElementById("logout-button"),
         tabs: [...document.querySelectorAll(".tab[data-view]")],
-        featureNavigation: [...document.querySelectorAll("[data-feature], [data-feature-any]")],
+        featureNavigation: [...document.querySelectorAll("[data-feature], [data-feature-any], [data-feature-all]")],
         views: {
             dashboard: document.getElementById("dashboard-view"),
             products: document.getElementById("products-view"),
@@ -232,9 +232,14 @@
             const anyFeatures = String(item.dataset.featureAny || "")
                 .split(/\s+/)
                 .filter(Boolean);
+            const allFeatures = String(item.dataset.featureAll || "")
+                .split(/\s+/)
+                .filter(Boolean);
             const visible = exactFeature
                 ? features[exactFeature] === true
-                : anyFeatures.some(feature => features[feature] === true);
+                : allFeatures.length > 0
+                    ? allFeatures.every(feature => features[feature] === true)
+                    : anyFeatures.some(feature => features[feature] === true);
             item.hidden = !visible;
         }
 
