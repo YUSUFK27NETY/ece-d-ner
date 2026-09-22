@@ -3,6 +3,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const { once } = require("node:events");
+const http = require("node:http");
 
 const { createPlatformApp } = require("../src/http/create-platform-app");
 const {
@@ -12,7 +13,7 @@ const {
     attachPublicStorefrontRuntime
 } = require("../src/http/attach-public-storefront-runtime");
 
-function tenant(status = "active") {
+function tenant(status = "active", customDomain = null) {
     return {
         tenantId: "ela-doner",
         displayName: "Ela Döner",
@@ -39,7 +40,8 @@ function tenant(status = "active") {
             logoUrl: "https://example.com/logo.png",
             primaryColor: "#C62828",
             address: "Gaziantep",
-            timezone: "Europe/Istanbul"
+            timezone: "Europe/Istanbul",
+            customDomain
         },
         createdBy: "private-actor",
         internalSecret: "must-not-leak"
@@ -63,8 +65,12 @@ function product(overrides = {}) {
     };
 }
 
-function createFixture({ status = "active", unresolvedFeature = null } = {}) {
-    const currentTenant = tenant(status);
+function createFixture({
+    status = "active",
+    unresolvedFeature = null,
+    customDomain = null
+} = {}) {
+    const currentTenant = tenant(status, customDomain);
     const tenantRegistry = {
         async getById(id) {
             return id === "ela-doner" ? currentTenant : null;
@@ -125,6 +131,7 @@ async function startServer(options = {}) {
     attachPublicStorefrontRuntime({
         app,
         storefrontService: fixture.service,
+        routeReader: options.routeReader || null,
         rateLimiter: (req, res, next) => next()
     });
     const server = app.listen(0, "127.0.0.1");
@@ -139,6 +146,33 @@ async function startServer(options = {}) {
 async function closeServer(server) {
     server.close();
     await once(server, "close");
+}
+
+function requestWithHost(baseUrl, requestPath, host) {
+    const target = new URL(requestPath, baseUrl);
+    return new Promise((resolve, reject) => {
+        const request = http.request({
+            protocol: target.protocol,
+            hostname: target.hostname,
+            port: target.port,
+            path: target.pathname + target.search,
+            method: "GET",
+            headers: {
+                Host: host,
+                Accept: "application/json"
+            }
+        }, response => {
+            const chunks = [];
+            response.on("data", chunk => chunks.push(chunk));
+            response.on("end", () => resolve({
+                status: response.statusCode,
+                headers: response.headers,
+                text: Buffer.concat(chunks).toString("utf8")
+            }));
+        });
+        request.on("error", reject);
+        request.end();
+    });
 }
 
 test("aktif tenant storefront güvenli public projection ve yalnız satılabilir ürünleri döndürür", async () => {
@@ -214,6 +248,116 @@ test("public storefront endpoint auth istemez ama yalnız active tenant yayınla
     }
 });
 
+test("active exact custom domain root storefrontı doğrudan yayınlar ve host API exact tenantı çözer", async () => {
+    const routeReader = {
+        async getByDomain(domain) {
+            assert.equal(domain, "menu.example.com");
+            return {
+                schemaVersion: 1,
+                domain,
+                tenantId: "ela-doner",
+                state: "active",
+                observedAt: "2026-09-22T18:00:00.000Z"
+            };
+        }
+    };
+    const fixture = await startServer({
+        customDomain: "menu.example.com",
+        routeReader
+    });
+    try {
+        const root = await requestWithHost(
+            fixture.baseUrl,
+            "/",
+            "menu.example.com"
+        );
+        assert.equal(root.status, 200);
+        assert.match(root.text, /id="storefront"/);
+        assert.match(root.headers["content-security-policy"], /script-src 'self'/);
+
+        const api = await requestWithHost(
+            fixture.baseUrl,
+            "/api/public/storefront-host",
+            "menu.example.com"
+        );
+        const body = JSON.parse(api.text);
+        assert.equal(api.status, 200);
+        assert.equal(body.storefront.tenant.tenantId, "ela-doner");
+        assert.equal(
+            Object.hasOwn(body.storefront.tenant.profile, "customDomain"),
+            false
+        );
+
+        const query = await requestWithHost(
+            fixture.baseUrl,
+            "/api/public/storefront-host?debug=1",
+            "menu.example.com"
+        );
+        assert.equal(query.status, 400);
+    } finally {
+        await closeServer(fixture.server);
+    }
+});
+
+test("custom domain runtime inactive, unknown ve tenant-profile mismatch durumlarında fail-closed kalır", async () => {
+    for (const testCase of [
+        {
+            host: "menu.example.com",
+            customDomain: "menu.example.com",
+            route: null
+        },
+        {
+            host: "menu.example.com",
+            customDomain: "menu.example.com",
+            route: {
+                schemaVersion: 1,
+                domain: "menu.example.com",
+                tenantId: "ela-doner",
+                state: "inactive",
+                observedAt: "2026-09-22T18:00:00.000Z"
+            }
+        },
+        {
+            host: "other.example.com",
+            customDomain: "menu.example.com",
+            route: {
+                schemaVersion: 1,
+                domain: "other.example.com",
+                tenantId: "ela-doner",
+                state: "active",
+                observedAt: "2026-09-22T18:00:00.000Z"
+            }
+        }
+    ]) {
+        const fixture = await startServer({
+            customDomain: testCase.customDomain,
+            routeReader: {
+                async getByDomain(domain) {
+                    assert.equal(domain, testCase.host);
+                    return testCase.route;
+                }
+            }
+        });
+        try {
+            const root = await requestWithHost(
+                fixture.baseUrl,
+                "/",
+                testCase.host
+            );
+            assert.equal(root.status, 404);
+
+            const api = await requestWithHost(
+                fixture.baseUrl,
+                "/api/public/storefront-host",
+                testCase.host
+            );
+            assert.equal(api.status, 404);
+        } finally {
+            await closeServer(fixture.server);
+        }
+    }
+});
+
 test("direct-link /m/:tenantId storefront shell ve sıkı CSP ile sunulur", async () => {
     const fixture = await startServer();
     try {
@@ -239,6 +383,8 @@ test("storefront frontend safe DOM projection kullanır ve QR zorunluluğu içer
     assert.match(html, /Paylaş/);
     assert.match(html, /WhatsApp'tan Sipariş Ver/);
     assert.match(script, /\/api\/public\/storefront\//);
+    assert.match(script, /\/api\/public\/storefront-host/);
+    assert.match(script, /customDomainRoot/);
     assert.match(script, /navigator\.share/);
     assert.match(script, /textContent/);
     assert.doesNotMatch(script, /innerHTML\s*=/);
