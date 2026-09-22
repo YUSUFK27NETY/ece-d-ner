@@ -109,6 +109,13 @@ test("public storefront ürün projection yalnız güvenli catalog alanları ve 
     assert.equal(projected.imageUrl, "https://media.example.com/p1");
     assert.equal(Object.hasOwn(projected, "tenantId"), false);
     assert.equal(Object.hasOwn(projected, "createdAt"), false);
+
+    const withoutGallery = projectPublicProduct(product, { includeImage: false });
+    assert.equal(withoutGallery.imageUrl, "");
+    assert.throws(
+        () => projectPublicProduct(product, { includeImage: "yes" }),
+        TypeError
+    );
 });
 
 test("media signature kontrolü JPEG/PNG/WebP kabul eder ve sahte payload reddeder", () => {
@@ -212,7 +219,11 @@ test("owner media UI ve storefront media decorator güvenli static contract taş
     const storefrontHtml = fs.readFileSync(path.join(__dirname, "../public/storefront/index.html"), "utf8");
     const storefrontMedia = fs.readFileSync(path.join(__dirname, "../public/storefront/media.js"), "utf8");
 
-    assert.match(ownerPanel, /href="\/owner\/media\.html"/);
+    assert.match(
+        ownerPanel,
+        /href="\/owner\/media\.html"[^>]*data-feature-all="catalog gallery"/
+    );
+    assert.match(mediaJs, /tenant\.features\?\.catalog !== true \|\| tenant\.features\?\.gallery !== true/);
     assert.match(mediaJs, /input\.accept\s*=\s*"image\/jpeg,image\/png,image\/webp"/);
     assert.match(mediaJs, /media\/products\/\$\{encodeURIComponent\(product\.productId\)\}\/image/);
     assert.match(mediaJs, /getIdToken\(\)/);
@@ -223,5 +234,18 @@ test("owner media UI ve storefront media decorator güvenli static contract taş
     assert.match(storefrontHtml, /\/m\/media\.css/);
     assert.match(storefrontHtml, /\/m\/media\.js/);
     assert.match(storefrontMedia, /createElement\("img"\)/);
+    assert.match(storefrontMedia, /galleryEnabled/);
+    assert.match(storefrontMedia, /features\?\.gallery === true/);
     assert.doesNotMatch(storefrontMedia, /innerHTML\s*=/);
+});
+
+
+test("owner media upload runtime fail-closed gallery feature contract taşır", () => {
+    const runtime = fs.readFileSync(
+        path.join(__dirname, "../src/http/attach-tenant-owner-runtime.js"),
+        "utf8"
+    );
+    assert.match(runtime, /MEDIA_FEATURE_NOT_AVAILABLE/);
+    assert.match(runtime, /features\.catalog !== true \|\| features\.gallery !== true/);
+    assert.match(runtime, /await requireMediaFeatureTenant\(req\.params\.tenantId\)/);
 });
