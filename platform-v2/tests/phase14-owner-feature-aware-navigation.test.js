@@ -13,7 +13,6 @@ test("owner panel navigation declares exact feature dependencies", () => {
     const html = read("public/owner/panel.html");
 
     const exact = new Map([
-        ["/owner/media.html", "catalog"],
         ["/owner/orders.html", "orders"],
         ["/owner/appointments.html", "appointments"],
         ["/owner/quotes.html", "quotes"],
@@ -27,6 +26,10 @@ test("owner panel navigation declares exact feature dependencies", () => {
         );
     }
 
+    assert.match(
+        html,
+        /href="\/owner\/media\.html"[^>]*data-feature-all="catalog gallery"/
+    );
     assert.match(
         html,
         /href="\/owner\/inventory\.html"[^>]*data-feature-any="inventory orders"/
@@ -44,9 +47,10 @@ test("owner panel navigation declares exact feature dependencies", () => {
 test("owner panel renders feature-aware navigation and falls back from hidden active view", () => {
     const source = read("public/owner/owner.js");
 
-    assert.match(source, /featureNavigation:\s*\[\.\.\.document\.querySelectorAll\("\[data-feature\], \[data-feature-any\]"\)\]/);
+    assert.match(source, /featureNavigation:\s*\[\.\.\.document\.querySelectorAll\("\[data-feature\], \[data-feature-any\], \[data-feature-all\]"\)\]/);
     assert.match(source, /function renderFeatureNavigation\(\)/);
     assert.match(source, /features\[exactFeature\] === true/);
+    assert.match(source, /allFeatures\.every\(feature => features\[feature\] === true\)/);
     assert.match(source, /anyFeatures\.some\(feature => features\[feature\] === true\)/);
     assert.match(source, /item\.hidden = !visible/);
     assert.match(source, /if \(activeTab\) setView\("dashboard"\)/);
