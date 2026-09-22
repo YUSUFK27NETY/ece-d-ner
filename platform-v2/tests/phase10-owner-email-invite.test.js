@@ -255,7 +255,7 @@ test("email invite frontends keep custom invite secret out of request query and 
     assert.match(bootstrapClient, /url\.hash = fragment\.toString\(\)/);
     assert.doesNotMatch(inviteClient, /searchParams\.set\("inviteToken"/);
     assert.doesNotMatch(bootstrapClient, /searchParams\.set\("inviteToken"/);
-    assert.match(acceptHtml, /Davet edilen e-posta/);
+    assert.match(acceptHtml, /Owner olarak davet edilen müşteri e-postası/);
     assert.match(acceptClient, /new URLSearchParams\(url\.hash/);
     assert.match(acceptClient, /isSignInWithEmailLink/);
     assert.match(acceptClient, /signInWithEmailLink/);
