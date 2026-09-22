@@ -95,6 +95,12 @@ function sendInitialOwnerError(res, error) {
 }
 
 function sendOwnerReassignmentError(res, error) {
+    if (error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND") {
+        return res.status(409).json({
+            success: false,
+            message: "Bu owner hesabı başka bir aktif işletmeye bağlı."
+        });
+    }
     if (error?.code === "OWNER_REASSIGNMENT_AUTH_INVALID") {
         return res.status(401).json({
             success: false,
@@ -142,6 +148,12 @@ function sendOwnerReassignmentError(res, error) {
 }
 
 function sendInviteError(res, error) {
+    if (error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND") {
+        return res.status(409).json({
+            success: false,
+            message: "Bu owner hesabı başka bir aktif işletmeye bağlı."
+        });
+    }
     if (error?.code === "INVITE_AUTH_INVALID") {
         return res.status(401).json({ success: false, message: "Davet oturumu geçersiz veya süresi dolmuş." });
     }
