@@ -163,6 +163,9 @@ test("quick setup frontend restartable akış, server readiness ve güvenli DOM 
     assert.match(script, /delivery\/qr\.svg/);
     assert.match(script, /businessHours/);
     assert.match(script, /catalog\/products/);
+    assert.match(script, /RUNTIME_UNAVAILABLE_FEATURES/);
+    assert.match(script, /input\.disabled = !available/);
+    assert.match(script, /Yakında/);
     assert.match(script, /textContent/);
     assert.match(script, /replaceChildren/);
     assert.doesNotMatch(script, /innerHTML\s*=/);
@@ -177,6 +180,9 @@ test("ana admin sektör şablonları CRM dahil feature setini hardcode etmeden �
     assert.match(script, /Object\.keys\(/);
     assert.match(script, /state\.featureKeys/);
     assert.match(script, /renderFeatureGrid/);
+    assert.match(script, /RUNTIME_UNAVAILABLE_FEATURES/);
+    assert.match(script, /input\.disabled = !available/);
+    assert.match(script, /Yakında/);
     assert.match(script, /replaceChildren/);
     assert.doesNotMatch(script, /const FEATURE_KEYS/);
     assert.doesNotMatch(script, /innerHTML\s*=/);

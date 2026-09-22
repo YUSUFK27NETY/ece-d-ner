@@ -8,6 +8,9 @@
         delivery: "Teslimat", campaigns: "Kampanyalar", loyalty: "Sadakat",
         staff: "Personel", reviews: "Yorumlar", analytics: "Analitik"
     });
+    const RUNTIME_UNAVAILABLE_FEATURES = new Set([
+        "delivery", "campaigns", "loyalty", "staff", "reviews", "analytics"
+    ]);
     const SIMPLE_ID_PATTERN = /^[a-z0-9][a-z0-9_-]{1,63}$/;
     const templateSelect = document.getElementById("sector-template");
     const templateSummary = document.getElementById("sector-template-summary");
@@ -93,7 +96,17 @@
             const label = document.createElement("label");
             const input = document.createElement("input");
             input.type = "checkbox"; input.dataset.feature = key;
-            label.append(input, document.createTextNode(` ${featureLabel(key)}`));
+            const available = !RUNTIME_UNAVAILABLE_FEATURES.has(key);
+            input.disabled = !available;
+            if (!available) {
+                input.title = "Bu modül henüz runtime kullanımına açık değil.";
+            }
+            label.append(
+                input,
+                document.createTextNode(
+                    ` ${featureLabel(key)}${available ? "" : " · Yakında"}`
+                )
+            );
             fragment.append(label);
         }
         featureGrid.replaceChildren(fragment);

@@ -3,7 +3,10 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { FEATURE_CATALOG } = require("../src/tenant/feature-catalog");
+const {
+    FEATURE_CATALOG,
+    RUNTIME_UNAVAILABLE_FEATURES
+} = require("../src/tenant/feature-catalog");
 const {
     loadPlatformGuardrailsConfig
 } = require("../src/config/platform-guardrails-config");
@@ -12,10 +15,12 @@ const {
 } = require("../src/entitlements/entitlement-service");
 const {
     FEATURE_LABELS,
+    RUNTIME_UNAVAILABLE_FEATURES: UI_RUNTIME_UNAVAILABLE_FEATURES,
     PLAN_PACKAGE_CATALOG,
     PACKAGE_ORDER,
     normalizePlanId,
-    suggestedFeaturesForPlan
+    suggestedFeaturesForPlan,
+    isRuntimeFeatureAvailable
 } = require("../public/admin/plan-packages");
 
 const ROOT = path.join(__dirname, "..");
@@ -88,7 +93,7 @@ test("Starter, Business and Business Pro presets cover the server feature catalo
     );
 });
 
-test("new tenant options have explicit Turkish labels and remain manual add-ons", () => {
+test("declared future featurelar etiketli kalır ama runtime açılımına kapalıdır", () => {
     assert.deepEqual(
         Object.fromEntries(NEW_OPTIONAL_FEATURES.map(feature => [feature, FEATURE_LABELS[feature]])),
         {
@@ -100,6 +105,14 @@ test("new tenant options have explicit Turkish labels and remain manual add-ons"
             staff: "Personel"
         }
     );
+    assert.deepEqual(
+        [...UI_RUNTIME_UNAVAILABLE_FEATURES].sort(),
+        [...RUNTIME_UNAVAILABLE_FEATURES].sort()
+    );
+    for (const feature of NEW_OPTIONAL_FEATURES) {
+        assert.equal(isRuntimeFeatureAvailable(feature), false);
+    }
+    assert.equal(isRuntimeFeatureAvailable("orders"), true);
 });
 
 test("package aliases normalize without accepting arbitrary plans as presets", () => {
@@ -151,6 +164,9 @@ test("package preset UI remains suggestion-only and never persists on selection"
     );
 
     assert.match(source, /Paket yalnız modül önerisi uygular/);
+    assert.match(source, /input\.disabled = !available/);
+    assert.match(source, /Yakında/);
+    assert.match(source, /if \(input\.disabled\) continue/);
     assert.doesNotMatch(source, /\bfetch\s*\(/);
     assert.doesNotMatch(source, /localStorage|sessionStorage/);
     assert.doesNotMatch(source, /innerHTML/);

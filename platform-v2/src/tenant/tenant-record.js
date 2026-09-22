@@ -1,5 +1,5 @@
 const { requireTenantId } = require("./tenant-id");
-const { createFeatureFlags } = require("./feature-catalog");
+const { assertFeatureActivationAvailable } = require("./feature-catalog");
 const { createTenantProfile } = require("./tenant-profile");
 const { createTenantPresentation } = require("../presentation/presentation-tier");
 
@@ -59,7 +59,7 @@ function createTenantRecord({
         sector: requireSimpleId(sector, "Sektör"),
         plan: requireSimpleId(plan, "Paket"),
         status: normalizedStatus,
-        features: createFeatureFlags(features),
+        features: assertFeatureActivationAvailable({ nextFeatures: features }),
         profile: createTenantProfile(profile),
         createdAt: now.toISOString(),
         updatedAt: now.toISOString(),
