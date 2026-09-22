@@ -19,7 +19,6 @@
     }
 
     const tenantId = tenantIdFromPath();
-    if (!tenantId) return;
 
     moduleGrid.addEventListener("click", event => {
         const link = event.target.closest("a");
@@ -37,9 +36,9 @@
         }
 
         let destination = null;
-        if (title === "Randevu") {
+        if (tenantId && title === "Randevu") {
             destination = `/m/${encodeURIComponent(tenantId)}/appointments`;
-        } else if (title === "Teklif") {
+        } else if (tenantId && title === "Teklif") {
             destination = `/m/${encodeURIComponent(tenantId)}/quote`;
         }
         if (!destination) return;
