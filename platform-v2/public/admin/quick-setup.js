@@ -13,6 +13,9 @@
         delivery: "Teslimat", campaigns: "Kampanyalar", loyalty: "Sadakat",
         staff: "Personel", reviews: "Yorumlar", analytics: "Analitik"
     });
+    const RUNTIME_UNAVAILABLE_FEATURES = new Set([
+        "delivery", "campaigns", "loyalty", "staff", "reviews", "analytics"
+    ]);
     const READINESS_LABELS = Object.freeze({
         profile: "Profil", health: "Sistem sağlığı", plan: "Plan",
         adminBootstrap: "Owner / Admin Bootstrap", backup: "Backup",
@@ -208,7 +211,17 @@
             const input = document.createElement("input");
             input.type = "checkbox";
             input.dataset.feature = key;
-            label.append(input, document.createTextNode(` ${featureLabel(key)}`));
+            const available = !RUNTIME_UNAVAILABLE_FEATURES.has(key);
+            input.disabled = !available;
+            if (!available) {
+                input.title = "Bu modül henüz runtime kullanımına açık değil.";
+            }
+            label.append(
+                input,
+                document.createTextNode(
+                    ` ${featureLabel(key)}${available ? "" : " · Yakında"}`
+                )
+            );
             fragment.append(label);
         }
         el.featureGrid.replaceChildren(fragment);
