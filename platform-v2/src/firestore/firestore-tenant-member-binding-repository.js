@@ -13,6 +13,12 @@ const {
     ADMIN_BOOTSTRAP_EVIDENCE_SETTING_ID
 } = require("./firestore-admin-bootstrap-evidence-provider");
 const { requireTenantMemberRole } = require("../auth/tenant-member-subject");
+const {
+    DEFAULT_TENANT_MEMBER_SUBJECT_INDEX_COLLECTION,
+    createTenantMemberSubjectIndex,
+    createTenantMemberSubjectIndexCollection,
+    projectTenantMemberSubjectIndex
+} = require("./tenant-member-subject-index");
 
 const INITIAL_OWNER_BINDING_SETTING_ID = "initial-owner-binding";
 const INITIAL_OWNER_INVITE_SETTING_ID = "initial-owner-invite";
@@ -58,6 +64,13 @@ function ambiguousBinding() {
     return codedError(
         "TENANT_MEMBER_AMBIGUOUS",
         "Tenant member subject birden fazla aktif işletmeye bağlı."
+    );
+}
+
+function subjectAlreadyBound() {
+    return codedError(
+        "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+        "Tenant member subject başka bir aktif işletmeye bağlı."
     );
 }
 
@@ -199,13 +212,18 @@ function requireInitialOwnerArtifacts({ expectedTenant, binding, ownerSlot, evid
 
 function createFirestoreTenantMemberBindingRepository({
     db,
-    tenantRegistryCollection = DEFAULT_TENANT_REGISTRY_COLLECTION
+    tenantRegistryCollection = DEFAULT_TENANT_REGISTRY_COLLECTION,
+    subjectIndexCollection = DEFAULT_TENANT_MEMBER_SUBJECT_INDEX_COLLECTION
 }) {
     if (!db || typeof db.doc !== "function" || typeof db.collection !== "function" ||
         typeof db.runTransaction !== "function") fail("db");
     const collectionName = String(tenantRegistryCollection ?? "").trim();
     if (!/^[A-Za-z0-9_-]{3,120}$/.test(collectionName)) fail("tenant registry collection");
     const tenantRegistry = db.collection(collectionName);
+    const subjectIndex = createTenantMemberSubjectIndexCollection({
+        db,
+        collectionName: subjectIndexCollection
+    });
 
     function refsFor(tenantId, subjectRef = null) {
         const refs = {
@@ -216,6 +234,7 @@ function createFirestoreTenantMemberBindingRepository({
         };
         if (subjectRef) {
             refs.memberRef = db.doc(tenantDocument(tenantId, TENANT_COLLECTIONS.members, subjectRef));
+            refs.subjectIndexRef = subjectIndex.doc(subjectRef);
         }
         return refs;
     }
@@ -304,13 +323,29 @@ function createFirestoreTenantMemberBindingRepository({
                 const memberSnapshot = await transaction.get(refs.memberRef);
                 const ownerSlotSnapshot = await transaction.get(refs.ownerSlotRef);
                 const evidenceSnapshot = await transaction.get(refs.evidenceRef);
-                for (const snapshot of [memberSnapshot, ownerSlotSnapshot, evidenceSnapshot]) {
+                const subjectIndexSnapshot = await transaction.get(refs.subjectIndexRef);
+                for (const snapshot of [memberSnapshot, ownerSlotSnapshot, evidenceSnapshot, subjectIndexSnapshot]) {
                     if (!snapshot || typeof snapshot.exists !== "boolean") fail("transaction snapshot");
+                }
+                for (const snapshot of [memberSnapshot, ownerSlotSnapshot, evidenceSnapshot]) {
                     if (snapshot.exists) throw conflict();
+                }
+                if (subjectIndexSnapshot.exists) {
+                    if (typeof subjectIndexSnapshot.data !== "function") fail("subject index snapshot");
+                    projectTenantMemberSubjectIndex(subjectIndexSnapshot.data(), binding.subjectRef);
+                    throw subjectAlreadyBound();
                 }
                 transaction.create(refs.memberRef, { ...input.binding });
                 transaction.create(refs.ownerSlotRef, { ...input.ownerSlot });
                 transaction.create(refs.evidenceRef, { ...input.evidence });
+                transaction.create(
+                    refs.subjectIndexRef,
+                    createTenantMemberSubjectIndex({
+                        subjectRef: binding.subjectRef,
+                        tenantId,
+                        observedAt: binding.createdAt
+                    })
+                );
                 transaction.create(boundAuditRef, { ...input.auditEvent });
                 return binding;
             });
@@ -334,13 +369,20 @@ function createFirestoreTenantMemberBindingRepository({
                 const memberSnapshot = await transaction.get(refs.memberRef);
                 const ownerSlotSnapshot = await transaction.get(refs.ownerSlotRef);
                 const evidenceSnapshot = await transaction.get(refs.evidenceRef);
+                const subjectIndexSnapshot = await transaction.get(refs.subjectIndexRef);
                 if (!inviteSnapshot || typeof inviteSnapshot.exists !== "boolean" ||
                     !memberSnapshot || typeof memberSnapshot.exists !== "boolean" ||
                     !ownerSlotSnapshot || typeof ownerSlotSnapshot.exists !== "boolean" ||
-                    !evidenceSnapshot || typeof evidenceSnapshot.exists !== "boolean") {
+                    !evidenceSnapshot || typeof evidenceSnapshot.exists !== "boolean" ||
+                    !subjectIndexSnapshot || typeof subjectIndexSnapshot.exists !== "boolean") {
                     fail("transaction snapshot");
                 }
                 if (memberSnapshot.exists || ownerSlotSnapshot.exists || evidenceSnapshot.exists) throw conflict();
+                if (subjectIndexSnapshot.exists) {
+                    if (typeof subjectIndexSnapshot.data !== "function") fail("subject index snapshot");
+                    projectTenantMemberSubjectIndex(subjectIndexSnapshot.data(), binding.subjectRef);
+                    throw subjectAlreadyBound();
+                }
                 if (!inviteSnapshot.exists || typeof inviteSnapshot.data !== "function") throw invalidInvite();
                 const invite = projectInvite(inviteSnapshot.data(), tenantId);
                 if (invite.emailHash !== emailHash || invite.tokenHash !== tokenHash) throw invalidInvite();
@@ -349,6 +391,14 @@ function createFirestoreTenantMemberBindingRepository({
                 transaction.create(refs.memberRef, { ...input.binding });
                 transaction.create(refs.ownerSlotRef, { ...input.ownerSlot });
                 transaction.create(refs.evidenceRef, { ...input.evidence });
+                transaction.create(
+                    refs.subjectIndexRef,
+                    createTenantMemberSubjectIndex({
+                        subjectRef: binding.subjectRef,
+                        tenantId,
+                        observedAt: binding.createdAt
+                    })
+                );
                 transaction.create(boundAuditRef, { ...input.auditEvent });
                 transaction.delete(refs.inviteRef);
                 return binding;

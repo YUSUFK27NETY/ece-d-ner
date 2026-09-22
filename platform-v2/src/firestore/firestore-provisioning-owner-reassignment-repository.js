@@ -15,6 +15,12 @@ const {
 const {
     INITIAL_OWNER_BINDING_SETTING_ID
 } = require("./firestore-tenant-member-binding-repository");
+const {
+    DEFAULT_TENANT_MEMBER_SUBJECT_INDEX_COLLECTION,
+    createTenantMemberSubjectIndex,
+    createTenantMemberSubjectIndexCollection,
+    projectTenantMemberSubjectIndex
+} = require("./tenant-member-subject-index");
 
 const OWNER_REASSIGNMENT_INVITE_SETTING_ID = "initial-owner-reassignment-invite";
 const SUBJECT_REF_PATTERN = /^firebase:[0-9a-f]{64}$/;
@@ -87,6 +93,13 @@ function sameSubject() {
     return codedError(
         "TENANT_OWNER_REASSIGNMENT_SAME_SUBJECT",
         "Yeni owner mevcut owner ile aynı."
+    );
+}
+
+function subjectAlreadyBound() {
+    return codedError(
+        "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+        "Yeni owner kimliği başka bir aktif işletmeye bağlı."
     );
 }
 
@@ -221,7 +234,8 @@ function requireCurrentOwnerConsistency({ ownerSlot, evidence, member }) {
 
 function createFirestoreProvisioningOwnerReassignmentRepository({
     db,
-    tenantRegistryCollection = DEFAULT_TENANT_REGISTRY_COLLECTION
+    tenantRegistryCollection = DEFAULT_TENANT_REGISTRY_COLLECTION,
+    subjectIndexCollection = DEFAULT_TENANT_MEMBER_SUBJECT_INDEX_COLLECTION
 }) {
     if (!db || typeof db.doc !== "function" ||
         typeof db.collection !== "function" ||
@@ -233,6 +247,10 @@ function createFirestoreProvisioningOwnerReassignmentRepository({
         fail("tenant registry collection");
     }
     const tenantRegistry = db.collection(collectionName);
+    const subjectIndex = createTenantMemberSubjectIndexCollection({
+        db,
+        collectionName: subjectIndexCollection
+    });
 
     function refs(tenantId) {
         return Object.freeze({
@@ -495,15 +513,55 @@ function createFirestoreProvisioningOwnerReassignmentRepository({
                     tenantId,
                     newBinding.subjectRef
                 );
+                const newSubjectIndexRef = subjectIndex.doc(
+                    newBinding.subjectRef
+                );
+                const oldSubjectIndexRef = subjectIndex.doc(
+                    current.ownerSlot.subjectRef
+                );
                 const newMemberSnapshot = await transaction.get(
                     newMemberRef
                 );
-                if (!newMemberSnapshot ||
-                    typeof newMemberSnapshot.exists !== "boolean") {
-                    fail("transaction snapshot");
+                const newSubjectIndexSnapshot = await transaction.get(
+                    newSubjectIndexRef
+                );
+                const oldSubjectIndexSnapshot = await transaction.get(
+                    oldSubjectIndexRef
+                );
+                for (const snapshot of [
+                    newMemberSnapshot,
+                    newSubjectIndexSnapshot,
+                    oldSubjectIndexSnapshot
+                ]) {
+                    if (!snapshot ||
+                        typeof snapshot.exists !== "boolean") {
+                        fail("transaction snapshot");
+                    }
                 }
                 if (newMemberSnapshot.exists) {
                     throw targetExists();
+                }
+                if (newSubjectIndexSnapshot.exists) {
+                    if (typeof newSubjectIndexSnapshot.data !== "function") {
+                        fail("subject index snapshot");
+                    }
+                    projectTenantMemberSubjectIndex(
+                        newSubjectIndexSnapshot.data(),
+                        newBinding.subjectRef
+                    );
+                    throw subjectAlreadyBound();
+                }
+                if (oldSubjectIndexSnapshot.exists) {
+                    if (typeof oldSubjectIndexSnapshot.data !== "function") {
+                        fail("subject index snapshot");
+                    }
+                    const oldIndex = projectTenantMemberSubjectIndex(
+                        oldSubjectIndexSnapshot.data(),
+                        current.ownerSlot.subjectRef
+                    );
+                    if (oldIndex.tenantId !== tenantId) {
+                        throw stateChanged();
+                    }
                 }
 
                 const revokedOldMember = {
@@ -520,6 +578,17 @@ function createFirestoreProvisioningOwnerReassignmentRepository({
                     newMemberRef,
                     { ...newBinding }
                 );
+                transaction.create(
+                    newSubjectIndexRef,
+                    createTenantMemberSubjectIndex({
+                        subjectRef: newBinding.subjectRef,
+                        tenantId,
+                        observedAt: acceptedAt
+                    })
+                );
+                if (oldSubjectIndexSnapshot.exists) {
+                    transaction.delete(oldSubjectIndexRef);
+                }
                 transaction.set(
                     baseRefs.ownerSlotRef,
                     { ...newOwnerSlot }

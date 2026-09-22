@@ -32,6 +32,7 @@ function createHarness() {
     let record = tenant();
     let invite = null;
     let bound = null;
+    let activeBinding = null;
     const createAudits = [];
     const acceptInputs = [];
     const identity = {
@@ -51,6 +52,9 @@ function createHarness() {
     };
 
     const repository = {
+        async findActiveBySubject() {
+            return activeBinding ? { ...activeBinding } : null;
+        },
         async commitInitialOwner() {},
         async createInitialOwnerInvite(input) {
             invite = { ...input.invite };
@@ -101,7 +105,10 @@ function createHarness() {
         get invite() { return invite; },
         get bound() { return bound; },
         setNow(value) { now = new Date(value); },
-        setStatus(status) { record = { ...record, status }; }
+        setStatus(status) { record = { ...record, status }; },
+        setActiveBinding(value) {
+            activeBinding = value ? { ...value } : null;
+        }
     };
 }
 
@@ -173,6 +180,26 @@ test("valid Firebase email-link identity atomically consumes invite and creates 
         error => error?.code === "TENANT_INITIAL_OWNER_ALREADY_BOUND" ||
             error?.code === "TENANT_INITIAL_OWNER_INVITE_INVALID"
     );
+});
+
+test("initial owner acceptance rejects Firebase subject already active in another tenant", async () => {
+    const harness = createHarness();
+    const invite = await harness.service.createInitialOwnerInvite(createCommand());
+    harness.setActiveBinding({
+        tenantId: "other-tenant",
+        role: "tenant_owner",
+        state: "active"
+    });
+
+    await assert.rejects(
+        () => harness.service.acceptInitialOwnerInvite(
+            acceptCommand(invite.inviteToken)
+        ),
+        error => error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
+    );
+    assert.equal(harness.bound, null);
+    assert.equal(harness.acceptInputs.length, 0);
+    assert.notEqual(harness.invite, null);
 });
 
 test("platform_admin identity can never be promoted through owner invite", async () => {
@@ -286,6 +313,8 @@ test("invite endpoints remain split between Platform Admin creation and rate-lim
     assert.match(source, /rateLimit/);
     assert.match(source, /max: 30/);
     assert.match(source, /Bearer /);
+    assert.match(source, /TENANT_MEMBER_SUBJECT_ALREADY_BOUND/);
+    assert.match(source, /Bu owner hesabı başka bir aktif işletmeye bağlı/);
     assert.doesNotMatch(source, /inviteToken.*console/s);
 });
 
@@ -299,6 +328,9 @@ test("Firestore invite consumption deletes pending invite in the same transactio
     assert.match(source, /transaction\.create\(refs\.memberRef/);
     assert.match(source, /transaction\.create\(refs\.ownerSlotRef/);
     assert.match(source, /transaction\.create\(refs\.evidenceRef/);
+    assert.match(source, /refs\.subjectIndexRef/);
+    assert.match(source, /createTenantMemberSubjectIndex/);
+    assert.match(source, /TENANT_MEMBER_SUBJECT_ALREADY_BOUND/);
     assert.match(source, /transaction\.delete\(refs\.inviteRef\)/);
     assert.match(source, /TENANT_INITIAL_OWNER_INVITE_EXPIRED/);
 });

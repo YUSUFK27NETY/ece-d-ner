@@ -220,6 +220,7 @@ function createProvisioningOwnerReassignmentService({
     auth,
     tenantRegistry,
     reassignmentRepository,
+    bindingReader,
     clock = () => new Date(),
     inviteTtlMs = DEFAULT_OWNER_REASSIGNMENT_INVITE_TTL_MS,
     randomBytes = crypto.randomBytes
@@ -237,6 +238,10 @@ function createProvisioningOwnerReassignmentService({
         typeof reassignmentRepository.commitReassignment !== "function") {
         throw new TypeError("Owner reassignment repository gerekli.");
     }
+    if (!bindingReader ||
+        typeof bindingReader.findActiveBySubject !== "function") {
+        throw new TypeError("Owner reassignment binding reader gerekli.");
+    }
     if (typeof clock !== "function") {
         throw new TypeError("Owner reassignment clock geçersiz.");
     }
@@ -247,6 +252,31 @@ function createProvisioningOwnerReassignmentService({
     }
     if (typeof randomBytes !== "function") {
         throw new TypeError("Owner reassignment random source geçersiz.");
+    }
+
+    async function assertNotBoundToOtherTenant(subjectRef, tenantId) {
+        let existing;
+        try {
+            existing = await bindingReader.findActiveBySubject({ subjectRef });
+        } catch (error) {
+            if (error?.code === "TENANT_MEMBER_AMBIGUOUS" ||
+                error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND") {
+                throw safeError(
+                    "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+                    "Yeni owner hesabı başka bir aktif işletmeye bağlı."
+                );
+            }
+            throw safeError(
+                "TENANT_OWNER_REASSIGNMENT_UNAVAILABLE",
+                "Yeni owner hesap kapsamı doğrulanamadı."
+            );
+        }
+        if (existing && existing.tenantId !== tenantId) {
+            throw safeError(
+                "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+                "Yeni owner hesabı başka bir aktif işletmeye bağlı."
+            );
+        }
     }
 
     return Object.freeze({
@@ -410,6 +440,10 @@ function createProvisioningOwnerReassignmentService({
                 observedAt,
                 requestId: command.requestId
             });
+            await assertNotBoundToOtherTenant(
+                artifacts.newBinding.subjectRef,
+                command.tenantId
+            );
 
             try {
                 await reassignmentRepository.commitReassignment({
@@ -426,7 +460,8 @@ function createProvisioningOwnerReassignmentService({
                     "TENANT_OWNER_REASSIGNMENT_INVITE_INVALID",
                     "TENANT_OWNER_REASSIGNMENT_INVITE_EXPIRED",
                     "TENANT_OWNER_REASSIGNMENT_TARGET_EXISTS",
-                    "TENANT_OWNER_REASSIGNMENT_SAME_SUBJECT"
+                    "TENANT_OWNER_REASSIGNMENT_SAME_SUBJECT",
+                    "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
                 ].includes(error?.code)) {
                     throw error;
                 }

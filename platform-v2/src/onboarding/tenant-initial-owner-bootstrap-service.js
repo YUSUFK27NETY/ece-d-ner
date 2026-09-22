@@ -202,7 +202,9 @@ function createTenantInitialOwnerBootstrapService({
     if (!tenantRegistry || typeof tenantRegistry.getById !== "function") {
         throw new TypeError("Tenant registry getById gerekli.");
     }
-    if (!bindingRepository || typeof bindingRepository.commitInitialOwner !== "function") {
+    if (!bindingRepository ||
+        typeof bindingRepository.commitInitialOwner !== "function" ||
+        typeof bindingRepository.findActiveBySubject !== "function") {
         throw new TypeError("Tenant member binding repository gerekli.");
     }
     if (typeof clock !== "function") throw new TypeError("Initial owner bootstrap clock geçersiz.");
@@ -211,6 +213,31 @@ function createTenantInitialOwnerBootstrapService({
         throw new TypeError("Initial owner davet süresi geçersiz.");
     }
     if (typeof randomBytes !== "function") throw new TypeError("Initial owner random source geçersiz.");
+
+    async function assertSubjectAvailable(subjectRef) {
+        let existing;
+        try {
+            existing = await bindingRepository.findActiveBySubject({ subjectRef });
+        } catch (error) {
+            if (error?.code === "TENANT_MEMBER_AMBIGUOUS" ||
+                error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND") {
+                throw safeError(
+                    "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+                    "Owner hesabı başka bir aktif işletmeye bağlı."
+                );
+            }
+            throw safeError(
+                "TENANT_BOOTSTRAP_UNAVAILABLE",
+                "Owner hesap kapsamı doğrulanamadı."
+            );
+        }
+        if (existing) {
+            throw safeError(
+                "TENANT_MEMBER_SUBJECT_ALREADY_BOUND",
+                "Owner hesabı başka bir aktif işletmeye bağlı."
+            );
+        }
+    }
 
     return Object.freeze({
         async bindInitialOwner(input) {
@@ -247,6 +274,7 @@ function createTenantInitialOwnerBootstrapService({
                 requestId: command.requestId,
                 auditSource: "controlled_external_identity"
             });
+            await assertSubjectAvailable(artifacts.binding.subjectRef);
 
             try {
                 await bindingRepository.commitInitialOwner({
@@ -256,7 +284,8 @@ function createTenantInitialOwnerBootstrapService({
             } catch (error) {
                 if ([
                     "TENANT_INITIAL_OWNER_ALREADY_BOUND",
-                    "TENANT_BOOTSTRAP_STATE_CHANGED"
+                    "TENANT_BOOTSTRAP_STATE_CHANGED",
+                    "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
                 ].includes(error?.code)) throw error;
                 throw safeError("TENANT_BOOTSTRAP_UNAVAILABLE", "Initial owner bağlanamadı.");
             }
@@ -389,6 +418,7 @@ function createTenantInitialOwnerBootstrapService({
                 requestId: command.requestId,
                 auditSource: INITIAL_OWNER_INVITE_DELIVERY
             });
+            await assertSubjectAvailable(artifacts.binding.subjectRef);
             try {
                 await bindingRepository.commitInitialOwnerFromInvite({
                     expectedTenant: tenant,
@@ -402,7 +432,8 @@ function createTenantInitialOwnerBootstrapService({
                     "TENANT_INITIAL_OWNER_ALREADY_BOUND",
                     "TENANT_INITIAL_OWNER_INVITE_INVALID",
                     "TENANT_INITIAL_OWNER_INVITE_EXPIRED",
-                    "TENANT_BOOTSTRAP_STATE_CHANGED"
+                    "TENANT_BOOTSTRAP_STATE_CHANGED",
+                    "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
                 ].includes(error?.code)) throw error;
                 throw safeError("TENANT_BOOTSTRAP_UNAVAILABLE", "Initial owner daveti kabul edilemedi.");
             }

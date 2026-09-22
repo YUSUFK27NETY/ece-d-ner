@@ -252,7 +252,8 @@ function startPlatformServer() {
     const ownerReassignmentService = createProvisioningOwnerReassignmentService({
         auth,
         tenantRegistry,
-        reassignmentRepository: ownerReassignmentRepository
+        reassignmentRepository: ownerReassignmentRepository,
+        bindingReader: tenantMemberBindingRepository
     });
     const auditWriter = createFirestoreAuditWriter({ db });
     const tenantManagementService = createTenantManagementService({

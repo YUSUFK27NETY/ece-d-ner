@@ -52,6 +52,34 @@ function fakeFirestore() {
         collection(name) {
             return { doc(id) { return makeRef(`${name}/${id}`); } };
         },
+        collectionGroup(name) {
+            function snapshot(subjectRef = null) {
+                const entries = [...docs.entries()]
+                    .filter(([docPath, value]) =>
+                        docPath.includes(`/${name}/`) &&
+                        (subjectRef === null || value?.subjectRef === subjectRef)
+                    )
+                    .map(([docPath, value]) => ({
+                        id: docPath.split("/").at(-1),
+                        data: () => ({ ...value })
+                    }));
+                return { docs: entries };
+            }
+            return {
+                where(field, operator, value) {
+                    assert.equal(field, "subjectRef");
+                    assert.equal(operator, "==");
+                    return {
+                        async get() {
+                            return snapshot(value);
+                        }
+                    };
+                },
+                async get() {
+                    return snapshot();
+                }
+            };
+        },
         async runTransaction(callback) {
             const pending = [];
             const transaction = {
@@ -127,6 +155,16 @@ test("initial owner bootstrap verifies external identity then atomically writes 
         updatedAt: NOW.toISOString()
     });
     assert.deepEqual(
+        harness.db.docs.get(`platformTenantMemberSubjects/${subjectRef}`),
+        {
+            schemaVersion: 1,
+            subjectRef,
+            tenantId: TENANT_ID,
+            state: "active",
+            observedAt: NOW.toISOString()
+        }
+    );
+    assert.deepEqual(
         harness.db.docs.get(`tenants/${TENANT_ID}/settings/admin-bootstrap-readiness`),
         {
             schemaVersion: 1,
@@ -186,6 +224,41 @@ test("unknown external identity safe not-found üretir ve raw provider error sı
         }),
         error => error?.code === "EXTERNAL_IDENTITY_NOT_FOUND" &&
             !error.message.includes("raw firebase")
+    );
+});
+
+test("existing active subject in another tenant initial owner bootstrapı committen önce engeller", async () => {
+    const harness = createHarness();
+    const subjectRef = deriveFirebaseSubjectRef(UID);
+    harness.db.docs.set(
+        `tenants/other-tenant/members/${subjectRef}`,
+        {
+            schemaVersion: 1,
+            tenantId: "other-tenant",
+            subjectRef,
+            role: "tenant_owner",
+            source: "firebase_auth",
+            state: "active",
+            createdAt: NOW.toISOString(),
+            updatedAt: NOW.toISOString()
+        }
+    );
+
+    await assert.rejects(
+        () => harness.service.bindInitialOwner({
+            context: { role: "platform_admin", actorId: "platform-admin-1" },
+            tenantId: TENANT_ID,
+            firebaseUid: UID
+        }),
+        error => error?.code === "TENANT_MEMBER_SUBJECT_ALREADY_BOUND"
+    );
+    assert.equal(
+        harness.db.docs.has(`tenants/${TENANT_ID}/members/${subjectRef}`),
+        false
+    );
+    assert.equal(
+        harness.db.docs.has(`platformTenantMemberSubjects/${subjectRef}`),
+        false
     );
 });
 
