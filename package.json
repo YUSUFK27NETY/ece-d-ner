@@ -15,9 +15,7 @@
     "security": "npm run security:secrets && npm run security:dependencies",
     "healthcheck": "node scripts/check-live-endpoints.js",
     "ci": "npm run check && npm test && npm run security:secrets",
-    "grant-admin": "node scripts/set-admin-claim.js",
-    "backup:retention-plan": "node platform-v2/scripts/run-backup-retention-plan.js",
-    "public-route:verify-register": "node platform-v2/scripts/verify-and-register-public-route.js"
+    "grant-admin": "node scripts/set-admin-claim.js"
   },
   "dependencies": {
     "@google-cloud/firestore": "8.7.1",
