@@ -51,6 +51,10 @@ test("media response reuse is exact-tenant, same-origin and fail-closed", () => 
         mediaBridge,
         /storefront\?\.tenant\?\.tenantId !== tenantId \|\| !Array\.isArray\(storefront\.products\)/
     );
+    assert.match(
+        mediaBridge,
+        /state\.galleryEnabled = storefront\.tenant\?\.features\?\.gallery === true/
+    );
 });
 
 test("media decoration keeps the existing HTTPS-only and privacy-safe image contract", () => {
