@@ -32,11 +32,25 @@
         analytics: "Raporlama / Analitik"
     });
 
+    const RUNTIME_UNAVAILABLE_FEATURES = Object.freeze([
+        "delivery",
+        "campaigns",
+        "loyalty",
+        "staff",
+        "reviews",
+        "analytics"
+    ]);
+    const RUNTIME_UNAVAILABLE_FEATURE_SET = new Set(RUNTIME_UNAVAILABLE_FEATURES);
+
     const PACKAGE_ORDER = Object.freeze([
         "starter",
         "business",
         "business_pro"
     ]);
+
+    function isRuntimeFeatureAvailable(feature) {
+        return !RUNTIME_UNAVAILABLE_FEATURE_SET.has(String(feature || ""));
+    }
 
     const PLAN_PACKAGE_CATALOG = Object.freeze({
         starter: Object.freeze({
@@ -158,9 +172,16 @@
         const input = documentRef.createElement("input");
         input.type = "checkbox";
         input.dataset.feature = feature;
+        const available = isRuntimeFeatureAvailable(feature);
+        input.disabled = !available;
+        if (!available) {
+            input.title = "Bu modül henüz runtime kullanımına açık değil.";
+        }
         label.append(
             input,
-            documentRef.createTextNode(` ${FEATURE_LABELS[feature] || feature}`)
+            documentRef.createTextNode(
+                ` ${FEATURE_LABELS[feature] || feature}${available ? "" : " · Yakında"}`
+            )
         );
         return label;
     }
@@ -186,10 +207,18 @@
         for (const input of featureGrid.querySelectorAll("input[data-feature]")) {
             const label = input.closest("label");
             if (!label) continue;
-            const text = FEATURE_LABELS[input.dataset.feature];
+            const feature = input.dataset.feature;
+            const text = FEATURE_LABELS[feature];
             if (!text) continue;
+            const available = isRuntimeFeatureAvailable(feature);
+            input.disabled = !available;
+            if (!available) {
+                input.title = "Bu modül henüz runtime kullanımına açık değil.";
+            } else {
+                input.removeAttribute("title");
+            }
 
-            const expectedText = ` ${text}`;
+            const expectedText = ` ${text}${available ? "" : " · Yakında"}`;
             const textNodes = [...label.childNodes]
                 .filter(node => node.nodeType === 3);
             if (textNodes.length === 1 && textNodes[0].textContent === expectedText) {
@@ -206,6 +235,7 @@
         if (!featureGrid || !features) return false;
 
         for (const input of featureGrid.querySelectorAll("input[data-feature]")) {
+            if (input.disabled) continue;
             if (Object.hasOwn(features, input.dataset.feature)) {
                 input.checked = features[input.dataset.feature] === true;
             }
@@ -325,6 +355,7 @@
 
     return Object.freeze({
         FEATURE_LABELS,
+        RUNTIME_UNAVAILABLE_FEATURES,
         PLAN_PACKAGE_CATALOG,
         PACKAGE_ORDER,
         normalizePlanId,
@@ -332,6 +363,7 @@
         suggestedFeaturesForPlan,
         suggestedPresentationForPlan,
         featureSummary,
+        isRuntimeFeatureAvailable,
         applyPlanSuggestion,
         initializePlanPackagePicker
     });
