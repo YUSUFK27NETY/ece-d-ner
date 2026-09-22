@@ -98,7 +98,15 @@
         if (error?.code === "auth/too-many-requests") {
             return "Firebase çok fazla e-posta isteği algıladı. Daha sonra yeniden dene.";
         }
-        return error?.message || "Owner değiştirme daveti gönderilemedi.";
+        const code = String(error?.code || "");
+        if (code.startsWith("auth/")) {
+            return "Firebase owner değiştirme daveti gönderilemedi. Biraz sonra tekrar dene veya Firebase Authentication ayarlarını kontrol et.";
+        }
+        const safeMessage = String(error?.message || "").trim();
+        if (safeMessage && safeMessage.length <= 220 && !/^Firebase:/i.test(safeMessage)) {
+            return safeMessage;
+        }
+        return "Owner değiştirme daveti gönderilemedi.";
     }
 
     sendButton.addEventListener("click", async () => {

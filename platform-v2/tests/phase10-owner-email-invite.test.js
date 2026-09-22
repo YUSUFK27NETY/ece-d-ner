@@ -255,7 +255,7 @@ test("email invite frontends keep custom invite secret out of request query and 
     assert.match(bootstrapClient, /url\.hash = fragment\.toString\(\)/);
     assert.doesNotMatch(inviteClient, /searchParams\.set\("inviteToken"/);
     assert.doesNotMatch(bootstrapClient, /searchParams\.set\("inviteToken"/);
-    assert.match(acceptHtml, /Davet edilen e-posta/);
+    assert.match(acceptHtml, /Owner olarak davet edilen müşteri e-postası/);
     assert.match(acceptClient, /new URLSearchParams\(url\.hash/);
     assert.match(acceptClient, /isSignInWithEmailLink/);
     assert.match(acceptClient, /signInWithEmailLink/);
@@ -301,4 +301,16 @@ test("Firestore invite consumption deletes pending invite in the same transactio
     assert.match(source, /transaction\.create\(refs\.evidenceRef/);
     assert.match(source, /transaction\.delete\(refs\.inviteRef\)/);
     assert.match(source, /TENANT_INITIAL_OWNER_INVITE_EXPIRED/);
+});
+
+
+test("owner invite admin client does not expose raw unknown Firebase errors", () => {
+    const client = fs.readFileSync(
+        path.join(__dirname, "../public/admin/owner-email-invite.js"),
+        "utf8"
+    );
+
+    assert.match(client, /code\.startsWith\("auth\/"\)/);
+    assert.match(client, /!\/\^Firebase:\/i\.test\(safeMessage\)/);
+    assert.doesNotMatch(client, /return error\?\.message/);
 });
