@@ -1,7 +1,7 @@
 const { createAuditEvent } = require("../audit/audit-event");
 const { requireTenantId } = require("./tenant-id");
 const { TENANT_STATUSES } = require("./tenant-record");
-const { createFeatureFlags } = require("./feature-catalog");
+const { assertFeatureActivationAvailable, createFeatureFlags } = require("./feature-catalog");
 const { mergeTenantProfile } = require("./tenant-profile");
 const { createTenantPresentation } = require("../presentation/presentation-tier");
 
@@ -111,9 +111,13 @@ function createTenantManagementService({ tenantRegistry, auditWriter = null }) {
                     throw new TypeError("Feature patch nesne olmalı.");
                 }
 
-                next.features = createFeatureFlags({
+                const requestedFeatures = createFeatureFlags({
                     ...(current.features || {}),
                     ...patch.features
+                });
+                next.features = assertFeatureActivationAvailable({
+                    currentFeatures: current.features || {},
+                    nextFeatures: requestedFeatures
                 });
             }
 
