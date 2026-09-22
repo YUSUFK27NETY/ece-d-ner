@@ -99,6 +99,13 @@ test("sektör şablon kataloğu mevcut feature kataloğuna tam ve immutable bağ
     assert.equal(ids.has("market"), true);
     assert.equal(ids.has("barber"), true);
     assert.equal(ids.has("manufacturing-b2b"), true);
+
+    for (const id of ["general", "professional-services"]) {
+        const template = SECTOR_TEMPLATE_CATALOG.find(item => item.id === id);
+        assert.ok(template);
+        assert.equal(template.features.gallery, true);
+        assert.equal(template.features.catalog, true);
+    }
 });
 
 test("şablon bilinmeyen feature kabul etmez", () => {
