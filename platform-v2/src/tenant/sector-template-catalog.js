@@ -147,15 +147,15 @@ const SECTOR_TEMPLATE_CATALOG = Object.freeze([
         id: "professional-services",
         label: "Profesyonel Hizmet / Danışmanlık",
         sector: "professional-services",
-        description: "Randevu, teklif talebi, CRM, WhatsApp ve kurumsal galeri.",
-        enabledFeatures: ["appointments", "quotes", "crm", "whatsapp", "gallery"]
+        description: "Hizmet kataloğu, randevu, teklif talebi, CRM, WhatsApp ve kurumsal galeri.",
+        enabledFeatures: ["catalog", "appointments", "quotes", "crm", "whatsapp", "gallery"]
     }),
     createSectorTemplate({
         id: "general",
         label: "Genel İşletme / Tanıtım Sitesi",
         sector: "general",
-        description: "WhatsApp ve galeri ile sade kurumsal başlangıç; diğer modüller elle açılabilir.",
-        enabledFeatures: ["whatsapp", "gallery"]
+        description: "Ürün/hizmet kataloğu, WhatsApp ve görsellerle sade kurumsal başlangıç; diğer modüller elle açılabilir.",
+        enabledFeatures: ["catalog", "whatsapp", "gallery"]
     })
 ]);
 

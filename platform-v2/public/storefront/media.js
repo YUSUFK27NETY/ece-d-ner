@@ -5,7 +5,7 @@
     if (!grid) return;
 
     const TENANT_ID_PATTERN = /^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])?$/;
-    const state = { products: [] };
+    const state = { products: [], galleryEnabled: false };
 
     function tenantIdFromPath() {
         const parts = window.location.pathname.split("/").filter(Boolean);
@@ -61,7 +61,7 @@
     }
 
     function decorate() {
-        if (!state.products.length) return;
+        if (!state.galleryEnabled || !state.products.length) return;
         const byKey = new Map();
         for (const product of state.products) {
             if (typeof product?.imageUrl !== "string" || !product.imageUrl.startsWith("https://")) continue;
@@ -96,6 +96,7 @@
             const payload = await response.clone().json();
             const storefront = payload?.storefront;
             if (storefront?.tenant?.tenantId !== tenantId || !Array.isArray(storefront.products)) return;
+            state.galleryEnabled = storefront.tenant?.features?.gallery === true;
             state.products = storefront.products;
             decorate();
         } catch {

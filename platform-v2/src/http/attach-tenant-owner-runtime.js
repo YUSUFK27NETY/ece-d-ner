@@ -130,6 +130,12 @@ function projectOwnerTenant(tenant) {
 }
 
 function sendOwnerBusinessError(res, error) {
+    if (error?.code === "MEDIA_FEATURE_NOT_AVAILABLE") {
+        return res.status(409).json({
+            success: false,
+            message: "Ürün/hizmet görselleri için Katalog ve Galeri modülleri birlikte aktif olmalı."
+        });
+    }
     if (new Set(["PRODUCT_NOT_FOUND", "ORDER_NOT_FOUND", "TENANT_NOT_FOUND"]).has(error?.code)) {
         return res.status(404).json({ success: false, message: "Kayıt bulunamadı." });
     }
@@ -240,6 +246,22 @@ function attachTenantOwnerRuntime({
         });
     }
 
+    async function requireMediaFeatureTenant(rawTenantId) {
+        const tenant = await tenantRegistry.getById(rawTenantId);
+        if (!tenant || tenant.tenantId !== rawTenantId) {
+            const error = new Error("Tenant bulunamadı.");
+            error.code = "TENANT_NOT_FOUND";
+            throw error;
+        }
+        const features = createFeatureFlags(tenant.features || {});
+        if (features.catalog !== true || features.gallery !== true) {
+            const error = new Error("Media feature kullanılamıyor.");
+            error.code = "MEDIA_FEATURE_NOT_AVAILABLE";
+            throw error;
+        }
+        return tenant;
+    }
+
     const ownerPublicDir = path.join(__dirname, "../../public/owner");
 
     app.use("/owner", (req, res, next) => {
@@ -299,6 +321,7 @@ function attachTenantOwnerRuntime({
                 if (Reflect.ownKeys(req.query).length > 0) {
                     throw new TypeError("Media upload sorgu parametresi kabul etmez.");
                 }
+                await requireMediaFeatureTenant(req.params.tenantId);
                 const products = await catalogService.list({
                     context: actorContext(req),
                     tenantId: req.params.tenantId,
