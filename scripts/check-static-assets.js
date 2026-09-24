@@ -160,6 +160,7 @@ function checkBalancedBraces(fileName) {
 
 [
     "script.js",
+    "restaurant-status.js",
     "server.js",
     "order-pricing.js",
     "cors-policy.js",

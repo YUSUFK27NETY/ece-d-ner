@@ -54,7 +54,7 @@ jobs:
       - name: Prepare static site
         run: |
           mkdir _site
-          cp index.html admin.html style.css script.js hero.jpg logo.jpg robots.txt sitemap.xml _site/
+          cp index.html admin.html style.css script.js restaurant-status.js hero.jpg logo.jpg robots.txt sitemap.xml _site/
       - name: Setup Pages
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
       - name: Upload artifact

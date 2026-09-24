@@ -40,6 +40,9 @@
     <link rel="dns-prefetch" href="//ece-d-ner-1.onrender.com">
     <link rel="preload" as="image" href="hero.jpg" fetchpriority="high">
 
+    <!-- Durum sorgusu Firebase dosyalarını beklemeden başlar. -->
+    <script defer src="restaurant-status.js"></script>
+
     <!-- FIREBASE: HTML parse işlemini bloklamadan sırayla yüklenir -->
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script defer src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -551,7 +554,7 @@
 
     <!-- JAVASCRIPT -->
 
-    <script defer src="script.js"></script>
+    <script defer src="script.js?v=20260924-status-recovery"></script>
 
 </body>
 </html>
