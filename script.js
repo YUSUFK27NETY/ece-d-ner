@@ -56,14 +56,6 @@ const ORDER_API_URL =
 
 const WHATSAPP_NUMBER =
     "905315006996";
-const RESTAURANT_STATUS_URL =
-    `${API_BASE_URL}/api/restaurant/status`;
-const RESTAURANT_STATUS_REFRESH_MS =
-    120000;
-
-const STATUS_REQUEST_TIMEOUT_MS =
-    18000;
-
 const ORDER_REQUEST_TIMEOUT_MS =
     30000;
 
@@ -76,11 +68,7 @@ let restaurantStatusLoaded =
 let restaurantStatusError =
     false;
 
-let restaurantStatusRequestInFlight =
-    false;
-
-let restaurantStatusPollTimer =
-    null;
+let restaurantStatusUnsubscribe = null;
 
 let orderIdempotencySupported =
     false;
@@ -277,7 +265,7 @@ function getRestaurantUnavailableMessage() {
 
     if (restaurantStatusError) {
 
-        return "Restoran durumu doğrulanamadı. Lütfen kısa süre sonra tekrar deneyin. 🟠";
+        return "Restoran bağlantısı bekleniyor. Durum otomatik güncellenecek. 🟡";
     }
 
     return "Restoran şu anda kapalı. Sipariş alınamıyor. 🔴";
@@ -285,11 +273,6 @@ function getRestaurantUnavailableMessage() {
 
 
 function updateRestaurantStatusUI() {
-
-    const statusText =
-        document.querySelector(
-            ".status .open"
-        );
 
     const restaurantBtn =
         document.getElementById(
@@ -306,43 +289,6 @@ function updateRestaurantStatusUI() {
             ?.querySelector(
                 'button[type="submit"]'
             );
-
-
-    if (statusText) {
-
-        if (!restaurantStatusLoaded) {
-
-            statusText.textContent =
-                "🟡 Durum Kontrol Ediliyor";
-
-            statusText.style.color =
-                "#facc15";
-
-        } else if (restaurantStatusError) {
-
-            statusText.textContent =
-                "🟠 Durum Alınamadı";
-
-            statusText.style.color =
-                "#fb923c";
-
-        } else if (restaurantIsOpen) {
-
-            statusText.textContent =
-                "🟢 Şu Anda Açık";
-
-            statusText.style.color =
-                "#22c55e";
-
-        } else {
-
-            statusText.textContent =
-                "🔴 Şu Anda Kapalı";
-
-            statusText.style.color =
-                "#ef4444";
-        }
-    }
 
 
     if (restaurantBtn) {
@@ -372,117 +318,24 @@ function updateRestaurantStatusUI() {
 }
 
 
-async function loadRestaurantStatus() {
-
-    if (restaurantStatusRequestInFlight) {
-
+function subscribeToRestaurantStatus() {
+    restaurantStatusUnsubscribe?.();
+    const status = window.eceRestaurantStatus;
+    if (!status) {
+        restaurantStatusLoaded = true;
+        restaurantStatusError = true;
+        const badge = document.querySelector(".status .open");
+        if (badge) badge.textContent = "🟠 Durum Doğrulanamadı";
+        updateRestaurantStatusUI();
         return;
     }
-
-    restaurantStatusRequestInFlight =
-        true;
-
-    try {
-
-        const response =
-            await fetchWithTimeout(
-                RESTAURANT_STATUS_URL,
-                {
-                    cache:
-                        "no-store"
-                },
-                STATUS_REQUEST_TIMEOUT_MS
-            );
-
-
-        const result =
-            await response.json();
-
-
-        if (
-            !response.ok ||
-            result?.success !== true
-        ) {
-
-            throw new Error(
-                result?.message ||
-                "Restoran durumu alınamadı."
-            );
-        }
-
-
-        restaurantIsOpen =
-            result.isOpen === true;
-
-        restaurantStatusLoaded =
-            true;
-
-        restaurantStatusError =
-            false;
-
-        orderIdempotencySupported =
-            result?.features
-                ?.orderIdempotency ===
-            true;
-
+    restaurantStatusUnsubscribe = status.subscribe(snapshot => {
+        restaurantIsOpen = snapshot.phase === "ready" && snapshot.isOpen;
+        restaurantStatusLoaded = snapshot.phase !== "checking";
+        restaurantStatusError = snapshot.phase !== "ready";
+        orderIdempotencySupported = snapshot.orderIdempotencySupported;
         updateRestaurantStatusUI();
-
-
-    } catch (error) {
-
-        console.error(
-            "❌ Restoran durumu alınamadı:",
-            error
-        );
-
-
-        restaurantIsOpen =
-            false;
-
-        restaurantStatusLoaded =
-            true;
-
-        restaurantStatusError =
-            true;
-
-        updateRestaurantStatusUI();
-
-    } finally {
-
-        restaurantStatusRequestInFlight =
-            false;
-    }
-}
-
-
-function startRestaurantStatusPolling() {
-
-    if (restaurantStatusPollTimer) {
-
-        clearInterval(
-            restaurantStatusPollTimer
-        );
-    }
-
-    restaurantStatusPollTimer =
-        setInterval(
-            loadRestaurantStatus,
-            RESTAURANT_STATUS_REFRESH_MS
-        );
-
-    document.addEventListener(
-        "visibilitychange",
-        () => {
-
-            if (
-                document.visibilityState ===
-                "visible"
-            ) {
-
-                loadRestaurantStatus();
-            }
-        }
-    );
+    });
 }
 
 // ==========================================
@@ -3789,9 +3642,7 @@ function initializeApp() {
 
     updateRestaurantStatusUI();
 
-    loadRestaurantStatus();
-
-    startRestaurantStatusPolling();
+    subscribeToRestaurantStatus();
 
     setupCartEvents();
 
